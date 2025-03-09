@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>序列分析 - BioInfo Nexus</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@600&family=Noto+Sans:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/search.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">BioInfo Nexus</a>
+            <div class="nav-links">
+                <a href="#" class="contact-link">联系我们
+                    <span class="email-tooltip">bioinfo.nexus@example.com</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div id="particles-js"></div>
+        <div class="hero-container">
+            <div class="content-container">
+                <h1 class="title">序列分析</h1>
+
+                <div class="input-section">
+                    <div class="input-group">
+                        <textarea class="sequence-input" placeholder="请输入氨基酸序列..."></textarea>
+                        <div class="char-counter">0 个氨基酸</div>
+                    </div>
+
+                    <div class="analysis-tools">
+                        <div class="tool-cards">
+                            <div class="tool-card" data-tool="protparam">
+                                <div class="tool-icon">
+                                    <i data-lucide="scale"></i>
+                                </div>
+                                <div class="tool-info">
+                                    <h4>分子量计算</h4>
+                                    <p>使用ProtParam计算蛋白质分子量</p>
+                                </div>
+                            </div>
+
+                            <div class="tool-card" data-tool="signalp">
+                                <div class="tool-icon">
+                                    <i data-lucide="signal"></i>
+                                </div>
+                                <div class="tool-info">
+                                    <h4>信号肽预测</h4>
+                                    <p>使用SignalP预测信号肽位点</p>
+                                </div>
+                            </div>
+
+                            <div class="tool-card" data-tool="vaxijen">
+                                <div class="tool-icon">
+                                    <i data-lucide="shield"></i>
+                                </div>
+                                <div class="tool-info">
+                                    <h4>抗原性预测</h4>
+                                    <p>使用VaxiJen预测蛋白质抗原性</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="analyze-btn">
+                            <i data-lucide="play"></i>
+                            开始分析
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 管理工具区域已移除 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/particles-config.js"></script>
+    <script src="js/search.js"></script>
+</body>
+</html>

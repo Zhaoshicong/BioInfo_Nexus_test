@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioInfo Nexus - 生物信息集成网站</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@600&family=Noto+Sans:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="#" class="nav-logo">BioInfo Nexus</a>
+            <div class="nav-links">
+                <a href="#home">首页</a>
+                <a href="#" class="contact-link">联系我们
+                    <span class="email-tooltip">bioinfo.nexus@example.com</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div id="particles-js"></div>
+        <div class="content-wrapper">
+            <div class="intro">
+                <h1>欢迎来到BioInfo Nexus</h1>
+                <p>BioInfo Nexus是一个专业的生物信息学集成平台，致力于为科研人员提供全面的生物序列分析工具和数据资源。</p>
+                <ul class="feature-list">
+                    <li data-feature="sequence" data-tooltip="支持多种序列比对算法，包括BLAST、FASTA等，实现快速精准的序列分析">强大的序列比对和分析工具</li>
+                    <li data-feature="database" data-tooltip="整合PDB、UniProt等多个数据库资源，提供全面的蛋白质和核酸数据检索">全面的蛋白质和核酸数据库</li>
+                    <li data-feature="visual" data-tooltip="提供序列结构预测、进化树分析等多种可视化工具">直观的可视化分析功能</li>
+                    <li data-feature="workflow" data-tooltip="标准化的分析流程，确保研究结果的可重复性和可靠性">专业的生物信息学分析流程</li>
+                </ul>
+                <div class="feature-tooltip"></div>
+            </div>
+
+            <div class="login-container">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">用户登录</button>
+                    <button class="auth-tab" data-tab="register">用户注册</button>
+                </div>
+                
+                <div id="loginTab" class="auth-content active">
+                    <form id="loginForm" onsubmit="return validateLogin(event)">
+                        <div class="form-group">
+                            <label for="username">邮箱</label>
+                            <input type="email" id="username" name="username" placeholder="请输入邮箱" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">密码</label>
+                            <div class="password-container">
+                                <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                                <button type="button" class="password-toggle" data-target="password">
+                                    <i data-lucide="eye" class="eye-icon"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="submit" class="login-btn">登录</button>
+                        <div class="login-links">
+                            <a href="#" id="showRegister">注册账号</a>
+                            <a href="#">忘记密码？</a>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="registerTab" class="auth-content">
+                    <form id="registerForm" onsubmit="return validateRegister(event)">
+                        <div class="form-group">
+                            <label for="reg-email">邮箱</label>
+                            <input type="email" id="reg-email" name="reg-email" placeholder="请输入邮箱" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-password">密码</label>
+                            <div class="password-container">
+                                <input type="password" id="reg-password" name="reg-password" placeholder="请输入密码" required>
+                                <button type="button" class="password-toggle" data-target="reg-password">
+                                    <i data-lucide="eye" class="eye-icon"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-confirm-password">确认密码</label>
+                            <div class="password-container">
+                                <input type="password" id="reg-confirm-password" name="reg-confirm-password" placeholder="请再次输入密码" required>
+                                <button type="button" class="password-toggle" data-target="reg-confirm-password">
+                                    <i data-lucide="eye" class="eye-icon"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="submit" class="register-btn">注册</button>
+                        <div class="login-links">
+                            <a href="#" id="showLogin">已有账号？去登录</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/particles-config.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

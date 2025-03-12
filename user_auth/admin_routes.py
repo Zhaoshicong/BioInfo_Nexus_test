@@ -1,154 +1,197 @@
-from flask import Blueprint, request, jsonify
-from .user_system import db, User, token_required, admin_required
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from functools import wraps
+from flask_jwt_extended import jwt_required, get_jwt_identity
+import sqlite3
+import os
+from datetime import datetime
 
 # 创建蓝图
-admin_bp = Blueprint('admin', __name__)
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-# 获取所有用户
-@admin_bp.route('/users', methods=['GET'])
-@token_required
-@admin_required
-def get_all_users(current_user):
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    
-    # 分页查询
-    users_pagination = User.query.paginate(page=page, per_page=per_page, error_out=False)
-    
-    users_data = []
-    for user in users_pagination.items:
-        user_data = {
-            'id': user.public_id,
-            'username': user.username,
-            'email': user.email,
-            'is_active': user.is_active,
-            'is_admin': user.is_admin,
-            'created_at': user.created_at
-        }
-        users_data.append(user_data)
-    
-    return jsonify({
-        'users': users_data,
-        'total': users_pagination.total,
-        'pages': users_pagination.pages,
-        'current_page': users_pagination.page
-    }), 200
+# 数据库连接函数
+def get_db_connection():
+    conn = sqlite3.connect('instance/database.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# 获取单个用户详情
-@admin_bp.route('/users/<int:user_id>', methods=['GET'])
-@token_required
+# 管理员权限检查装饰器
+def admin_required(f):
+    @wraps(f)
+    @jwt_required()
+    def decorated(*args, **kwargs):
+        current_user_id = get_jwt_identity()
+        conn = get_db_connection()
+        user = conn.execute('SELECT * FROM user WHERE id = ?', (current_user_id,)).fetchone()
+        conn.close()
+        
+        if not user or user['role'] != 'admin':
+            return jsonify({"message": "管理员权限需要"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+# 管理面板首页
+@admin_bp.route('/')
 @admin_required
-def get_user_detail(current_user, user_id):
-    """获取用户详情"""
-    user = User.query.filter_by(id=user_id).first()
+def admin_panel():
+    conn = get_db_connection()
     
-    if not user:
-        return jsonify({'message': '用户不存在！'}), 404
+    # 获取用户统计
+    user_count = conn.execute('SELECT COUNT(*) FROM user').fetchone()[0]
+    admin_count = conn.execute('SELECT COUNT(*) FROM user WHERE role = "admin"').fetchone()[0]
     
-    # 构建用户数据
-    user_data = {
-        'id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'created_at': user.created_at,
-        'last_login': user.last_login,
-        'is_active': user.is_active,
-        'is_admin': user.is_admin
+    # 获取最近注册的用户
+    recent_users = conn.execute('SELECT id, username, email, registered_on FROM user ORDER BY registered_on DESC LIMIT 5').fetchall()
+    
+    # 获取系统统计
+    stats = {
+        'user_count': user_count,
+        'admin_count': admin_count,
+        'recent_users': [dict(u) for u in recent_users]
     }
     
-    return jsonify(user_data), 200
+    conn.close()
+    return render_template('admin/index.html', stats=stats)
 
-# 更新用户状态（激活/禁用）
-@admin_bp.route('/users/<public_id>/status', methods=['PUT'])
-@token_required
+# 用户管理
+@admin_bp.route('/users')
 @admin_required
-def update_user_status(current_user, public_id):
-    user = User.query.filter_by(public_id=public_id).first()
+def manage_users():
+    conn = get_db_connection()
+    users = conn.execute('SELECT * FROM user ORDER BY registered_on DESC').fetchall()
+    conn.close()
+    return render_template('admin/users.html', users=[dict(u) for u in users])
+
+# 查看单个用户
+@admin_bp.route('/users/<int:user_id>')
+@admin_required
+def view_user(user_id):
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
     
     if not user:
-        return jsonify({'message': '用户不存在！'}), 404
+        flash('用户不存在', 'error')
+        return redirect(url_for('admin.manage_users'))
     
-    # 防止管理员禁用自己
-    if user.id == current_user.id:
-        return jsonify({'message': '不能修改自己的状态！'}), 403
-    
-    data = request.get_json()
-    
-    if 'is_active' in data:
-        user.is_active = bool(data['is_active'])
-        db.session.commit()
-        
-        status = '激活' if user.is_active else '禁用'
-        return jsonify({'message': f'用户已{status}！'}), 200
-    
-    return jsonify({'message': '缺少必要参数！'}), 400
+    return render_template('admin/user_detail.html', user=dict(user))
 
-# 更新用户管理员权限
-@admin_bp.route('/users/<public_id>/admin', methods=['PUT'])
-@token_required
+# 设置用户为管理员
+@admin_bp.route('/users/<int:user_id>/set_admin', methods=['POST'])
 @admin_required
-def update_admin_status(current_user, public_id):
-    user = User.query.filter_by(public_id=public_id).first()
+def set_admin(user_id):
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
     
     if not user:
-        return jsonify({'message': '用户不存在！'}), 404
+        conn.close()
+        flash('用户不存在', 'error')
+        return redirect(url_for('admin.manage_users'))
     
-    # 防止管理员移除自己的管理员权限
-    if user.id == current_user.id:
-        return jsonify({'message': '不能修改自己的管理员状态！'}), 403
+    conn.execute('UPDATE user SET role = "admin" WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
     
-    data = request.get_json()
+    flash(f'用户 {user["username"]} 已设置为管理员', 'success')
+    return redirect(url_for('admin.manage_users'))
+
+# 移除管理员权限
+@admin_bp.route('/users/<int:user_id>/remove_admin', methods=['POST'])
+@admin_required
+def remove_admin(user_id):
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
     
-    if 'is_admin' in data:
-        user.is_admin = bool(data['is_admin'])
-        db.session.commit()
-        
-        status = '授予' if user.is_admin else '移除'
-        return jsonify({'message': f'已{status}用户的管理员权限！'}), 200
+    if not user:
+        conn.close()
+        flash('用户不存在', 'error')
+        return redirect(url_for('admin.manage_users'))
     
-    return jsonify({'message': '缺少必要参数！'}), 400
+    conn.execute('UPDATE user SET role = "user" WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+    
+    flash(f'已移除 {user["username"]} 的管理员权限', 'success')
+    return redirect(url_for('admin.manage_users'))
 
 # 删除用户
-@admin_bp.route('/users/<public_id>', methods=['DELETE'])
-@token_required
+@admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
-def delete_user(current_user, public_id):
-    """删除用户"""
-    # 不允许删除自己
-    if current_user.public_id == public_id:
-        return jsonify({'message': '不能删除自己的账户！'}), 403
-    
-    user = User.query.filter_by(public_id=public_id).first()
+def delete_user(user_id):
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
     
     if not user:
-        return jsonify({'message': '用户不存在！'}), 404
+        conn.close()
+        flash('用户不存在', 'error')
+        return redirect(url_for('admin.manage_users'))
     
-    # 删除用户
-    db.session.delete(user)
-    db.session.commit()
+    # 检查是否是最后一个管理员
+    if user['role'] == 'admin':
+        admin_count = conn.execute('SELECT COUNT(*) FROM user WHERE role = "admin"').fetchone()[0]
+        if admin_count <= 1:
+            conn.close()
+            flash('不能删除最后一个管理员', 'error')
+            return redirect(url_for('admin.manage_users'))
     
-    return jsonify({'message': '用户已删除！'}), 200
+    conn.execute('DELETE FROM user WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+    
+    flash(f'用户 {user["username"]} 已删除', 'success')
+    return redirect(url_for('admin.manage_users'))
 
-# 获取系统统计信息
-@admin_bp.route('/stats', methods=['GET'])
-@token_required
+# 系统日志
+@admin_bp.route('/logs')
 @admin_required
-def get_stats(current_user):
-    """获取系统统计信息"""
-    # 获取用户总数
-    total_users = User.query.count()
+def view_logs():
+    log_file = 'logs/app.log'
+    logs = []
     
-    # 获取活跃用户数
-    active_users = User.query.filter_by(is_active=True).count()
+    if os.path.exists(log_file):
+        with open(log_file, 'r') as f:
+            logs = f.readlines()[-100:]  # 获取最后100行
     
-    # 获取管理员数量
-    admin_count = User.query.filter_by(is_admin=True).count()
+    return render_template('admin/logs.html', logs=logs)
+
+# 系统设置
+@admin_bp.route('/settings')
+@admin_required
+def settings():
+    return render_template('admin/settings.html')
+
+# 更新系统设置
+@admin_bp.route('/settings/update', methods=['POST'])
+@admin_required
+def update_settings():
+    # 这里可以添加更新系统设置的逻辑
+    flash('系统设置已更新', 'success')
+    return redirect(url_for('admin.settings'))
+
+# API: 获取用户列表
+@admin_bp.route('/api/users')
+@admin_required
+def api_users():
+    conn = get_db_connection()
+    users = conn.execute('SELECT id, username, email, role, registered_on FROM user').fetchall()
+    conn.close()
+    return jsonify([dict(u) for u in users])
+
+# API: 获取系统统计
+@admin_bp.route('/api/stats')
+@admin_required
+def api_stats():
+    conn = get_db_connection()
     
-    # 构建统计数据
-    stats = {
-        'total_users': total_users,
-        'active_users': active_users,
-        'admin_count': admin_count
-    }
+    # 用户统计
+    user_count = conn.execute('SELECT COUNT(*) FROM user').fetchone()[0]
+    admin_count = conn.execute('SELECT COUNT(*) FROM user WHERE role = "admin"').fetchone()[0]
     
-    return jsonify(stats), 200 
+    # 其他统计数据可以根据需要添加
+    
+    conn.close()
+    
+    return jsonify({
+        'user_count': user_count,
+        'admin_count': admin_count,
+        'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }) 

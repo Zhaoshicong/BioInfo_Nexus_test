@@ -53,7 +53,7 @@ init_user_system(app)
 
 # 注册蓝图
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
-app.register_blueprint(admin_bp, url_prefix='/api/admin')
+app.register_blueprint(admin_bp, url_prefix='/admin')
 
 # 添加静态文件服务路由，用于访问temp目录中的图像
 @app.route('/temp/<path:filename>')

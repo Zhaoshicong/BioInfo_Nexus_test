@@ -179,7 +179,7 @@ body {
     /* 先设置渐变背景作为底色，防止图片加载不完整时出现留白 */
     background: linear-gradient(to bottom, #1a4f7a, #0c2338);
     /* 再加载图片背景 */
-    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('../img_data/DNA3.jpg');
+    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('../img_data/DNA4.png');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

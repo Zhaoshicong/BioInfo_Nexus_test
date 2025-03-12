@@ -73,4 +73,4 @@ BioInfo Nexus集成了以下生物信息学工具：
 
 ## 联系方式
 
-如有任何问题或建议，请联系：bioinfo.nexus@example.com 
+如有任何问题或建议，请联系：xiugaiyouxiang

@@ -15,6 +15,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // 设置密码可见性切换
     setupPasswordToggles();
     
+    // 设置忘记密码和重置密码功能
+    setupPasswordReset();
+    
+    // 检查URL参数，如果有重置密码的token，则显示重置密码模态框
+    checkResetPasswordToken();
+    
     featureList.addEventListener('mouseover', function(e) {
         const li = e.target.closest('li');
         if (li) {
@@ -445,4 +451,213 @@ function resendVerificationEmail(email) {
         }, 3000);
         alert('发送请求失败，请稍后再试！');
     });
+}
+
+// 设置忘记密码和重置密码功能
+function setupPasswordReset() {
+    // 获取元素
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+    const resetPasswordModal = document.getElementById('resetPasswordModal');
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+    const resetPasswordForm = document.getElementById('resetPasswordForm');
+    const forgotPasswordMessage = document.getElementById('forgotPasswordMessage');
+    const resetPasswordMessage = document.getElementById('resetPasswordMessage');
+    
+    // 关闭按钮
+    const closeButtons = document.querySelectorAll('.close');
+    
+    // 点击忘记密码链接，显示忘记密码模态框
+    if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            forgotPasswordModal.style.display = 'block';
+        });
+    }
+    
+    // 关闭模态框
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            forgotPasswordModal.style.display = 'none';
+            resetPasswordModal.style.display = 'none';
+        });
+    });
+    
+    // 点击模态框外部关闭模态框
+    window.addEventListener('click', function(e) {
+        if (e.target === forgotPasswordModal) {
+            forgotPasswordModal.style.display = 'none';
+        }
+        if (e.target === resetPasswordModal) {
+            resetPasswordModal.style.display = 'none';
+        }
+    });
+    
+    // 提交忘记密码表单
+    if (forgotPasswordForm) {
+        forgotPasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('forgotEmail').value;
+            
+            try {
+                // 显示加载状态
+                const submitBtn = forgotPasswordForm.querySelector('.submit-btn');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = '发送中...';
+                submitBtn.disabled = true;
+                
+                // 发送请求
+                const response = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                // 恢复按钮状态
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                
+                // 显示消息
+                forgotPasswordMessage.textContent = data.message;
+                forgotPasswordMessage.className = 'message success';
+                
+                // 清空表单
+                forgotPasswordForm.reset();
+                
+                // 3秒后关闭模态框
+                setTimeout(() => {
+                    forgotPasswordModal.style.display = 'none';
+                    forgotPasswordMessage.className = 'message';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                forgotPasswordMessage.textContent = '发送重置链接时出错，请稍后再试。';
+                forgotPasswordMessage.className = 'message error';
+            }
+        });
+    }
+    
+    // 提交重置密码表单
+    if (resetPasswordForm) {
+        resetPasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmNewPassword').value;
+            const token = document.getElementById('resetToken').value;
+            
+            // 验证密码
+            if (password !== confirmPassword) {
+                resetPasswordMessage.textContent = '两次输入的密码不一致！';
+                resetPasswordMessage.className = 'message error';
+                return;
+            }
+            
+            try {
+                // 显示加载状态
+                const submitBtn = resetPasswordForm.querySelector('.submit-btn');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = '重置中...';
+                submitBtn.disabled = true;
+                
+                // 发送请求
+                const response = await fetch(`/api/auth/reset-password/${token}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ password })
+                });
+                
+                const data = await response.json();
+                
+                // 恢复按钮状态
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                
+                if (response.ok) {
+                    // 显示成功消息
+                    resetPasswordMessage.textContent = data.message;
+                    resetPasswordMessage.className = 'message success';
+                    
+                    // 清空表单
+                    resetPasswordForm.reset();
+                    
+                    // 3秒后关闭模态框并重定向到登录页面
+                    setTimeout(() => {
+                        resetPasswordModal.style.display = 'none';
+                        resetPasswordMessage.className = 'message';
+                        // 移除URL中的token参数
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }, 3000);
+                } else {
+                    // 显示错误消息
+                    resetPasswordMessage.textContent = data.message || '重置密码失败，请稍后再试。';
+                    resetPasswordMessage.className = 'message error';
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resetPasswordMessage.textContent = '重置密码时出错，请稍后再试。';
+                resetPasswordMessage.className = 'message error';
+            }
+        });
+    }
+}
+
+// 检查URL参数，如果有重置密码的token，则显示重置密码模态框
+function checkResetPasswordToken() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    
+    if (token) {
+        // 验证token是否有效
+        fetch(`/api/auth/verify-reset-token/${token}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    // token有效，显示重置密码模态框
+                    document.getElementById('resetToken').value = token;
+                    document.getElementById('resetPasswordModal').style.display = 'block';
+                } else {
+                    // token无效，显示错误消息
+                    showToast('重置链接无效或已过期，请重新申请。', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('验证重置链接时出错，请稍后再试。', 'error');
+            });
+    }
+}
+
+// 显示提示消息
+function showToast(message, type = 'info') {
+    // 检查是否已存在toast元素
+    let toast = document.querySelector('.toast');
+    
+    // 如果不存在，创建一个
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    
+    // 设置消息和类型
+    toast.textContent = message;
+    toast.className = `toast ${type}`;
+    
+    // 显示toast
+    toast.style.display = 'block';
+    
+    // 3秒后隐藏
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
 }

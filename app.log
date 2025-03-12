@@ -1,0 +1,136 @@
+2025-03-08 22:50:02,967 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.4:5000
+2025-03-08 22:50:02,967 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-03-08 22:50:13,707 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:13] "GET / HTTP/1.1" 200 -
+2025-03-08 22:50:13,734 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:13] "[36mGET /css/style.css HTTP/1.1[0m" 304 -
+2025-03-08 22:50:13,737 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:13] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-08 22:50:13,739 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:13] "[36mGET /js/main.js HTTP/1.1[0m" 304 -
+2025-03-08 22:50:13,876 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:13] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-08 22:50:13,933 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:13] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-08 22:50:22,983 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:22] "GET /search.html HTTP/1.1" 200 -
+2025-03-08 22:50:23,004 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:23] "GET /js/search.js HTTP/1.1" 200 -
+2025-03-08 22:50:23,006 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:23] "GET /css/search.css HTTP/1.1" 200 -
+2025-03-08 22:50:23,008 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:23] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-08 22:50:23,054 - werkzeug - INFO - 127.0.0.1 - - [08/Mar/2025 22:50:23] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-08 22:50:46,262 - werkzeug - INFO - 192.168.3.4 - - [08/Mar/2025 22:50:46] "GET / HTTP/1.1" 200 -
+2025-03-08 22:50:46,281 - werkzeug - INFO - 192.168.3.4 - - [08/Mar/2025 22:50:46] "GET /css/style.css HTTP/1.1" 200 -
+2025-03-08 22:50:46,282 - werkzeug - INFO - 192.168.3.4 - - [08/Mar/2025 22:50:46] "GET /js/particles-config.js HTTP/1.1" 200 -
+2025-03-08 22:50:46,284 - werkzeug - INFO - 192.168.3.4 - - [08/Mar/2025 22:50:46] "GET /js/main.js HTTP/1.1" 200 -
+2025-03-08 22:50:46,517 - werkzeug - INFO - 192.168.3.4 - - [08/Mar/2025 22:50:46] "GET /img_data/DNA3.jpg HTTP/1.1" 200 -
+2025-03-08 22:50:46,668 - werkzeug - INFO - 192.168.3.4 - - [08/Mar/2025 22:50:46] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-08 22:51:05,472 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:05] "GET / HTTP/1.1" 200 -
+2025-03-08 22:51:05,496 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:05] "GET /css/style.css HTTP/1.1" 200 -
+2025-03-08 22:51:05,498 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:05] "GET /js/main.js HTTP/1.1" 200 -
+2025-03-08 22:51:05,499 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:05] "GET /js/particles-config.js HTTP/1.1" 200 -
+2025-03-08 22:51:05,981 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:05] "GET /img_data/DNA3.jpg HTTP/1.1" 200 -
+2025-03-08 22:51:06,081 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:06] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-08 22:51:27,818 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:27] "GET /search.html HTTP/1.1" 200 -
+2025-03-08 22:51:27,854 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:27] "GET /css/search.css HTTP/1.1" 200 -
+2025-03-08 22:51:27,858 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:27] "GET /js/search.js HTTP/1.1" 200 -
+2025-03-08 22:51:27,859 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:27] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-08 22:51:27,963 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:51:27] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-08 22:55:45,181 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:55:45] "GET / HTTP/1.1" 200 -
+2025-03-08 22:55:45,213 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:55:45] "[36mGET /css/style.css HTTP/1.1[0m" 304 -
+2025-03-08 22:55:45,217 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:55:45] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-08 22:55:45,218 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:55:45] "[36mGET /js/main.js HTTP/1.1[0m" 304 -
+2025-03-08 22:55:45,392 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:55:45] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-08 22:56:00,596 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:56:00] "GET / HTTP/1.1" 200 -
+2025-03-08 22:56:00,619 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:56:00] "[36mGET /css/style.css HTTP/1.1[0m" 304 -
+2025-03-08 22:56:00,628 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:56:00] "[36mGET /js/main.js HTTP/1.1[0m" 304 -
+2025-03-08 22:56:00,629 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:56:00] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-08 22:56:01,017 - werkzeug - INFO - 192.168.3.3 - - [08/Mar/2025 22:56:01] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-09 10:15:06,520 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.4:5000
+2025-03-09 10:15:06,520 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-03-09 10:15:51,604 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:51] "GET / HTTP/1.1" 200 -
+2025-03-09 10:15:51,629 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:51] "GET /css/style.css HTTP/1.1" 200 -
+2025-03-09 10:15:51,630 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:51] "GET /js/particles-config.js HTTP/1.1" 200 -
+2025-03-09 10:15:51,631 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:51] "GET /js/main.js HTTP/1.1" 200 -
+2025-03-09 10:15:51,855 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:51] "GET /img_data/DNA3.jpg HTTP/1.1" 200 -
+2025-03-09 10:15:52,005 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:52] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-09 10:15:59,388 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:59] "GET /search.html HTTP/1.1" 200 -
+2025-03-09 10:15:59,425 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:59] "GET /css/search.css HTTP/1.1" 200 -
+2025-03-09 10:15:59,430 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:59] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-09 10:15:59,433 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:59] "GET /js/search.js HTTP/1.1" 200 -
+2025-03-09 10:15:59,490 - werkzeug - INFO - 192.168.3.4 - - [09/Mar/2025 10:15:59] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-09 10:26:18,647 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.4:5000
+2025-03-09 10:26:18,647 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-03-09 10:31:20,550 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.4:5000
+2025-03-09 10:31:20,550 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-03-09 10:33:42,777 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:33:42] "GET /health HTTP/1.1" 200 -
+2025-03-09 10:36:01,186 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:01] "GET /index.html HTTP/1.1" 200 -
+2025-03-09 10:36:01,219 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:01] "GET /css/style.css HTTP/1.1" 200 -
+2025-03-09 10:36:01,222 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:01] "GET /js/particles-config.js HTTP/1.1" 200 -
+2025-03-09 10:36:01,223 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:01] "GET /js/main.js HTTP/1.1" 200 -
+2025-03-09 10:36:01,372 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:01] "GET /img_data/DNA3.jpg HTTP/1.1" 200 -
+2025-03-09 10:36:01,534 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:01] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-09 10:36:10,207 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:10] "GET /search.html HTTP/1.1" 200 -
+2025-03-09 10:36:10,230 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:10] "GET /js/search.js HTTP/1.1" 200 -
+2025-03-09 10:36:10,233 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:10] "GET /css/search.css HTTP/1.1" 200 -
+2025-03-09 10:36:10,236 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:10] "[36mGET /css/style.css HTTP/1.1[0m" 304 -
+2025-03-09 10:36:10,237 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:10] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-09 10:36:10,289 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:10] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-09 10:36:19,090 - __main__ - INFO - ProtParam analysis request - Sequence length: 12
+2025-03-09 10:36:19,875 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:19] "POST /api/protparam HTTP/1.1" 200 -
+2025-03-09 10:36:24,950 - __main__ - INFO - SignalP analysis request - Sequence length: 12
+2025-03-09 10:36:27,290 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:27] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:36:35,112 - __main__ - INFO - VaxiJen analysis request - Sequence length: 12
+2025-03-09 10:36:35,561 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:36:35] "POST /api/vaxijen HTTP/1.1" 200 -
+2025-03-09 10:38:59,106 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:38:59] "[36mGET /search.html HTTP/1.1[0m" 304 -
+2025-03-09 10:38:59,122 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:38:59] "[36mGET /css/search.css HTTP/1.1[0m" 304 -
+2025-03-09 10:38:59,126 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:38:59] "[36mGET /css/style.css HTTP/1.1[0m" 304 -
+2025-03-09 10:38:59,126 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:38:59] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-09 10:38:59,126 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:38:59] "GET /js/search.js HTTP/1.1" 200 -
+2025-03-09 10:38:59,309 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:38:59] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-09 10:39:05,145 - __main__ - INFO - ProtParam analysis request - Sequence length: 14
+2025-03-09 10:39:05,606 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:39:05] "POST /api/protparam HTTP/1.1" 200 -
+2025-03-09 10:39:08,021 - __main__ - INFO - VaxiJen analysis request - Sequence length: 14
+2025-03-09 10:39:08,409 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:39:08] "POST /api/vaxijen HTTP/1.1" 200 -
+2025-03-09 10:39:45,511 - __main__ - INFO - SignalP analysis request - Sequence length: 14
+2025-03-09 10:39:46,506 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:39:46] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:44:28,580 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:28] "[36mGET /search.html HTTP/1.1[0m" 304 -
+2025-03-09 10:44:28,596 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:28] "GET /css/search.css HTTP/1.1" 200 -
+2025-03-09 10:44:28,597 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:28] "[36mGET /css/style.css HTTP/1.1[0m" 304 -
+2025-03-09 10:44:28,599 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:28] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-09 10:44:28,600 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:28] "GET /js/search.js HTTP/1.1" 200 -
+2025-03-09 10:44:28,777 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:28] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-09 10:44:38,974 - __main__ - INFO - ProtParam analysis request - Sequence length: 8
+2025-03-09 10:44:39,425 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:39] "POST /api/protparam HTTP/1.1" 200 -
+2025-03-09 10:44:42,401 - __main__ - INFO - SignalP analysis request - Sequence length: 8
+2025-03-09 10:44:43,402 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:43] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:44:49,619 - __main__ - INFO - VaxiJen analysis request - Sequence length: 8
+2025-03-09 10:44:51,332 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:44:51] "POST /api/vaxijen HTTP/1.1" 200 -
+2025-03-09 10:45:43,179 - __main__ - INFO - SignalP analysis request - Sequence length: 8
+2025-03-09 10:45:44,474 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:45:44] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:48:38,887 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:48:38] "[36mGET /search.html HTTP/1.1[0m" 304 -
+2025-03-09 10:48:38,902 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:48:38] "GET /css/search.css HTTP/1.1" 200 -
+2025-03-09 10:48:38,904 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:48:38] "[36mGET /css/style.css HTTP/1.1[0m" 304 -
+2025-03-09 10:48:38,905 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:48:38] "[36mGET /js/particles-config.js HTTP/1.1[0m" 304 -
+2025-03-09 10:48:38,906 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:48:38] "GET /js/search.js HTTP/1.1" 200 -
+2025-03-09 10:48:39,029 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:48:39] "[36mGET /img_data/DNA3.jpg HTTP/1.1[0m" 304 -
+2025-03-09 10:48:45,647 - __main__ - INFO - ProtParam analysis request - Sequence length: 14
+2025-03-09 10:48:46,084 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:48:46] "POST /api/protparam HTTP/1.1" 200 -
+2025-03-09 10:48:48,418 - __main__ - INFO - SignalP analysis request - Sequence length: 14
+2025-03-09 10:48:49,517 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:48:49] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:48:59,524 - __main__ - INFO - SignalP analysis request - Sequence length: 14
+2025-03-09 10:49:00,553 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:49:00] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:49:10,559 - __main__ - INFO - SignalP analysis request - Sequence length: 14
+2025-03-09 10:49:11,595 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:49:11] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:49:20,247 - __main__ - INFO - VaxiJen analysis request - Sequence length: 14
+2025-03-09 10:49:20,622 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:49:20] "POST /api/vaxijen HTTP/1.1" 200 -
+2025-03-09 10:50:01,985 - __main__ - INFO - SignalP analysis request - Sequence length: 14
+2025-03-09 10:50:03,220 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:50:03] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:50:13,229 - __main__ - INFO - SignalP analysis request - Sequence length: 14
+2025-03-09 10:50:14,312 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:50:14] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -
+2025-03-09 10:50:24,318 - __main__ - INFO - SignalP analysis request - Sequence length: 14
+2025-03-09 10:50:25,414 - werkzeug - INFO - 127.0.0.1 - - [09/Mar/2025 10:50:25] "[35m[1mPOST /api/signalp HTTP/1.1[0m" 500 -

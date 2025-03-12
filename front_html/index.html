@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BioInfo Nexus - 生物信息集成网站</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@600&family=Noto+Sans:wght@500&display=swap" rel="stylesheet">
+    <link href=" p" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
@@ -61,7 +61,7 @@
                         <button type="submit" class="login-btn">登录</button>
                         <div class="login-links">
                             <a href="#" id="showRegister">注册账号</a>
-                            <a href="#">忘记密码？</a>
+                            <a href="#" id="forgotPasswordLink">忘记密码？</a>
                         </div>
                     </form>
                 </div>
@@ -100,7 +100,57 @@
         </div>
     </div>
 
+    <!-- 忘记密码模态框 -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>忘记密码</h2>
+            <p>请输入您的注册邮箱，我们将向您发送密码重置链接。</p>
+            <form id="forgotPasswordForm">
+                <div class="form-group">
+                    <label for="forgotEmail">邮箱</label>
+                    <input type="email" id="forgotEmail" name="email" placeholder="请输入邮箱" required>
+                </div>
+                <button type="submit" class="submit-btn">发送重置链接</button>
+            </form>
+            <div id="forgotPasswordMessage" class="message"></div>
+        </div>
+    </div>
+
+    <!-- 重置密码模态框 -->
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>重置密码</h2>
+            <p>请输入您的新密码。</p>
+            <form id="resetPasswordForm">
+                <div class="form-group">
+                    <label for="newPassword">新密码</label>
+                    <div class="password-container">
+                        <input type="password" id="newPassword" name="password" placeholder="请输入新密码" required>
+                        <button type="button" class="password-toggle" data-target="newPassword">
+                            <i data-lucide="eye" class="eye-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="confirmNewPassword">确认密码</label>
+                    <div class="password-container">
+                        <input type="password" id="confirmNewPassword" name="confirmPassword" placeholder="请再次输入新密码" required>
+                        <button type="button" class="password-toggle" data-target="confirmNewPassword">
+                            <i data-lucide="eye" class="eye-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <input type="hidden" id="resetToken" name="token">
+                <button type="submit" class="submit-btn">重置密码</button>
+            </form>
+            <div id="resetPasswordMessage" class="message"></div>
+        </div>
+    </div>
+
     <script src="js/particles-config.js"></script>
     <script src="js/main.js"></script>
+    </script>
 </body>
 </html>

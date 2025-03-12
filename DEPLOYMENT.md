@@ -1,243 +1,161 @@
 # BioInfo Nexus 部署指南
 
-本文档提供了将BioInfo Nexus部署到生产环境的详细步骤。
+本文档详细说明如何在生产环境中部署BioInfo Nexus应用。
 
-## 前提条件
+## 系统要求
 
-- Python 3.7+
-- pip (Python包管理器)
-- 一个SMTP邮件服务器账号
-- 域名（可选，但推荐）
+- Python 3.8或更高版本
+- Nginx服务器（用于静态文件和反向代理）
+- 足够的服务器资源（至少1GB内存）
+- Linux、Windows或macOS操作系统
 
-## 安装步骤
+## 部署步骤
 
-### 1. 克隆代码库
+### 1. 准备项目
+
+1. 下载或克隆项目代码:
+   ```bash
+   git clone https://github.com/yourusername/BioInfo-Nexus.git
+   cd BioInfo-Nexus
+   ```
+
+2. 创建并激活Python虚拟环境:
+   ```bash
+   # Linux/macOS
+   python3 -m venv venv
+   source venv/bin/activate
+   
+   # Windows
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+
+3. 安装项目依赖:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### 2. 配置环境变量
+
+1. 复制`.env.example`文件为`.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. 编辑`.env`文件，配置必要的环境变量:
+   ```
+   SECRET_KEY=your-secret-key
+   MAIL_SERVER=your-mail-server
+   MAIL_PORT=587
+   MAIL_USE_TLS=True
+   MAIL_USERNAME=your-email@example.com
+   MAIL_PASSWORD=your-email-password
+   MAIL_DEFAULT_SENDER=noreply@example.com
+   ```
+
+### 3. 配置Gunicorn
+
+项目已包含`gunicorn_config.py`配置文件，您可以根据需要修改其中的参数:
+
+```python
+bind = "0.0.0.0:8000"  # 绑定地址和端口
+workers = 4  # 工作进程数量，推荐设置为(2*CPU核心数+1)
+```
+
+### 4. 配置Nginx
+
+1. 将项目中的`nginx_bioinfo.conf`文件复制到Nginx配置目录:
+   ```bash
+   # Linux
+   sudo cp nginx_bioinfo.conf /etc/nginx/sites-available/
+   sudo ln -s /etc/nginx/sites-available/nginx_bioinfo.conf /etc/nginx/sites-enabled/
+   ```
+
+2. 编辑配置文件，替换其中的路径和域名:
+   ```
+   server_name yourdomain.com;
+   location /static/ {
+       alias /path/to/BioInfo-Nexus/front_html/;
+   }
+   ```
+
+3. 测试并重启Nginx:
+   ```bash
+   sudo nginx -t
+   sudo systemctl restart nginx
+   ```
+
+### 5. 配置Supervisor (可选)
+
+1. 将项目中的`supervisor_bioinfo.conf`文件复制到Supervisor配置目录:
+   ```bash
+   sudo cp supervisor_bioinfo.conf /etc/supervisor/conf.d/
+   ```
+
+2. 编辑配置文件，替换路径和用户名:
+   ```
+   directory=/path/to/BioInfo-Nexus
+   command=/path/to/venv/bin/gunicorn -c gunicorn_config.py wsgi:application
+   user=your-username
+   ```
+
+3. 重新加载Supervisor配置:
+   ```bash
+   sudo supervisorctl reread
+   sudo supervisorctl update
+   sudo supervisorctl start bioinfo_nexus
+   ```
+
+### 6. 使用部署脚本
+
+项目提供了自动部署脚本，您可以直接运行:
 
 ```bash
-git clone https://github.com/your-username/bioinfo-nexus.git
-cd bioinfo-nexus
+# Linux/macOS
+chmod +x deploy.sh
+./deploy.sh
+
+# Windows
+deploy.bat
 ```
-
-### 2. 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. 配置环境变量
-
-复制`.env.example`文件为`.env`，并根据您的环境进行配置：
-
-```bash
-cp .env.example .env
-```
-
-编辑`.env`文件，填写以下信息：
-
-```bash
-# 应用环境
-FLASK_ENV=production
-
-# 密钥（请生成一个强随机密钥）
-SECRET_KEY=your_secret_key_here
-
-# 邮件服务器配置
-MAIL_SERVER=smtp.example.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=your_email@example.com
-MAIL_PASSWORD=your_email_password
-MAIL_DEFAULT_SENDER=BioInfo Nexus <noreply@your-domain.com>
-
-# 数据库配置
-DATABASE_URI=sqlite:///instance/bioinfo_nexus.db
-```
-
-对于生产环境，建议使用更强大的数据库，如MySQL或PostgreSQL：
-
-```
-DATABASE_URI=mysql://username:password@localhost/bioinfo_nexus
-```
-
-或
-
-```
-DATABASE_URI=postgresql://username:password@localhost/bioinfo_nexus
-```
-
-### 4. 初始化数据库
-
-```bash
-flask db init
-flask db migrate -m "Initial migration"
-flask db upgrade
-```
-
-### 5. 配置Web服务器
-
-#### 使用Gunicorn（推荐）
-
-安装Gunicorn：
-
-```bash
-pip install gunicorn
-```
-
-启动应用：
-
-```bash
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
-```
-
-#### 使用Nginx作为反向代理
-
-安装Nginx：
-
-```bash
-# Ubuntu/Debian
-sudo apt-get install nginx
-
-# CentOS/RHEL
-sudo yum install nginx
-```
-
-创建Nginx配置文件：
-
-```
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-### 6. 配置HTTPS（强烈推荐）
-
-使用Let's Encrypt获取免费SSL证书：
-
-```bash
-sudo apt-get install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-```
-
-### 7. 设置自动启动
-
-创建systemd服务文件：
-
-```
-[Unit]
-Description=BioInfo Nexus
-After=network.target
-
-[Service]
-User=your_username
-WorkingDirectory=/path/to/bioinfo-nexus
-ExecStart=/path/to/gunicorn -w 4 -b 127.0.0.1:5000 app:app
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-启用并启动服务：
-
-```bash
-sudo systemctl enable bioinfo-nexus
-sudo systemctl start bioinfo-nexus
-```
-
-## 邮件服务器选项
-
-### 1. 使用第三方邮件服务
-
-#### SendGrid
-
-1. 注册SendGrid账户
-2. 获取API密钥
-3. 配置`.env`文件：
-
-```
-MAIL_SERVER=smtp.sendgrid.net
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=apikey
-MAIL_PASSWORD=your_sendgrid_api_key
-```
-
-#### 阿里云邮件推送
-
-1. 注册阿里云账户并完成实名认证
-2. 开通邮件推送服务：https://www.aliyun.com/product/directmail
-3. 配置发信域名（需要您拥有一个域名）
-   - 添加域名并完成DNS验证
-4. 创建发信地址
-   - 使用您验证过的域名
-   - 设置发信人昵称（如"BioInfo Nexus"）
-5. 创建SMTP密码
-   - 在SMTP服务页面创建并保存密码
-6. 配置`.env`文件：
-
-```
-# 使用HTTP端口
-MAIL_SERVER=smtpdm.aliyun.com
-MAIL_PORT=80
-MAIL_USE_TLS=False
-MAIL_USE_SSL=False
-MAIL_USERNAME=noreply@your-domain.com  # 您创建的发信地址
-MAIL_PASSWORD=your_smtp_password  # 您设置的SMTP密码
-MAIL_DEFAULT_SENDER=BioInfo Nexus <noreply@your-domain.com>
-
-# 或者使用SSL端口
-# MAIL_SERVER=smtpdm.aliyun.com
-# MAIL_PORT=465
-# MAIL_USE_TLS=False
-# MAIL_USE_SSL=True
-# MAIL_USERNAME=noreply@your-domain.com
-# MAIL_PASSWORD=your_smtp_password
-# MAIL_DEFAULT_SENDER=BioInfo Nexus <noreply@your-domain.com>
-```
-
-7. 发信限制说明
-   - 阿里云邮件推送对免费用户有每日发信量限制
-   - 如需更高配额，可以升级为付费版本
-
-### 2. 使用自己的邮件服务器
-
-如果您有自己的域名，可以使用以下服务配置自己的邮件服务器：
-
-- Google Workspace
-- 腾讯企业邮箱
-- 阿里企业邮箱
 
 ## 故障排除
 
-### 邮件发送失败
+### 常见问题
 
-1. 检查SMTP服务器配置是否正确
-2. 确认邮箱账号和密码是否正确
-3. 检查防火墙是否允许SMTP流量
-4. 查看应用日志获取详细错误信息
+1. **应用无法启动**
+   - 检查日志文件: `logs/gunicorn_error.log`
+   - 确保所有依赖都已安装
+   - 验证环境变量是否正确配置
 
-### 数据库连接问题
+2. **静态文件无法加载**
+   - 检查Nginx配置中的静态文件路径
+   - 确保Nginx有权访问这些文件
 
-1. 确认数据库服务是否运行
-2. 检查数据库连接字符串是否正确
-3. 确认数据库用户有足够的权限
+3. **邮件发送失败**
+   - 检查邮件服务器配置
+   - 验证用户名和密码是否正确
 
-## 安全建议
+## 安全注意事项
 
-1. 定期更新系统和依赖包
-2. 使用强密码和密钥
-3. 启用HTTPS
-4. 限制数据库访问
-5. 配置防火墙
-6. 定期备份数据
+1. 确保生产环境中关闭Flask的调试模式
+2. 使用HTTPS加密所有通信
+3. 定期更新所有依赖包
+4. 限制数据库访问权限
+5. 定期备份数据库
 
-## 联系支持
+## 性能优化
 
-如有任何问题，请联系：bioinfo.nexus@example.com 
+1. 增加Gunicorn工作进程数量（根据CPU核心数）
+2. 配置Nginx缓存静态文件
+3. 使用CDN分发静态资源
+4. 监控应用性能，根据需要调整资源配置
+
+## 监控和维护
+
+1. 定期检查日志文件
+2. 设置监控系统（如Prometheus + Grafana）
+3. 配置警报通知
+4. 定期更新系统和依赖
+
+祝您部署顺利！如有问题，请联系项目维护者。 

@@ -3,7 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import datetime
 import uuid
-from user_system import db, User, TokenBlacklist, token_required
+from .user_system import db, User, TokenBlacklist, token_required
 import os
 from werkzeug.utils import secure_filename
 import secrets
@@ -347,3 +347,156 @@ def update_user_info(current_user):
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS 
+
+# 忘记密码路由
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.get_json()
+    
+    print(f"收到忘记密码请求: {data}")
+    
+    if not data or not data.get('email'):
+        print("请求中没有提供邮箱地址")
+        return jsonify({'message': '请提供邮箱地址！'}), 400
+    
+    user_email = data['email']
+    print(f"正在查找用户: {user_email}")
+    
+    user = User.query.filter_by(email=user_email).first()
+    
+    if not user:
+        print(f"用户不存在: {user_email}")
+        # 为了安全，即使用户不存在也返回成功消息
+        return jsonify({'message': '如果该邮箱已注册，您将收到重置密码的邮件。'}), 200
+    
+    print(f"找到用户: {user.username}, ID: {user.id}")
+    
+    # 生成重置令牌
+    reset_token = secrets.token_hex(16)
+    print(f"生成重置令牌: {reset_token}")
+    
+    user.reset_token = reset_token
+    # 设置令牌过期时间（24小时后）
+    user.reset_token_expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+    
+    try:
+        db.session.commit()
+        print("数据库更新成功")
+    except Exception as e:
+        print(f"数据库更新失败: {str(e)}")
+        db.session.rollback()
+        return jsonify({'message': '服务器错误，请稍后再试。'}), 500
+    
+    # 发送重置密码邮件
+    print(f"准备发送重置密码邮件到: {user.email}")
+    result = send_reset_password_email(user.email, reset_token)
+    
+    if result:
+        print(f"重置密码邮件发送成功: {user.email}")
+        return jsonify({'message': '如果该邮箱已注册，您将收到重置密码的邮件。'}), 200
+    else:
+        print(f"重置密码邮件发送失败: {user.email}")
+        return jsonify({'message': '如果该邮箱已注册，您将收到重置密码的邮件。'}), 200
+
+# 重置密码路由
+@auth_bp.route('/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    data = request.get_json()
+    
+    if not data or not data.get('password'):
+        return jsonify({'message': '请提供新密码！'}), 400
+    
+    user = User.query.filter_by(reset_token=token).first()
+    
+    if not user:
+        return jsonify({'message': '无效的重置链接！'}), 400
+    
+    # 检查令牌是否过期
+    if user.reset_token_expiry < datetime.datetime.utcnow():
+        return jsonify({'message': '重置链接已过期！请重新申请。'}), 400
+    
+    # 更新密码
+    user.password = generate_password_hash(data['password'])
+    user.reset_token = None
+    user.reset_token_expiry = None
+    db.session.commit()
+    
+    return jsonify({'message': '密码重置成功！您现在可以使用新密码登录。'}), 200
+
+# 验证重置令牌路由
+@auth_bp.route('/verify-reset-token/<token>', methods=['GET'])
+def verify_reset_token(token):
+    user = User.query.filter_by(reset_token=token).first()
+    
+    if not user or user.reset_token_expiry < datetime.datetime.utcnow():
+        return jsonify({'valid': False, 'message': '无效或已过期的重置链接！'}), 400
+    
+    return jsonify({'valid': True, 'message': '有效的重置链接。'}), 200
+
+# 发送重置密码邮件的函数
+def send_reset_password_email(user_email, token):
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # 获取邮件配置
+        smtp_server = current_app.config['MAIL_SERVER']
+        smtp_port = current_app.config['MAIL_PORT']
+        smtp_username = current_app.config['MAIL_USERNAME']
+        smtp_password = current_app.config['MAIL_PASSWORD']
+        use_tls = current_app.config['MAIL_USE_TLS']
+        use_ssl = current_app.config['MAIL_USE_SSL']
+        
+        # 创建邮件
+        msg = MIMEMultipart()
+        msg['From'] = "BioInfoNexus <bioinfo-nexus@o41w.ren>"
+        msg['To'] = user_email
+        msg['Subject'] = "BioInfoNexus - Password Reset"
+        
+        # 设置邮件内容
+        reset_url = f"{request.host_url.rstrip('/')}/reset-password.html?token={token}"
+        body = f"""
+Hello,
+
+You have requested to reset your password for your BioInfoNexus account.
+
+Please click the following link to reset your password:
+{reset_url}
+
+This link will expire in 24 hours.
+
+If you did not request a password reset, please ignore this email.
+
+BioInfoNexus Team
+"""
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # 连接到SMTP服务器并发送邮件
+        if use_ssl:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        else:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            if use_tls:
+                server.starttls()
+        
+        # 登录
+        server.login(smtp_username, smtp_password)
+        
+        # 发送邮件
+        server.send_message(msg)
+        
+        # 关闭连接
+        server.quit()
+        
+        print(f"重置密码邮件已成功发送到 {user_email}")
+        return True
+    except Exception as e:
+        import traceback
+        error_msg = f"发送重置密码邮件错误: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)  # 打印到控制台
+        try:
+            logger.error(error_msg)
+        except:
+            pass
+        return False 

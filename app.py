@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory, redirect
-from ProtParam import get_molecular_weight
-from SignalP import submit_sequence, extract_and_parse_results
-from VaxiJen import get_vaxijen_result
+from Bio_tools.ProtParam import get_molecular_weight
+from Bio_tools.SignalP import submit_sequence, extract_and_parse_results
+from Bio_tools.VaxiJen import get_vaxijen_result
 import base64
 import os
 import time
@@ -19,9 +19,9 @@ from dotenv import load_dotenv  # 导入dotenv
 load_dotenv()
 
 # 导入用户系统
-from user_system import init_user_system, token_required, User, db
-from auth_routes import auth_bp, mail
-from admin_routes import admin_bp
+from user_auth.user_system import init_user_system, token_required, User, db
+from user_auth.auth_routes import auth_bp, mail
+from user_auth.admin_routes import admin_bp
 
 # 配置日志
 logging.basicConfig(
@@ -36,7 +36,7 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})  # 启用CORS支持，允许�
 
 # 配置邮件服务
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_PORT'] = 465  # 直接使用465端口
 app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'False').lower() in ('true', 'yes', '1')
 app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'False').lower() in ('true', 'yes', '1')
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
@@ -73,7 +73,7 @@ def verify_email_handler():
         return redirect("/")
     
     # 直接在这里处理验证逻辑，而不是重定向
-    from user_system import User, db
+    from user_auth.user_system import User, db
     
     user = User.query.filter_by(verification_token=token).first()
     
@@ -414,6 +414,38 @@ def health_check():
         'timestamp': datetime.now().isoformat()
     })
 
+# 公开的用户统计API
+@app.route('/api/public-stats')
+def get_public_stats():
+    """获取公开的用户统计信息"""
+    try:
+        # 获取用户总数
+        total_users = User.query.count()
+        
+        # 获取活跃用户数
+        active_users = User.query.filter_by(is_active=True).count()
+        
+        # 获取今日注册用户数
+        today = datetime.now().date()
+        today_start = datetime.combine(today, datetime.time.min)
+        today_end = datetime.combine(today, datetime.time.max)
+        today_users = User.query.filter(
+            User.created_at >= today_start,
+            User.created_at <= today_end
+        ).count()
+        
+        # 构建统计数据
+        stats = {
+            'total_users': total_users,
+            'active_users': active_users,
+            'today_users': today_users
+        }
+        
+        return jsonify(stats), 200
+    except Exception as e:
+        logger.error(f"获取公开统计数据失败: {str(e)}")
+        return jsonify({'error': '获取统计数据失败'}), 500
+
 # 错误处理
 @app.errorhandler(404)
 def not_found(error):
@@ -457,10 +489,10 @@ if __name__ == '__main__':
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制请求大小为16MB
     app.config['UPLOAD_FOLDER'] = 'uploads'
     
-    # 启动应用
+    # 开发环境运行方式
     app.run(
         host='0.0.0.0',  # 允许外部访问
         port=5000,
-        debug=False,     # 生产环境关闭调试模式
+        debug=True,     # 开发环境开启调试模式
         threaded=True    # 启用多线程
     ) 

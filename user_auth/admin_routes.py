@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from user_system import db, User, token_required, admin_required
+from .user_system import db, User, token_required, admin_required
 
 # 创建蓝图
 admin_bp = Blueprint('admin', __name__)

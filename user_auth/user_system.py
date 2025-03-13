@@ -44,8 +44,14 @@ class TokenBlacklist(db.Model):
 # 初始化用户系统
 def init_user_system(app):
     # 配置数据库
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bioinfo_nexus.db'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bioinfo_nexus.db?timeout=30&check_same_thread=False'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_size': 10,  # 连接池的大小
+        'max_overflow': 20,  # 超过pool_size后，最多可以创建的额外连接数
+        'pool_timeout': 30,  # 等待池中连接的超时时间（秒）
+        'pool_recycle': 1800,  # 连接在池中的最大生存时间（秒）
+    }
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_please_change_in_production')
     
     # 初始化数据库

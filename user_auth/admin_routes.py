@@ -1,32 +1,59 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_from_directory
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import sqlite3
 import os
 from datetime import datetime
+import jwt
+from flask import current_app
+import logging
 
 # 创建蓝图
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 # 数据库连接函数
 def get_db_connection():
-    conn = sqlite3.connect('instance/database.db')
+    conn = sqlite3.connect('instance/bioinfo_nexus.db')
     conn.row_factory = sqlite3.Row
     return conn
 
 # 管理员权限检查装饰器
 def admin_required(f):
     @wraps(f)
-    @jwt_required()
     def decorated(*args, **kwargs):
-        current_user_id = get_jwt_identity()
-        conn = get_db_connection()
-        user = conn.execute('SELECT * FROM user WHERE id = ?', (current_user_id,)).fetchone()
-        conn.close()
+        # 从请求头获取令牌
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"message": "缺少认证令牌"}), 401
         
-        if not user or user['role'] != 'admin':
-            return jsonify({"message": "管理员权限需要"}), 403
-        return f(*args, **kwargs)
+        token = auth_header.split(' ')[1]
+        
+        try:
+            # 解码令牌
+            data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            # 查询用户
+            conn = get_db_connection()
+            
+            # 尝试使用users表查询
+            user = conn.execute('SELECT * FROM users WHERE public_id = ?', (data['public_id'],)).fetchone()
+            
+            conn.close()
+            
+            if not user:
+                return jsonify({"message": "用户未找到"}), 404
+                
+            if not user['is_admin']:
+                return jsonify({"message": "需要管理员权限"}), 403
+                
+            return f(*args, **kwargs)
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({"message": "令牌已过期"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"message": "无效的令牌"}), 401
+        except Exception as e:
+            return jsonify({"message": f"认证错误: {str(e)}"}), 401
+            
     return decorated
 
 # 管理面板首页
@@ -36,11 +63,11 @@ def admin_panel():
     conn = get_db_connection()
     
     # 获取用户统计
-    user_count = conn.execute('SELECT COUNT(*) FROM user').fetchone()[0]
-    admin_count = conn.execute('SELECT COUNT(*) FROM user WHERE role = "admin"').fetchone()[0]
+    user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    admin_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0]
     
     # 获取最近注册的用户
-    recent_users = conn.execute('SELECT id, username, email, registered_on FROM user ORDER BY registered_on DESC LIMIT 5').fetchall()
+    recent_users = conn.execute('SELECT id, username, email, created_at as registered_on FROM users ORDER BY created_at DESC LIMIT 5').fetchall()
     
     # 获取系统统计
     stats = {
@@ -57,7 +84,7 @@ def admin_panel():
 @admin_required
 def manage_users():
     conn = get_db_connection()
-    users = conn.execute('SELECT * FROM user ORDER BY registered_on DESC').fetchall()
+    users = conn.execute('SELECT * FROM users ORDER BY created_at DESC').fetchall()
     conn.close()
     return render_template('admin/users.html', users=[dict(u) for u in users])
 
@@ -66,7 +93,7 @@ def manage_users():
 @admin_required
 def view_user(user_id):
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     conn.close()
     
     if not user:
@@ -80,14 +107,14 @@ def view_user(user_id):
 @admin_required
 def set_admin(user_id):
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     
     if not user:
         conn.close()
         flash('用户不存在', 'error')
         return redirect(url_for('admin.manage_users'))
     
-    conn.execute('UPDATE user SET role = "admin" WHERE id = ?', (user_id,))
+    conn.execute('UPDATE users SET is_admin = 1 WHERE id = ?', (user_id,))
     conn.commit()
     conn.close()
     
@@ -99,14 +126,14 @@ def set_admin(user_id):
 @admin_required
 def remove_admin(user_id):
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     
     if not user:
         conn.close()
         flash('用户不存在', 'error')
         return redirect(url_for('admin.manage_users'))
     
-    conn.execute('UPDATE user SET role = "user" WHERE id = ?', (user_id,))
+    conn.execute('UPDATE users SET is_admin = 0 WHERE id = ?', (user_id,))
     conn.commit()
     conn.close()
     
@@ -118,7 +145,7 @@ def remove_admin(user_id):
 @admin_required
 def delete_user(user_id):
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,)).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     
     if not user:
         conn.close()
@@ -126,14 +153,14 @@ def delete_user(user_id):
         return redirect(url_for('admin.manage_users'))
     
     # 检查是否是最后一个管理员
-    if user['role'] == 'admin':
-        admin_count = conn.execute('SELECT COUNT(*) FROM user WHERE role = "admin"').fetchone()[0]
+    if user['is_admin']:
+        admin_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0]
         if admin_count <= 1:
             conn.close()
             flash('不能删除最后一个管理员', 'error')
             return redirect(url_for('admin.manage_users'))
     
-    conn.execute('DELETE FROM user WHERE id = ?', (user_id,))
+    conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
     conn.commit()
     conn.close()
     
@@ -144,14 +171,19 @@ def delete_user(user_id):
 @admin_bp.route('/logs')
 @admin_required
 def view_logs():
-    log_file = 'logs/app.log'
+    log_file = 'app.log'  # 直接使用根目录的app.log文件
     logs = []
     
-    if os.path.exists(log_file):
-        with open(log_file, 'r') as f:
-            logs = f.readlines()[-100:]  # 获取最后100行
-    
-    return render_template('admin/logs.html', logs=logs)
+    try:
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                logs = f.readlines()[-100:]  # 获取最后100行
+        
+        # 返回JSON格式的日志列表
+        return jsonify(logs), 200
+    except Exception as e:
+        logging.error(f"读取日志文件时出错: {str(e)}")
+        return jsonify({"error": f"无法读取日志文件: {str(e)}"}), 500
 
 # 系统设置
 @admin_bp.route('/settings')
@@ -172,9 +204,19 @@ def update_settings():
 @admin_required
 def api_users():
     conn = get_db_connection()
-    users = conn.execute('SELECT id, username, email, role, registered_on FROM user').fetchall()
+    users = conn.execute('SELECT id, username, email, is_admin, created_at FROM users ORDER BY created_at DESC').fetchall()
     conn.close()
-    return jsonify([dict(u) for u in users])
+    
+    # 将Row对象转换为字典列表
+    user_list = []
+    for user in users:
+        user_dict = dict(user)
+        # 确保is_admin是数字1或0，以便前端识别
+        if 'is_admin' in user_dict:
+            user_dict['role'] = 1 if user_dict['is_admin'] else 0
+        user_list.append(user_dict)
+    
+    return jsonify(user_list)
 
 # API: 获取系统统计
 @admin_bp.route('/api/stats')
@@ -182,16 +224,210 @@ def api_users():
 def api_stats():
     conn = get_db_connection()
     
-    # 用户统计
-    user_count = conn.execute('SELECT COUNT(*) FROM user').fetchone()[0]
-    admin_count = conn.execute('SELECT COUNT(*) FROM user WHERE role = "admin"').fetchone()[0]
+    # 获取用户统计
+    user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    admin_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0]
     
-    # 其他统计数据可以根据需要添加
+    # 获取今日注册用户数
+    today = datetime.now().strftime('%Y-%m-%d')
+    today_users = conn.execute('SELECT COUNT(*) FROM users WHERE date(created_at) = ?', (today,)).fetchone()[0]
     
-    conn.close()
+    # 获取今日活跃用户数(根据上次登录时间计算)
+    active_today = conn.execute('SELECT COUNT(*) FROM users WHERE date(last_login) = ?', (today,)).fetchone()[0]
     
-    return jsonify({
+    # 统计数据
+    stats = {
         'user_count': user_count,
         'admin_count': admin_count,
-        'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }) 
+        'today_users': today_users,
+        'active_today': active_today
+    }
+    
+    conn.close()
+    return jsonify(stats)
+
+# 添加管理员登录路由
+@admin_bp.route('/login', methods=['GET'])
+def admin_login_page():
+    """返回管理员登录页面"""
+    return send_from_directory('../front_html', 'admin-login.html')
+
+# 获取日志API端点
+@admin_bp.route('/api/logs', methods=['GET'])
+@admin_required
+def api_get_logs():
+    """获取系统日志"""
+    log_file = 'app.log'
+    
+    if not os.path.exists(log_file):
+        return jsonify({"error": "日志文件不存在"}), 404
+    
+    try:
+        with open(log_file, 'r') as f:
+            # 获取最近100行日志
+            logs = f.readlines()[-100:]
+        
+        return jsonify(logs)
+    except Exception as e:
+        return jsonify({"error": f"读取日志失败: {str(e)}"}), 500
+
+# 系统设置API端点
+@admin_bp.route('/api/settings', methods=['GET'])
+@admin_required
+def api_get_settings():
+    """获取系统设置"""
+    settings = {
+        'site_name': os.environ.get('SITE_NAME', 'BioInfo Nexus'),
+        'site_description': os.environ.get('SITE_DESCRIPTION', 'BioInfo Nexus是一个生物信息学分析平台。'),
+        'admin_email': os.environ.get('ADMIN_EMAIL', 'admin@example.com'),
+        'smtp_server': os.environ.get('MAIL_SERVER', ''),
+        'smtp_port': os.environ.get('MAIL_PORT', '465'),
+    }
+    
+    return jsonify(settings)
+
+# 更新系统设置API端点
+@admin_bp.route('/api/settings/update', methods=['POST'])
+@admin_required
+def api_update_settings():
+    try:
+        site_name = request.form.get('siteName', '')
+        site_description = request.form.get('siteDescription', '')
+        admin_email = request.form.get('adminEmail', '')
+        smtp_server = request.form.get('smtpServer', '')
+        smtp_port = request.form.get('smtpPort', '')
+        
+        # 这里可以保存这些设置到数据库或配置文件
+        # 现在只记录日志
+        logging.info(f"系统设置已更新: 网站名称={site_name}, 管理员邮箱={admin_email}")
+        
+        return jsonify({"message": "系统设置已更新", "success": True})
+    except Exception as e:
+        logging.error(f"更新系统设置失败: {str(e)}")
+        return jsonify({"error": f"更新系统设置失败: {str(e)}"}), 500
+
+# 设置用户为管理员 API
+@admin_bp.route('/api/users/<int:user_id>/set_admin', methods=['POST'])
+@admin_required
+def api_set_admin(user_id):
+    try:
+        conn = get_db_connection()
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({"error": "用户不存在"}), 404
+        
+        conn.execute('UPDATE users SET is_admin = 1 WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        
+        logging.info(f"用户 {user['username']} (ID: {user_id}) 已被设置为管理员")
+        return jsonify({"message": f"用户 {user['username']} 已设置为管理员", "success": True})
+    
+    except Exception as e:
+        logging.error(f"设置管理员失败: {str(e)}")
+        return jsonify({"error": f"设置管理员失败: {str(e)}"}), 500
+
+# 移除管理员权限 API
+@admin_bp.route('/api/users/<int:user_id>/remove_admin', methods=['POST'])
+@admin_required
+def api_remove_admin(user_id):
+    try:
+        # 获取当前用户信息
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split(' ')[1]
+        current_user_data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+        
+        conn = get_db_connection()
+        current_user = conn.execute('SELECT * FROM users WHERE public_id = ?', 
+                                (current_user_data['public_id'],)).fetchone()
+        
+        # 检查是否是自己
+        if current_user and current_user['id'] == user_id:
+            conn.close()
+            logging.warning(f"用户 {current_user['username']} (ID: {user_id}) 尝试移除自己的管理员权限")
+            return jsonify({"error": "不能移除自己的管理员权限"}), 400
+        
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        
+        if not user:
+            conn.close()
+            logging.error(f"尝试移除管理员权限失败：用户不存在，ID: {user_id}")
+            return jsonify({"error": "用户不存在"}), 404
+        
+        # 检查是否是最后一个管理员
+        if user['is_admin']:
+            admin_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0]
+            if admin_count <= 1:
+                conn.close()
+                logging.error(f"尝试移除管理员权限失败：不能移除最后一个管理员 ({user['username']}, ID: {user_id})")
+                return jsonify({"error": "不能移除最后一个管理员"}), 400
+        
+        conn.execute('UPDATE users SET is_admin = 0 WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        
+        logging.info(f"已移除用户 {user['username']} (ID: {user_id}) 的管理员权限")
+        return jsonify({"message": f"已移除 {user['username']} 的管理员权限", "success": True})
+    
+    except Exception as e:
+        logging.error(f"移除管理员权限失败: {str(e)}")
+        return jsonify({"error": f"移除管理员权限失败: {str(e)}"}), 500
+
+# 删除用户 API
+@admin_bp.route('/api/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def api_delete_user(user_id):
+    try:
+        logging.info(f"开始删除用户，ID: {user_id}")
+        
+        # 检查用户ID是否有效
+        if not user_id or user_id <= 0:
+            logging.error(f"尝试删除用户失败：无效的用户ID: {user_id}")
+            return jsonify({"error": "无效的用户ID"}), 400
+        
+        # 获取当前用户信息
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split(' ')[1]
+        current_user_data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+        
+        conn = get_db_connection()
+        current_user = conn.execute('SELECT * FROM users WHERE public_id = ?', 
+                                (current_user_data['public_id'],)).fetchone()
+        
+        # 检查是否是自己
+        if current_user and current_user['id'] == user_id:
+            conn.close()
+            logging.warning(f"用户 {current_user['username']} (ID: {user_id}) 尝试删除自己的账户")
+            return jsonify({"error": "不能删除自己的账户"}), 400
+            
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        
+        if not user:
+            conn.close()
+            logging.error(f"尝试删除用户失败：用户不存在，ID: {user_id}")
+            return jsonify({"error": "用户不存在"}), 404
+            
+        username = user['username']
+        is_admin = user['is_admin']
+        
+        # 检查是否是最后一个管理员
+        if is_admin:
+            admin_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0]
+            if admin_count <= 1:
+                conn.close()
+                logging.error(f"尝试删除用户失败：不能删除最后一个管理员 ({username}, ID: {user_id})")
+                return jsonify({"error": "不能删除最后一个管理员"}), 400
+        
+        # 执行删除
+        conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        
+        logging.info(f"用户 {username} (ID: {user_id}) 已被成功删除")
+        return jsonify({"message": f"用户 {username} 已成功删除", "success": True})
+    
+    except Exception as e:
+        logging.error(f"删除用户失败，ID: {user_id}, 错误: {str(e)}")
+        return jsonify({"error": f"删除用户失败: {str(e)}"}), 500 

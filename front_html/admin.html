@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - BioInfo Nexus</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@600&family=Noto+Sans:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/admin-extra.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <style>
+        /* 统一按钮宽度 */
+        .btn-sm {
+            min-width: 120px; /* 设置最小宽度 */
+            text-align: center;
+            margin: 2px;
+        }
+        
+        /* 角色显示样式 */
+        .role-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap; /* 防止文字换行 */
+            letter-spacing: normal; /* 恢复正常字间距 */
+            writing-mode: horizontal-tb; /* 强制水平书写模式 */
+            text-orientation: mixed; /* 正常文本方向 */
+            width: auto; /* 自动宽度 */
+            height: auto; /* 自动高度 */
+            text-align: center; /* 文字居中 */
+        }
+        
+        .role-admin {
+            background-color: #e6f7ff;
+            color: #1890ff;
+            border: 1px solid #91d5ff;
+        }
+        
+        .role-user {
+            background-color: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+        
+        /* 修复角色单元格样式 */
+        td:nth-child(4) {
+            min-width: 80px; /* 给角色列设置最小宽度 */
+            text-align: center; /* 居中对齐 */
+        }
+        
+        /* 确保表头文字水平显示 */
+        th {
+            white-space: nowrap; /* 防止文字换行 */
+            letter-spacing: normal; /* 恢复正常字间距 */
+            writing-mode: horizontal-tb !important; /* 强制水平书写模式 */
+            text-orientation: mixed; /* 正常文本方向 */
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">BioInfo Nexus</a>
+            <div class="nav-links">
+                <a href="search.html">返回搜索</a>
+                <a href="#" id="logout-btn">退出登录</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <div class="admin-container">
+        <div class="main-content">
+            <!-- 侧边菜单 -->
+            <div class="sidebar">
+                <ul class="sidebar-menu">
+                    <li><a href="#dashboard" class="active" data-tab="dashboard"><i class="fas fa-tachometer-alt"></i> 控制面板</a></li>
+                    <li><a href="#users" data-tab="users"><i class="fas fa-users"></i> 用户管理</a></li>
+                    <li><a href="#logs" data-tab="logs"><i class="fas fa-file-alt"></i> 系统日志</a></li>
+                    <li><a href="#settings" data-tab="settings"><i class="fas fa-cog"></i> 系统设置</a></li>
+                </ul>
+            </div>
+
+            <!-- 内容区 -->
+            <div class="content">
+                <!-- 控制面板 -->
+                <div id="dashboard" class="tab-pane active">
+                    <div class="content-header">
+                        <h1 class="content-title">控制面板</h1>
+                        <span id="current-time">加载中...</span>
+                    </div>
+
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <div class="stat-title">用户总数</div>
+                            <div class="stat-value" id="total-users">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">管理员数量</div>
+                            <div class="stat-value" id="admin-count">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">今日活跃用户</div>
+                            <div class="stat-value" id="active-today">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">今日注册</div>
+                            <div class="stat-value" id="reg-today">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 用户管理 -->
+                <div id="users" class="tab-pane">
+                    <div class="content-header">
+                        <h1 class="content-title">用户管理</h1>
+                        <input type="text" id="user-search" placeholder="搜索用户..." class="form-control" style="width: 250px;">
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="white-space: nowrap; writing-mode: horizontal-tb;">序号</th>
+                                    <th>用户名</th>
+                                    <th>邮箱</th>
+                                    <th>角色</th>
+                                    <th>注册时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-list">
+                                <!-- 数据将通过JavaScript动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 系统日志 -->
+                <div id="logs" class="tab-pane">
+                    <div class="content-header">
+                        <h1 class="content-title">系统日志</h1>
+                        <select id="log-level" class="form-control" style="width: 150px;">
+                            <option value="all">所有级别</option>
+                            <option value="error">错误</option>
+                            <option value="warning">警告</option>
+                            <option value="info">信息</option>
+                        </select>
+                    </div>
+
+                    <div class="logs-container" id="logs-container">
+                        <!-- 日志将通过JavaScript动态加载 -->
+                    </div>
+                </div>
+
+                <!-- 系统设置 -->
+                <div id="settings" class="tab-pane">
+                    <div class="content-header">
+                        <h1 class="content-title">系统设置</h1>
+                    </div>
+
+                    <form id="settings-form" class="settings-form">
+                        <div class="form-group">
+                            <label for="site-name">网站名称</label>
+                            <input type="text" id="site-name" class="form-control" value="BioInfo Nexus">
+                        </div>
+                        <div class="form-group">
+                            <label for="site-description">网站描述</label>
+                            <textarea id="site-description" class="form-control" rows="3">BioInfo Nexus是一个生物信息学分析平台。</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="admin-email">管理员邮箱</label>
+                            <input type="email" id="admin-email" class="form-control" value="admin@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtp-server">SMTP服务器</label>
+                            <input type="text" id="smtp-server" class="form-control" value="smtp.example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="smtp-port">SMTP端口</label>
+                            <input type="number" id="smtp-port" class="form-control" value="587">
+                        </div>
+                        <button type="submit" class="btn btn-primary">保存设置</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认模态框 -->
+    <div class="modal" id="delete-modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <div class="modal-header">
+                <h2 class="modal-title">确认删除</h2>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除用户 <strong id="delete-username"></strong> 吗？</p>
+                <p>此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-delete">取消</button>
+                <button class="btn btn-danger" id="confirm-delete">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载动画 -->
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>

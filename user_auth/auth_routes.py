@@ -179,18 +179,29 @@ def resend_verification():
 def login():
     data = request.get_json()
     
-    if not data or not data.get('username') or not data.get('password'):
-        return jsonify({'message': '请提供邮箱和密码！'}), 400
+    if not data:
+        return jsonify({'message': '无效的请求数据！'}), 400
+        
+    # 支持使用email或username登录
+    if data.get('email'):
+        username_or_email = data.get('email')
+    elif data.get('username'):
+        username_or_email = data.get('username')
+    else:
+        return jsonify({'message': '请提供邮箱或用户名！'}), 400
+        
+    if not data.get('password'):
+        return jsonify({'message': '请提供密码！'}), 400
     
     # 查找用户（支持使用邮箱登录）
-    user = User.query.filter_by(email=data['username']).first()
+    user = User.query.filter_by(email=username_or_email).first()
     
-    # 如果没找到，尝试使用用户名查找（向后兼容）
+    # 如果没找到，尝试使用用户名查找
     if not user:
-        user = User.query.filter_by(username=data['username']).first()
+        user = User.query.filter_by(username=username_or_email).first()
     
     if not user:
-        return jsonify({'message': '邮箱或密码错误！'}), 401
+        return jsonify({'message': '邮箱/用户名或密码错误！'}), 401
     
     # 检查账户是否已激活
     if not user.is_active:
@@ -214,14 +225,20 @@ def login():
             algorithm='HS256'
         )
         
+        # 获取用户角色
+        role = 'admin' if user.is_admin else 'user'
+        
         return jsonify({
             'token': token,
+            'user_id': user.id,
             'public_id': user.public_id,
             'username': user.username,
+            'email': user.email,
+            'role': role,
             'message': '登录成功！'
         }), 200
     
-    return jsonify({'message': '邮箱或密码错误！'}), 401
+    return jsonify({'message': '邮箱/用户名或密码错误！'}), 401
 
 # 发送验证邮件的函数
 def send_verification_email(user_email, token):

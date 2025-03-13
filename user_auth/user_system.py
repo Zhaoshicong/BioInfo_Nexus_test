@@ -60,19 +60,6 @@ def init_user_system(app):
     # 创建所有表
     with app.app_context():
         db.create_all()
-        
-        # 创建管理员账户（如果不存在）
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(
-                public_id=str(uuid.uuid4()),
-                username='admin',
-                email='admin@example.com',
-                password=generate_password_hash('admin123'),
-                is_admin=True
-            )
-            db.session.add(admin)
-            db.session.commit()
 
 # JWT令牌验证装饰器
 def token_required(f):

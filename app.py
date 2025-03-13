@@ -7,13 +7,14 @@ import os
 import time
 from functools import wraps
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_cors import CORS  # 导入CORS
 from bs4 import BeautifulSoup
 from PIL import Image, ImageDraw, ImageFont
 import re  # 添加正则表达式模块
 from flask_mail import Mail  # 导入Flask-Mail
 from dotenv import load_dotenv  # 导入dotenv
+from flask_jwt_extended import JWTManager  # 导入JWT扩展
 
 # 加载环境变量
 load_dotenv()
@@ -33,6 +34,16 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='front_html', static_url_path='')
 CORS(app, resources={r"/api/*": {"origins": "*"}})  # 启用CORS支持，允许所有API路由的跨域请求
+
+# 配置JWT
+app.config['JWT_SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_please_change_in_production')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
+
+# 初始化JWT
+jwt = JWTManager(app)
 
 # 配置邮件服务
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
@@ -64,6 +75,16 @@ def serve_temp_file(filename):
 @app.route('/uploads/<path:filename>')
 def serve_upload_file(filename):
     return send_from_directory('uploads', filename)
+
+# 添加管理员登录页面路由
+@app.route('/admin-login')
+def admin_login_page():
+    return app.send_static_file('admin-login.html')
+
+# 添加管理面板页面路由
+@app.route('/admin-panel')
+def admin_panel_page():
+    return app.send_static_file('admin.html')
 
 # 添加一个路由处理旧的验证链接格式
 @app.route('/verify_email')

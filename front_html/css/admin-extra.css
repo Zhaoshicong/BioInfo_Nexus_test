@@ -1,0 +1,48 @@
+/* 统一按钮宽度 */
+.btn-sm {
+    min-width: 120px; /* 设置最小宽度 */
+    text-align: center;
+    margin: 2px;
+}
+
+/* 角色显示样式 */
+.role-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap; /* 防止文字换行 */
+    letter-spacing: normal; /* 恢复正常字间距 */
+    writing-mode: horizontal-tb; /* 强制水平书写模式 */
+    text-orientation: mixed; /* 正常文本方向 */
+    width: auto; /* 自动宽度 */
+    height: auto; /* 自动高度 */
+    text-align: center; /* 文字居中 */
+}
+
+.role-admin {
+    background-color: #e6f7ff;
+    color: #1890ff;
+    border: 1px solid #91d5ff;
+}
+
+.role-user {
+    background-color: #f6ffed;
+    color: #52c41a;
+    border: 1px solid #b7eb8f;
+}
+
+/* 修复角色单元格样式 */
+td:nth-child(4) {
+    min-width: 80px; /* 给角色列设置最小宽度 */
+    text-align: center; /* 居中对齐 */
+}
+
+/* 确保表头文字水平显示 */
+th {
+    white-space: nowrap; /* 防止文字换行 */
+    letter-spacing: normal; /* 恢复正常字间距 */
+    writing-mode: horizontal-tb !important; /* 强制水平书写模式 */
+    text-orientation: mixed; /* 正常文本方向 */
+} 

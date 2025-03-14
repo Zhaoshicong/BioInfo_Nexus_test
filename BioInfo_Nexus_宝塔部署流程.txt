@@ -1,0 +1,129 @@
+# BioInfo Nexus 宝塔面板部署流程
+
+## 一、前期准备
+
+1. **购买云服务器**
+   - 推荐2核4G以上配置
+   - 开放80、443等必要端口
+
+2. **安装宝塔面板**
+   - 登录服务器终端
+   - 运行宝塔官方安装命令
+   - 记录下安装成功后显示的宝塔面板访问信息
+
+3. **安装必要软件**
+   - Nginx：用于Web服务和反向代理
+   - Python3：确保安装3.6以上版本
+   - 进程守护(Supervisor)：用于管理Python应用
+
+## 二、代码部署
+
+1. **上传代码**
+   - 在宝塔面板中进入【文件】-【/www/wwwroot/default】
+   - 上传BioInfo Nexus应用程序包或通过Git克隆
+   - 命令：`git clone 仓库地址 BioInfo_Nexus_test`
+   - 如遇到网络问题，可以选择直接上传zip压缩包
+
+2. **创建虚拟环境**
+   - 进入项目目录：`cd /www/wwwroot/default/BioInfo_Nexus_test`
+   - 创建虚拟环境：`python3 -m venv venv`
+   - 激活虚拟环境：`source venv/bin/activate`
+
+3. **安装依赖**
+   - 确保pip是最新版本：`python -m pip install --upgrade pip`
+   - 安装依赖：`pip install -r requirements.txt`
+   - 安装gunicorn：`pip install gunicorn flask-jwt-extended`
+
+## 三、配置应用
+
+1. **修改配置文件**
+   - 确保.env文件中的配置正确（数据库、邮件等）
+   - 修改服务器地址：找到auth_routes.py中的邮件URL生成代码，替换为服务器公网IP
+   ```python
+   verification_url = f"http://服务器IP/api/auth/verify-email/{token}"
+   reset_url = f"http://服务器IP/reset-password.html?token={token}"
+   ```
+
+2. **创建必要目录**
+   - 确保logs、uploads、temp等目录存在：`mkdir -p logs uploads temp`
+   - 设置权限：`chmod -R 755 logs uploads temp`
+
+## 四、配置Gunicorn
+
+1. **测试启动应用**
+   - 在项目目录中运行：`gunicorn -c gunicorn_config.py wsgi:application`
+   - 确认应用能成功启动并监听在127.0.0.1:8000
+
+## 五、配置进程守护(Supervisor)
+
+1. **在宝塔面板中配置**
+   - 进入【软件商店】-【已安装】-【进程守护】
+   - 点击【添加守护进程】，填写：
+     - 名称：`BioInfoNexus`（不要使用空格）
+     - 启动用户：`root`
+     - 运行目录：`/www/wwwroot/default/BioInfo_Nexus_test`
+     - 启动命令：`gunicorn -c gunicorn_config.py wsgi:application`
+     - 进程数量：`2`
+     - 优先级：`0`
+   - 高级设置：
+     - 勾选【开机启动】
+     - StandardoutLog和StandarderrLog路径设置为项目的logs目录
+
+2. **启动守护进程**
+   - 点击【启动】按钮启动进程
+   - 查看日志确认启动成功
+
+## 六、配置Nginx反向代理
+
+1. **在宝塔面板创建网站**
+   - 进入【网站】-【添加站点】
+   - 填写域名或直接使用服务器IP
+   - 网站目录选择默认（不重要，因为会使用反向代理）
+
+2. **配置反向代理**
+   - 在网站设置中找到【反向代理】
+   - 点击【添加反向代理】
+   - 代理名称：`Flask应用`
+   - 目标URL：`http://127.0.0.1:8000`
+
+3. **配置HTTPS**（如有需要）
+   - 在网站设置中申请SSL证书
+   - 开启强制HTTPS
+
+## 七、测试与排错
+
+1. **访问网站测试**
+   - 使用浏览器访问您的域名或服务器IP
+   - 测试网站功能，特别是注册、登录等需要邮件的功能
+
+2. **排错指南**
+   - 查看Nginx错误日志：宝塔面板-网站-日志
+   - 查看应用日志：`/www/wwwroot/default/BioInfo_Nexus_test/logs/`
+   - 检查Supervisor状态：进程守护插件中查看
+
+3. **常见问题解决**
+   - 邮件发送问题：检查邮件配置和URL生成代码
+   - 无法连接应用：检查gunicorn是否运行、端口是否正确
+   - 403/404错误：检查Nginx配置和权限
+
+## 八、维护与更新
+
+1. **定期备份**
+   - 使用宝塔计划任务设置定期备份
+
+2. **代码更新**
+   - 更新代码：`git pull`或重新上传文件
+   - 更新后重启应用：在进程守护中重启
+
+3. **监控资源**
+   - 定期查看服务器资源使用情况
+   - 必要时升级配置
+
+## 注意事项
+
+- 安全设置：建议配置防火墙，限制SSH访问
+- 日志管理：定期清理日志文件，避免占用过多磁盘空间
+- 进程管理：如果进程守护插件出现问题，可以尝试重装插件
+- 域名备案：如在中国大陆使用，需要完成域名备案
+
+以上是完整的BioInfo Nexus在宝塔面板的部署流程，按照此流程操作，可以成功将应用部署到生产环境。 

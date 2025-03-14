@@ -15,7 +15,7 @@
 
 1. 下载或克隆项目代码:
    ```bash
-   git clone https://github.com/yourusername/BioInfo-Nexus.git
+   git clone https://github.com/Zhaoshicong/BioInfo-Nexus_test.git
    cd BioInfo-Nexus
    ```
 

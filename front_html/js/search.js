@@ -335,9 +335,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // 初始化页面
 function initPage() {
-    // 初始化Lucide图标
-    lucide.createIcons();
-    
     // 获取DOM元素
     const sequenceInput = document.querySelector('.sequence-input');
     const charCounter = document.querySelector('.char-counter');
@@ -434,7 +431,7 @@ function updateUIForLoggedIn(user) {
                 <div class="dropdown-menu">
                     <div class="dropdown-header">
                         <div class="user-avatar">
-                            <i data-lucide="user"></i>
+                            <i class="fas fa-user"></i>
                         </div>
                         <div class="user-info">
                             <div class="user-name">${user.username}</div>
@@ -442,16 +439,11 @@ function updateUIForLoggedIn(user) {
                         </div>
                     </div>
                     <div class="dropdown-divider"></div>
-                    ${user.is_admin ? '<a href="admin.html"><i data-lucide="settings"></i> 管理控制台</a>' : ''}
-                    <a href="#" id="logoutBtn"><i data-lucide="log-out"></i> 注销</a>
+                    ${user.is_admin ? '<a href="admin.html"><i class="fas fa-cog"></i> 管理控制台</a>' : ''}
+                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> 注销</a>
                 </div>
             `;
             navLinks.appendChild(userMenu);
-            
-            // 初始化图标
-            lucide.createIcons({
-                icons: userMenu.querySelectorAll('[data-lucide]')
-            });
             
             // 绑定注销按钮事件
             userMenu.querySelector('#logoutBtn').addEventListener('click', async function(e) {

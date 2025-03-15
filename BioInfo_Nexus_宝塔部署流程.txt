@@ -121,6 +121,17 @@
 
 ## 注意事项
 
+ ps aux | grep gunicorn
+ kill -9 进程PID
+# 进入项目目录
+   cd /www/wwwroot/default/BioInfo_Nexus_test
+   
+   # 激活虚拟环境
+   source venv/bin/activate
+   
+   # 启动应用
+   gunicorn -c gunicorn_config.py wsgi:application
+
 - 安全设置：建议配置防火墙，限制SSH访问
 - 日志管理：定期清理日志文件，避免占用过多磁盘空间
 - 进程管理：如果进程守护插件出现问题，可以尝试重装插件

@@ -1,25 +1,25 @@
 document.addEventListener('DOMContentLoaded', function() {
-    lucide.createIcons();
+    // 删除lucide初始化调用，已经使用FontAwesome替代
     
-    // 特性提示框功能
-    const featureList = document.querySelector('.feature-list');
-    const tooltip = document.querySelector('.feature-tooltip');
-    const loginForm = document.getElementById('loginForm');
-    
-    // 初始化检查登录状态
+    // 检查登录状态
     checkLoginStatus();
     
-    // 切换登录/注册表单
+    // 初始化各功能
     setupAuthTabs();
-    
-    // 设置密码可见性切换
     setupPasswordToggles();
-    
-    // 设置忘记密码和重置密码功能
     setupPasswordReset();
+    setupFeatureTooltips();
     
     // 检查URL参数，如果有重置密码的token，则显示重置密码模态框
     checkResetPasswordToken();
+});
+
+// 设置特性提示框功能
+function setupFeatureTooltips() {
+    const featureList = document.querySelector('.feature-list');
+    const tooltip = document.querySelector('.feature-tooltip');
+    
+    if (!featureList || !tooltip) return;
     
     featureList.addEventListener('mouseover', function(e) {
         const li = e.target.closest('li');
@@ -52,27 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    function highlightLoginField(feature) {
-        const usernameInput = document.getElementById('username');
-        const passwordInput = document.getElementById('password');
-        
-        // 移除之前的高亮效果
-        usernameInput.classList.remove('highlight-input');
-        passwordInput.classList.remove('highlight-input');
-        
-        // 根据特性添加高亮效果
-        switch(feature) {
-            case 'sequence':
-            case 'database':
-                usernameInput.classList.add('highlight-input');
-                break;
-            case 'workflow':
-            case 'share':
-                passwordInput.classList.add('highlight-input');
-                break;
-        }
-    }
-
     // 处理联系我们链接的点击事件
     const contactLink = document.querySelector('.contact-link');
     const emailTooltip = document.querySelector('.email-tooltip');
@@ -108,7 +87,30 @@ document.addEventListener('DOMContentLoaded', function() {
             emailTooltip.classList.remove('show');
         });
     }
-});
+}
+
+function highlightLoginField(feature) {
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    
+    if (!usernameInput || !passwordInput) return;
+    
+    // 移除之前的高亮效果
+    usernameInput.classList.remove('highlight-input');
+    passwordInput.classList.remove('highlight-input');
+    
+    // 根据特性添加高亮效果
+    switch(feature) {
+        case 'sequence':
+        case 'database':
+            usernameInput.classList.add('highlight-input');
+            break;
+        case 'workflow':
+        case 'visual':
+            passwordInput.classList.add('highlight-input');
+            break;
+    }
+}
 
 // 设置认证表单切换
 function setupAuthTabs() {
@@ -189,24 +191,15 @@ function setupPasswordToggles() {
             // 切换密码可见性
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                // 替换为眼睛关闭图标
-                iconElement.removeAttribute('data-lucide');
-                iconElement.setAttribute('data-lucide', 'eye-off');
+                // 使用FontAwesome切换图标
+                iconElement.classList.remove('fa-eye');
+                iconElement.classList.add('fa-eye-slash');
             } else {
                 passwordInput.type = 'password';
-                // 替换为眼睛打开图标
-                iconElement.removeAttribute('data-lucide');
-                iconElement.setAttribute('data-lucide', 'eye');
+                // 使用FontAwesome切换图标
+                iconElement.classList.remove('fa-eye-slash');
+                iconElement.classList.add('fa-eye');
             }
-            
-            // 重新渲染图标
-            lucide.createIcons({
-                icons: [iconElement],
-                attrs: {
-                    width: '18px',
-                    height: '18px'
-                }
-            });
         });
     });
 }

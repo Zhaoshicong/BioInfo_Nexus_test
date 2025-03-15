@@ -24,8 +24,11 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=False)  # 默认为False，需要邮箱验证
     is_admin = db.Column(db.Boolean, default=False)
     verification_token = db.Column(db.String(100), unique=True, nullable=True)
+    verification_code = db.Column(db.String(10), nullable=True)  # 验证码
+    verification_code_expiry = db.Column(db.DateTime, nullable=True)  # 验证码过期时间
     reset_token = db.Column(db.String(100), unique=True, nullable=True)  # 密码重置令牌
     reset_token_expiry = db.Column(db.DateTime, nullable=True)  # 令牌过期时间
+    reset_code = db.Column(db.String(10), nullable=True)  # 重置密码验证码
     
     def __repr__(self):
         return f'<User {self.username}>'

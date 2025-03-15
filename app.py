@@ -15,6 +15,8 @@ import re  # 添加正则表达式模块
 from flask_mail import Mail  # 导入Flask-Mail
 from dotenv import load_dotenv  # 导入dotenv
 from flask_jwt_extended import JWTManager  # 导入JWT扩展
+from user_auth.user_system import db, init_user_system
+from flask_migrate import Migrate
 
 # 加载环境变量
 load_dotenv()
@@ -61,6 +63,9 @@ mail.init_app(app)
 
 # 初始化用户系统
 init_user_system(app)
+
+# 初始化数据库迁移
+migrate = Migrate(app, db)
 
 # 注册蓝图
 app.register_blueprint(auth_bp, url_prefix='/api/auth')

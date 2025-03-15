@@ -1230,3 +1230,57 @@ body:has(.reset-password-container) .content-wrapper {
     height: 16px;
     filter: none;
 }
+
+/* 验证码容器样式 */
+.verification-container {
+    display: flex;
+    position: relative;
+    width: 100%;
+}
+
+.verification-container input {
+    flex: 1;
+    width: calc(100% - 120px);
+}
+
+.verification-btn {
+    position: relative;
+    width: 110px;
+    margin-left: 10px;
+    padding: 10px 0;
+    color: #fff;
+    background: linear-gradient(135deg, #1a4f7a, #3498db);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    outline: none;
+    box-shadow: 0 3px 10px rgba(26, 79, 122, 0.2);
+}
+
+.verification-btn:hover {
+    background: linear-gradient(135deg, #155d8c, #2980b9);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(26, 79, 122, 0.3);
+}
+
+.verification-btn:disabled {
+    background: #a0a0a0;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* 对重置密码页面的验证容器进行特殊定制 */
+.reset-password-container .verification-container {
+    margin-bottom: 15px;
+}
+
+.reset-password-container .verification-btn {
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+}

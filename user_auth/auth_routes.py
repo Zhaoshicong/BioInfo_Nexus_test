@@ -10,6 +10,8 @@ import secrets
 from flask_mail import Mail, Message
 from flask import render_template
 import logging
+import random
+import string
 
 # 创建logger
 logger = logging.getLogger(__name__)
@@ -20,49 +22,357 @@ auth_bp = Blueprint('auth', __name__)
 # 初始化邮件服务
 mail = Mail()
 
+# 生成随机验证码
+def generate_verification_code(length=6):
+    return ''.join(random.choice(string.digits) for _ in range(length))
+
 # 注册路由
 @auth_bp.route('/register', methods=['POST'])
 def register():
+    try:
+        data = request.get_json()
+        
+        # 记录注册请求
+        print(f"收到注册请求: {data}")
+        
+        # 验证必填字段
+        required_fields = ['email', 'password', 'verification_code']
+        for field in required_fields:
+            if not data.get(field):
+                print(f"缺少必填字段: {field}")
+                return jsonify({'message': f'缺少必填字段: {field}'}), 400
+        
+        email = data['email']
+        verification_code = data['verification_code']
+        # 从邮箱中提取用户名（使用@前的部分）
+        username = email.split('@')[0]
+        
+        # 检查用户名是否已存在
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user and existing_user.is_active:
+            print(f"用户名已存在: {username}")
+            return jsonify({'message': '用户名已存在！'}), 409
+        
+        # 检查邮箱是否已存在且已激活
+        existing_email = User.query.filter_by(email=email, is_active=True).first()
+        if existing_email:
+            print(f"邮箱已被注册: {email}")
+            return jsonify({'message': '邮箱已被注册！'}), 409
+        
+        # 验证验证码
+        user_record = User.query.filter_by(email=email, verification_code=verification_code, is_active=False).first()
+        
+        print(f"查找用户记录: email={email}, verification_code={verification_code}, 结果: {user_record}")
+        
+        if not user_record:
+            # 检查是否存在临时记录
+            temp_user = User.query.filter_by(email=email, is_active=False).first()
+            if temp_user:
+                print(f"验证码错误: 用户临时记录存在 {temp_user.email}, 但验证码不匹配或为空")
+                # 验证码错误
+                return jsonify({'message': '验证码错误或已过期！'}), 400
+            
+            print(f"没有找到用户临时记录: {email}")
+            # 创建新的临时用户记录
+            return jsonify({'message': '请先获取验证码！'}), 400
+        
+        # 验证验证码是否过期
+        if user_record.verification_code_expiry and user_record.verification_code_expiry < datetime.datetime.utcnow():
+            print(f"验证码已过期: {email}, 过期时间: {user_record.verification_code_expiry}")
+            return jsonify({'message': '验证码已过期，请重新获取！'}), 400
+        
+        # 更新用户信息并激活账户
+        user_record.password = generate_password_hash(data['password'])
+        user_record.is_active = True
+        user_record.verification_code = None
+        user_record.verification_code_expiry = None
+        
+        try:
+            db.session.commit()
+            print(f"用户注册成功: {email}")
+            return jsonify({'message': '注册成功！您现在可以登录了。'}), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"数据库提交错误: {str(e)}")
+            return jsonify({'message': f'数据库错误: {str(e)}'}), 500
+    
+    except Exception as e:
+        print(f"注册过程中发生异常: {str(e)}")
+        return jsonify({'message': f'注册失败: {str(e)}'}), 500
+
+# 发送注册验证码
+@auth_bp.route('/send-register-code', methods=['POST'])
+def send_register_code():
+    try:
+        data = request.get_json()
+        
+        print(f"收到发送验证码请求: {data}")
+        
+        if not data or not data.get('email'):
+            print("请求中没有提供邮箱地址")
+            return jsonify({'message': '请提供邮箱地址！'}), 400
+        
+        email = data['email']
+        
+        # 检查邮箱是否已注册且已激活
+        active_user = User.query.filter_by(email=email, is_active=True).first()
+        if active_user:
+            print(f"邮箱已被注册且已激活: {email}")
+            return jsonify({'message': '该邮箱已被注册！'}), 409
+        
+        # 生成验证码
+        verification_code = generate_verification_code()
+        print(f"为 {email} 生成验证码: {verification_code}")
+        
+        # 设置验证码过期时间（10分钟）
+        expiry_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+        
+        # 检查是否已存在未激活的用户记录
+        temp_user = User.query.filter_by(email=email, is_active=False).first()
+        
+        if temp_user:
+            print(f"更新现有临时用户记录: {email}")
+            # 更新现有记录
+            temp_user.verification_code = verification_code
+            temp_user.verification_code_expiry = expiry_time
+        else:
+            print(f"创建新的临时用户记录: {email}")
+            # 创建新的临时用户记录
+            username = email.split('@')[0]
+            public_id = str(uuid.uuid4())
+            
+            new_user = User(
+                public_id=public_id,
+                username=username,
+                email=email,
+                password='temporary_password',  # 将在注册完成时更新
+                is_active=False,
+                verification_code=verification_code,
+                verification_code_expiry=expiry_time
+            )
+            db.session.add(new_user)
+        
+        try:
+            db.session.commit()
+            print(f"数据库更新成功: {email}")
+        except Exception as e:
+            db.session.rollback()
+            print(f"数据库更新失败: {str(e)}")
+            return jsonify({'message': f'服务器错误: {str(e)}'}), 500
+        
+        # 发送验证码邮件
+        print(f"准备向 {email} 发送验证码")
+        result = send_verification_code_email(email, verification_code)
+        
+        if result:
+            print(f"验证码邮件发送成功: {email}")
+            return jsonify({'message': '验证码已发送，请查收邮件！'}), 200
+        else:
+            print(f"验证码邮件发送失败: {email}")
+            return jsonify({'message': '发送验证码失败，请稍后再试！'}), 500
+    
+    except Exception as e:
+        print(f"发送验证码过程中发生异常: {str(e)}")
+        return jsonify({'message': f'发送验证码失败: {str(e)}'}), 500
+
+# 发送验证码邮件的函数
+def send_verification_code_email(user_email, code):
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # 获取邮件配置
+        smtp_server = current_app.config['MAIL_SERVER']
+        smtp_port = current_app.config['MAIL_PORT']
+        smtp_username = current_app.config['MAIL_USERNAME']
+        smtp_password = current_app.config['MAIL_PASSWORD']
+        use_tls = current_app.config['MAIL_USE_TLS']
+        use_ssl = current_app.config['MAIL_USE_SSL']
+        
+        # 创建邮件
+        msg = MIMEMultipart()
+        msg['From'] = "BioInfoNexus <bioinfo-nexus@o41w.ren>"
+        msg['To'] = user_email
+        msg['Subject'] = "BioInfoNexus - 验证码"
+        
+        # 设置邮件内容
+        body = f"""
+尊敬的用户，
+
+您好！感谢您注册BioInfoNexus。
+
+您的验证码是: {code}
+
+此验证码将在10分钟内有效。如果您没有进行任何操作，请忽略此邮件。
+
+BioInfoNexus 团队
+"""
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # 连接到SMTP服务器并发送邮件
+        if use_ssl:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        else:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            if use_tls:
+                server.starttls()
+        
+        # 登录
+        server.login(smtp_username, smtp_password)
+        
+        # 发送邮件
+        server.send_message(msg)
+        
+        # 关闭连接
+        server.quit()
+        
+        print(f"验证码邮件已成功发送到 {user_email}")
+        return True
+    except Exception as e:
+        print(f"发送验证码邮件失败: {str(e)}")
+        return False
+
+# 忘记密码路由（发送验证码）
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
     data = request.get_json()
     
-    # 验证必填字段
-    required_fields = ['email', 'password']
-    for field in required_fields:
-        if not data.get(field):
-            return jsonify({'message': f'缺少必填字段: {field}'}), 400
+    print(f"收到忘记密码请求: {data}")
+    
+    if not data or not data.get('email'):
+        print("请求中没有提供邮箱地址")
+        return jsonify({'message': '请提供邮箱地址！'}), 400
+    
+    user_email = data['email']
+    print(f"正在查找用户: {user_email}")
+    
+    user = User.query.filter_by(email=user_email).first()
+    
+    if not user:
+        print(f"用户不存在: {user_email}")
+        # 为了安全，即使用户不存在也返回成功消息
+        return jsonify({'message': '验证码已发送，请查收邮件。'}), 200
+    
+    print(f"找到用户: {user.username}, ID: {user.id}")
+    
+    # 生成重置验证码
+    reset_code = generate_verification_code()
+    print(f"生成重置验证码: {reset_code}")
+    
+    # 设置验证码过期时间（10分钟）
+    user.reset_code = reset_code
+    user.reset_token_expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+    
+    try:
+        db.session.commit()
+        print("数据库更新成功")
+    except Exception as e:
+        print(f"数据库更新失败: {str(e)}")
+        db.session.rollback()
+        return jsonify({'message': '服务器错误，请稍后再试。'}), 500
+    
+    # 发送重置密码邮件
+    print(f"准备发送重置密码验证码到: {user.email}")
+    result = send_reset_password_code_email(user.email, reset_code)
+    
+    if result:
+        print(f"重置密码验证码邮件发送成功: {user.email}")
+        return jsonify({'message': '验证码已发送到您的邮箱，请查收。'}), 200
+    else:
+        print(f"重置密码验证码邮件发送失败: {user.email}")
+        return jsonify({'message': '发送验证码失败，请稍后再试。'}), 500
+
+# 使用验证码重置密码
+@auth_bp.route('/reset-password-with-code', methods=['POST'])
+def reset_password_with_code():
+    data = request.get_json()
+    
+    if not data or not data.get('email') or not data.get('verification_code') or not data.get('password'):
+        return jsonify({'message': '请提供所有必要信息！'}), 400
     
     email = data['email']
-    # 从邮箱中提取用户名（使用@前的部分）
-    username = email.split('@')[0]
+    verification_code = data['verification_code']
+    new_password = data['password']
     
-    # 检查用户名是否已存在
-    if User.query.filter_by(username=username).first():
-        return jsonify({'message': '用户名已存在！'}), 409
+    user = User.query.filter_by(email=email).first()
     
-    # 检查邮箱是否已存在
-    if User.query.filter_by(email=email).first():
-        return jsonify({'message': '邮箱已被注册！'}), 409
+    if not user:
+        return jsonify({'message': '该邮箱未注册！'}), 404
     
-    # 创建新用户
-    hashed_password = generate_password_hash(data['password'])
-    verification_token = secrets.token_hex(16)
+    # 验证验证码
+    if not user.reset_code or user.reset_code != verification_code:
+        return jsonify({'message': '验证码错误！'}), 400
     
-    new_user = User(
-        public_id=str(uuid.uuid4()),
-        username=username,
-        email=email,
-        password=hashed_password,
-        is_active=False,
-        verification_token=verification_token
-    )
+    # 检查验证码是否过期
+    if user.reset_token_expiry and user.reset_token_expiry < datetime.datetime.utcnow():
+        return jsonify({'message': '验证码已过期，请重新获取！'}), 400
     
-    db.session.add(new_user)
+    # 更新密码
+    user.password = generate_password_hash(new_password)
+    user.reset_code = None
+    user.reset_token_expiry = None
     db.session.commit()
     
-    # 发送验证邮件
-    send_verification_email(email, verification_token)
-    
-    return jsonify({'message': '注册成功！请查收验证邮件以激活您的账户。'}), 201
+    return jsonify({'message': '密码重置成功！您现在可以使用新密码登录。'}), 200
+
+# 发送重置密码验证码邮件的函数
+def send_reset_password_code_email(user_email, code):
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # 获取邮件配置
+        smtp_server = current_app.config['MAIL_SERVER']
+        smtp_port = current_app.config['MAIL_PORT']
+        smtp_username = current_app.config['MAIL_USERNAME']
+        smtp_password = current_app.config['MAIL_PASSWORD']
+        use_tls = current_app.config['MAIL_USE_TLS']
+        use_ssl = current_app.config['MAIL_USE_SSL']
+        
+        # 创建邮件
+        msg = MIMEMultipart()
+        msg['From'] = "BioInfoNexus <bioinfo-nexus@o41w.ren>"
+        msg['To'] = user_email
+        msg['Subject'] = "BioInfoNexus - 密码重置验证码"
+        
+        # 设置邮件内容
+        body = f"""
+尊敬的用户，
+
+您好！您申请了重置BioInfoNexus账户密码。
+
+您的重置密码验证码是: {code}
+
+此验证码将在10分钟内有效。如果您没有申请重置密码，请忽略此邮件。
+
+BioInfoNexus 团队
+"""
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # 连接到SMTP服务器并发送邮件
+        if use_ssl:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        else:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            if use_tls:
+                server.starttls()
+        
+        # 登录
+        server.login(smtp_username, smtp_password)
+        
+        # 发送邮件
+        server.send_message(msg)
+        
+        # 关闭连接
+        server.quit()
+        
+        print(f"重置密码验证码邮件已成功发送到 {user_email}")
+        return True
+    except Exception as e:
+        print(f"发送重置密码验证码邮件失败: {str(e)}")
+        return False
 
 # 邮箱验证路由
 @auth_bp.route('/verify-email/<token>', methods=['GET'])
@@ -364,81 +674,6 @@ def update_user_info(current_user):
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS 
-
-# 忘记密码路由
-@auth_bp.route('/forgot-password', methods=['POST'])
-def forgot_password():
-    data = request.get_json()
-    
-    print(f"收到忘记密码请求: {data}")
-    
-    if not data or not data.get('email'):
-        print("请求中没有提供邮箱地址")
-        return jsonify({'message': '请提供邮箱地址！'}), 400
-    
-    user_email = data['email']
-    print(f"正在查找用户: {user_email}")
-    
-    user = User.query.filter_by(email=user_email).first()
-    
-    if not user:
-        print(f"用户不存在: {user_email}")
-        # 为了安全，即使用户不存在也返回成功消息
-        return jsonify({'message': '如果该邮箱已注册，您将收到重置密码的邮件。'}), 200
-    
-    print(f"找到用户: {user.username}, ID: {user.id}")
-    
-    # 生成重置令牌
-    reset_token = secrets.token_hex(16)
-    print(f"生成重置令牌: {reset_token}")
-    
-    user.reset_token = reset_token
-    # 设置令牌过期时间（24小时后）
-    user.reset_token_expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-    
-    try:
-        db.session.commit()
-        print("数据库更新成功")
-    except Exception as e:
-        print(f"数据库更新失败: {str(e)}")
-        db.session.rollback()
-        return jsonify({'message': '服务器错误，请稍后再试。'}), 500
-    
-    # 发送重置密码邮件
-    print(f"准备发送重置密码邮件到: {user.email}")
-    result = send_reset_password_email(user.email, reset_token)
-    
-    if result:
-        print(f"重置密码邮件发送成功: {user.email}")
-        return jsonify({'message': '如果该邮箱已注册，您将收到重置密码的邮件。'}), 200
-    else:
-        print(f"重置密码邮件发送失败: {user.email}")
-        return jsonify({'message': '如果该邮箱已注册，您将收到重置密码的邮件。'}), 200
-
-# 重置密码路由
-@auth_bp.route('/reset-password/<token>', methods=['POST'])
-def reset_password(token):
-    data = request.get_json()
-    
-    if not data or not data.get('password'):
-        return jsonify({'message': '请提供新密码！'}), 400
-    
-    user = User.query.filter_by(reset_token=token).first()
-    
-    if not user:
-        return jsonify({'message': '无效的重置链接！'}), 400
-    
-    # 检查令牌是否过期
-    if user.reset_token_expiry < datetime.datetime.utcnow():
-        return jsonify({'message': '重置链接已过期！请重新申请。'}), 400
-    
-    # 更新密码
-    user.password = generate_password_hash(data['password'])
-    user.reset_token = None
-    user.reset_token_expiry = None
-    db.session.commit()
-    
-    return jsonify({'message': '密码重置成功！您现在可以使用新密码登录。'}), 200
 
 # 验证重置令牌路由
 @auth_bp.route('/verify-reset-token/<token>', methods=['GET'])

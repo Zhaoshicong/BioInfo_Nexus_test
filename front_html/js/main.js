@@ -176,6 +176,145 @@ function setupAuthTabs() {
             });
         });
     }
+    
+    // 添加发送验证码功能
+    const sendVerificationCodeBtn = document.getElementById('reg-send-code');
+    if (sendVerificationCodeBtn) {
+        // 检查是否存在冷却时间
+        const lastSendTime = localStorage.getItem('lastVerificationCodeSentTime');
+        const cooldownPeriod = 60 * 1000; // 1分钟冷却
+        
+        if (lastSendTime) {
+            const elapsedTime = Date.now() - parseInt(lastSendTime);
+            if (elapsedTime < cooldownPeriod) {
+                // 如果在冷却期内，设置按钮状态并开始倒计时
+                const remainingSeconds = Math.ceil((cooldownPeriod - elapsedTime) / 1000);
+                startCooldown(sendVerificationCodeBtn, remainingSeconds);
+            }
+        }
+        
+        sendVerificationCodeBtn.addEventListener('click', function() {
+            const email = document.getElementById('reg-email').value;
+            
+            if (!email) {
+                showAuthError('register', 'error', '请输入邮箱地址！');
+                return;
+            }
+            
+            // 检查邮箱格式
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showAuthError('register', 'error', '请输入有效的邮箱地址！');
+                return;
+            }
+            
+            // 检查冷却期
+            const lastSendTime = localStorage.getItem('lastVerificationCodeSentTime');
+            const cooldownPeriod = 60 * 1000; // 1分钟冷却
+            
+            if (lastSendTime) {
+                const elapsedTime = Date.now() - parseInt(lastSendTime);
+                if (elapsedTime < cooldownPeriod) {
+                    const remainingSeconds = Math.ceil((cooldownPeriod - elapsedTime) / 1000);
+                    showAuthError('register', 'error', `请等待 ${remainingSeconds} 秒后再次发送验证码`);
+                    
+                    // 更新按钮状态，强制开始倒计时
+                    startCooldown(this, remainingSeconds);
+                    return;
+                }
+            }
+            
+            // 显示发送中状态
+            const originalText = this.textContent;
+            this.textContent = '发送中...';
+            this.disabled = true;
+            this.style.backgroundColor = '#cccccc';
+            
+            // 发送获取验证码请求
+            fetch('/api/auth/send-register-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 记录发送时间
+                localStorage.setItem('lastVerificationCodeSentTime', Date.now());
+                
+                // 直接显示成功消息，而不通过showAuthError，避免干扰倒计时
+                alert(data.message || '验证码已发送，请查收邮件！');
+                
+                // 开始倒计时
+                startCooldown(this, 60);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.textContent = originalText;
+                this.disabled = false;
+                this.style.backgroundColor = '';
+                showAuthError('register', 'error', '发送验证码失败，请稍后再试！');
+            });
+        });
+    }
+    
+    // 重置密码页面验证码按钮也应用相同的冷却逻辑
+    const resetPasswordCodeBtn = document.getElementById('sendVerificationCode');
+    if (resetPasswordCodeBtn) {
+        // 检查是否存在冷却时间
+        const lastSendTime = localStorage.getItem('lastResetCodeSentTime');
+        const cooldownPeriod = 60 * 1000; // 1分钟冷却
+        
+        if (lastSendTime) {
+            const elapsedTime = Date.now() - parseInt(lastSendTime);
+            if (elapsedTime < cooldownPeriod) {
+                // 如果在冷却期内，设置按钮状态并开始倒计时
+                const remainingSeconds = Math.ceil((cooldownPeriod - elapsedTime) / 1000);
+                startCooldown(resetPasswordCodeBtn, remainingSeconds);
+            }
+        }
+    }
+}
+
+// 倒计时函数
+function startCooldown(button, seconds) {
+    // 保存原始文本
+    const originalText = button.innerText || button.textContent;
+    
+    // 确保按钮被禁用，并添加视觉样式
+    button.disabled = true;
+    button.style.backgroundColor = '#cccccc';
+    button.style.cursor = 'not-allowed';
+    button.style.opacity = '0.7';
+    
+    // 设置初始倒计时文本
+    button.textContent = `重新发送(${seconds}s)`;
+    
+    // 清除可能存在的旧计时器
+    if (button._cooldownTimer) {
+        clearInterval(button._cooldownTimer);
+    }
+    
+    // 创建新的计时器
+    button._cooldownTimer = setInterval(() => {
+        // 获取当前的数字
+        const currentSeconds = parseInt(button.textContent.match(/\d+/)[0]);
+        const newCount = currentSeconds - 1;
+        
+        if (newCount <= 0) {
+            // 倒计时结束，恢复按钮状态
+            clearInterval(button._cooldownTimer);
+            button.textContent = originalText;
+            button.disabled = false;
+            button.style.backgroundColor = '';
+            button.style.cursor = '';
+            button.style.opacity = '';
+        } else {
+            // 更新倒计时显示
+            button.textContent = `重新发送(${newCount}s)`;
+        }
+    }, 1000);
 }
 
 // 设置密码可见性切换
@@ -268,19 +407,27 @@ function validateLogin(event) {
 // 验证注册表单
 function validateRegister(event) {
     event.preventDefault();
-    const email = document.getElementById('reg-email').value;
-    const password = document.getElementById('reg-password').value;
-    const confirmPassword = document.getElementById('reg-confirm-password').value;
     
-    // 验证密码匹配
-    if (password !== confirmPassword) {
-        alert('两次输入的密码不一致！');
+    const regEmail = document.getElementById('reg-email').value;
+    const regPassword = document.getElementById('reg-password').value;
+    const regConfirmPassword = document.getElementById('reg-confirm-password').value;
+    const regVerificationCode = document.getElementById('reg-verification-code').value;
+    
+    // 验证输入
+    if (!regEmail || !regPassword || !regConfirmPassword || !regVerificationCode) {
+        showAuthError('register', 'error', '请填写所有必填字段！');
+        return false;
+    }
+    
+    if (regPassword !== regConfirmPassword) {
+        showAuthError('register', 'error', '两次输入的密码不一致！');
         return false;
     }
     
     // 显示加载状态
     const registerBtn = document.querySelector('.register-btn');
-    registerBtn.innerHTML = '注册中...';
+    const originalText = registerBtn.textContent;
+    registerBtn.textContent = '注册中...';
     registerBtn.disabled = true;
     
     // 发送注册请求
@@ -290,62 +437,80 @@ function validateRegister(event) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            email: email,
-            password: password
+            email: regEmail,
+            password: regPassword,
+            verification_code: regVerificationCode
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message.includes('注册成功')) {
-            // 注册成功
-            registerBtn.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
-            registerBtn.innerHTML = '注册成功 <span style="margin-left: 5px">✓</span>';
-            
-            // 显示成功消息并切换到登录表单
-            setTimeout(() => {
-                alert('注册成功！请查收验证邮件以激活您的账户。');
-                // 切换到登录表单
-                document.querySelector('.auth-tab[data-tab="login"]').click();
-                // 重置注册表单
+    .then(response => {
+        // 保存响应状态
+        const isSuccess = response.ok;
+        return response.json().then(data => {
+            return { data, isSuccess };
+        });
+    })
+    .then(({ data, isSuccess }) => {
+        // 恢复按钮状态
+        registerBtn.textContent = originalText;
+        registerBtn.disabled = false;
+        
+        if (isSuccess) {
+            // 注册成功，显示成功弹窗
+            showSuccessModal('注册成功', '您的账号已成功注册，请使用您的邮箱和密码登录系统。', function() {
+                // 清空表单
                 document.getElementById('registerForm').reset();
-                registerBtn.innerHTML = '注册';
-                registerBtn.disabled = false;
-                registerBtn.style.background = '';
-            }, 1000);
+                
+                // 切换到登录选项卡
+                document.querySelector('[data-tab="login"]').click();
+            });
         } else {
             // 注册失败
-            showAuthError(registerBtn, '注册', data.message || '注册失败，请稍后再试！');
+            showAuthError('register', 'error', data.message || '注册失败，请稍后再试。');
         }
     })
     .catch(error => {
-        console.error('注册错误:', error);
-        showAuthError(registerBtn, '注册', '注册请求失败，请稍后再试！');
+        console.error('Error:', error);
+        registerBtn.textContent = originalText;
+        registerBtn.disabled = false;
+        showAuthError('register', 'error', '注册请求失败，请稍后再试。');
     });
     
     return false;
 }
 
 // 显示认证错误
-function showAuthError(button, type, message) {
-    button.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
-    button.innerHTML = `${type}失败`;
+function showAuthError(button, type, message, shouldResetButton = true) {
+    // 如果是字符串，查找对应的按钮
+    if (typeof button === 'string') {
+        if (button === 'register') {
+            button = document.querySelector('.register-btn');
+        } else if (button === 'login') {
+            button = document.querySelector('.login-btn');
+        }
+    }
     
     // 显示错误消息
     alert(message);
     
-    // 重置按钮状态
-    setTimeout(() => {
-        button.style.background = '';
-        button.innerHTML = type === '登录' ? '登录' : '注册';
-        button.disabled = false;
-    }, 1500);
-    
-    // 添加抖动效果
-    const container = document.querySelector('.login-container');
-    container.style.animation = 'shake 0.5s ease-in-out';
-    setTimeout(() => {
-        container.style.animation = '';
-    }, 500);
+    // 如果需要重置按钮状态
+    if (shouldResetButton) {
+        button.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
+        button.innerHTML = `${type}失败`;
+        
+        // 重置按钮状态
+        setTimeout(() => {
+            button.style.background = '';
+            button.innerHTML = type === '登录' ? '登录' : '注册';
+            button.disabled = false;
+        }, 1500);
+        
+        // 添加抖动效果
+        const container = document.querySelector('.login-container');
+        container.style.animation = 'shake 0.5s ease-in-out';
+        setTimeout(() => {
+            container.style.animation = '';
+        }, 500);
+    }
 }
 
 // 检查登录状态
@@ -450,158 +615,12 @@ function resendVerificationEmail(email) {
 function setupPasswordReset() {
     // 获取元素
     const forgotPasswordLink = document.getElementById('forgotPasswordLink');
-    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
-    const resetPasswordModal = document.getElementById('resetPasswordModal');
-    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
-    const resetPasswordForm = document.getElementById('resetPasswordForm');
-    const forgotPasswordMessage = document.getElementById('forgotPasswordMessage');
-    const resetPasswordMessage = document.getElementById('resetPasswordMessage');
     
-    // 关闭按钮
-    const closeButtons = document.querySelectorAll('.close');
+    // 忘记密码链接在HTML中已设置为直接跳转到reset-password.html，不需要阻止默认行为
+    // 如果有其他相关模态框逻辑，可在此处进行处理
     
-    // 点击忘记密码链接，显示忘记密码模态框
-    if (forgotPasswordLink) {
-        forgotPasswordLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            forgotPasswordModal.style.display = 'block';
-        });
-    }
-    
-    // 关闭模态框
-    closeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            forgotPasswordModal.style.display = 'none';
-            resetPasswordModal.style.display = 'none';
-        });
-    });
-    
-    // 点击模态框外部关闭模态框
-    window.addEventListener('click', function(e) {
-        if (e.target === forgotPasswordModal) {
-            forgotPasswordModal.style.display = 'none';
-        }
-        if (e.target === resetPasswordModal) {
-            resetPasswordModal.style.display = 'none';
-        }
-    });
-    
-    // 提交忘记密码表单
-    if (forgotPasswordForm) {
-        forgotPasswordForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const email = document.getElementById('forgotEmail').value;
-            
-            try {
-                // 显示加载状态
-                const submitBtn = forgotPasswordForm.querySelector('.submit-btn');
-                const originalText = submitBtn.textContent;
-                submitBtn.textContent = '发送中...';
-                submitBtn.disabled = true;
-                
-                // 发送请求
-                const response = await fetch('/api/auth/forgot-password', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ email })
-                });
-                
-                const data = await response.json();
-                
-                // 恢复按钮状态
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-                
-                // 显示消息
-                forgotPasswordMessage.textContent = data.message;
-                forgotPasswordMessage.className = 'message success';
-                
-                // 清空表单
-                forgotPasswordForm.reset();
-                
-                // 3秒后关闭模态框
-                setTimeout(() => {
-                    forgotPasswordModal.style.display = 'none';
-                    forgotPasswordMessage.className = 'message';
-                }, 3000);
-                
-            } catch (error) {
-                console.error('Error:', error);
-                forgotPasswordMessage.textContent = '发送重置链接时出错，请稍后再试。';
-                forgotPasswordMessage.className = 'message error';
-            }
-        });
-    }
-    
-    // 提交重置密码表单
-    if (resetPasswordForm) {
-        resetPasswordForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const password = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmNewPassword').value;
-            const token = document.getElementById('resetToken').value;
-            
-            // 验证密码
-            if (password !== confirmPassword) {
-                resetPasswordMessage.textContent = '两次输入的密码不一致！';
-                resetPasswordMessage.className = 'message error';
-                return;
-            }
-            
-            try {
-                // 显示加载状态
-                const submitBtn = resetPasswordForm.querySelector('.submit-btn');
-                const originalText = submitBtn.textContent;
-                submitBtn.textContent = '重置中...';
-                submitBtn.disabled = true;
-                
-                // 发送请求
-                const response = await fetch(`/api/auth/reset-password/${token}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ password })
-                });
-                
-                const data = await response.json();
-                
-                // 恢复按钮状态
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-                
-                if (response.ok) {
-                    // 显示成功消息
-                    resetPasswordMessage.textContent = data.message;
-                    resetPasswordMessage.className = 'message success';
-                    
-                    // 清空表单
-                    resetPasswordForm.reset();
-                    
-                    // 3秒后关闭模态框并重定向到登录页面
-                    setTimeout(() => {
-                        resetPasswordModal.style.display = 'none';
-                        resetPasswordMessage.className = 'message';
-                        // 移除URL中的token参数
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }, 3000);
-                } else {
-                    // 显示错误消息
-                    resetPasswordMessage.textContent = data.message || '重置密码失败，请稍后再试。';
-                    resetPasswordMessage.className = 'message error';
-                }
-                
-            } catch (error) {
-                console.error('Error:', error);
-                resetPasswordMessage.textContent = '重置密码时出错，请稍后再试。';
-                resetPasswordMessage.className = 'message error';
-            }
-        });
-    }
+    // 检查URL参数处理逻辑保留不变
+    checkResetPasswordToken();
 }
 
 // 检查URL参数，如果有重置密码的token，则显示重置密码模态框
@@ -654,3 +673,96 @@ function showToast(message, type = 'info') {
         toast.style.display = 'none';
     }, 3000);
 }
+
+// 显示成功弹窗
+function showSuccessModal(title, message, callback) {
+    // 创建模态框
+    const modal = document.createElement('div');
+    modal.className = 'success-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.zIndex = '1000';
+    
+    // 创建模态框内容
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = '#fff';
+    modalContent.style.borderRadius = '8px';
+    modalContent.style.padding = '30px';
+    modalContent.style.width = '400px';
+    modalContent.style.maxWidth = '90%';
+    modalContent.style.textAlign = 'center';
+    modalContent.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.2)';
+    
+    // 添加成功图标
+    const icon = document.createElement('div');
+    icon.innerHTML = '<i class="fas fa-check-circle" style="font-size: 60px; color: #27ae60; margin-bottom: 20px;"></i>';
+    
+    // 添加标题
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = title;
+    titleElement.style.fontSize = '24px';
+    titleElement.style.margin = '10px 0';
+    
+    // 添加消息
+    const messageElement = document.createElement('p');
+    messageElement.textContent = message;
+    messageElement.style.fontSize = '16px';
+    messageElement.style.margin = '15px 0';
+    messageElement.style.color = '#555';
+    
+    // 添加确认按钮
+    const button = document.createElement('button');
+    button.textContent = '确定';
+    button.style.backgroundColor = '#27ae60';
+    button.style.color = '#fff';
+    button.style.border = 'none';
+    button.style.borderRadius = '4px';
+    button.style.padding = '10px 20px';
+    button.style.fontSize = '16px';
+    button.style.cursor = 'pointer';
+    button.style.marginTop = '20px';
+    button.style.transition = 'background-color 0.3s';
+    
+    button.addEventListener('mouseover', function() {
+        this.style.backgroundColor = '#2ecc71';
+    });
+    
+    button.addEventListener('mouseout', function() {
+        this.style.backgroundColor = '#27ae60';
+    });
+    
+    button.addEventListener('click', function() {
+        document.body.removeChild(modal);
+        if (typeof callback === 'function') {
+            callback();
+        }
+    });
+    
+    // 组装模态框
+    modalContent.appendChild(icon);
+    modalContent.appendChild(titleElement);
+    modalContent.appendChild(messageElement);
+    modalContent.appendChild(button);
+    modal.appendChild(modalContent);
+    
+    // 添加到页面
+    document.body.appendChild(modal);
+    
+    // 添加动画效果
+    modalContent.style.transform = 'scale(0.7)';
+    modalContent.style.opacity = '0';
+    modalContent.style.transition = 'all 0.3s ease-out';
+    
+    setTimeout(function() {
+        modalContent.style.transform = 'scale(1)';
+        modalContent.style.opacity = '1';
+    }, 10);
+}
+

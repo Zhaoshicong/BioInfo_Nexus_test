@@ -35,7 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='front_html', static_url_path='')
-CORS(app, resources={r"/api/*": {"origins": "*"}})  # 启用CORS支持，允许所有API路由的跨域请求
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}})  # 明确指定允许的方法
 
 # 配置JWT
 app.config['JWT_SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_please_change_in_production')
@@ -479,7 +479,18 @@ def not_found(error):
 
 @app.errorhandler(405)
 def method_not_allowed(error):
-    return jsonify({'error': '不支持的请求方法'}), 405
+    # 记录详细错误日志
+    logger.error(f"405错误: {request.method} {request.path} - {error}")
+    
+    # 获取该路由允许的方法
+    allowed_methods = error.get_response().headers.get('Allow', '未知')
+    
+    # 返回更详细的错误信息
+    return jsonify({
+        'error': '不支持的请求方法',
+        'message': f'路径 {request.path} 不支持 {request.method} 方法',
+        'allowed_methods': allowed_methods
+    }), 405
 
 @app.errorhandler(500)
 def internal_server_error(error):

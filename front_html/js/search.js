@@ -341,10 +341,23 @@ function initPage() {
     const toolCards = document.querySelectorAll('.tool-card');
     const analyzeBtn = document.querySelector('.analyze-btn');
     
-    // 更新字符计数
+    // 更新字符计数并将输入转换为大写
     sequenceInput.addEventListener('input', function() {
+        // 将输入内容转换为大写
+        const originalValue = this.value;
+        const cursorPosition = this.selectionStart;
+        
+        // 转换为大写
+        this.value = originalValue.toUpperCase();
+        
+        // 恢复光标位置
+        this.setSelectionRange(cursorPosition, cursorPosition);
+        
+        // 更新字符计数
         const sequence = this.value.trim();
-        charCounter.textContent = `${sequence.length} 个氨基酸`;
+        const count = sequence.length;
+        // 只更新计数部分，保留提示信息
+        charCounter.innerHTML = `${count} 个氨基酸 <span style="margin-left: 10px; font-size: 12px; color: #666;">* 序列将自动转换为大写字母</span>`;
     });
     
     // 工具卡片点击事件
@@ -357,7 +370,9 @@ function initPage() {
     
     // 分析按钮点击事件
     analyzeBtn.addEventListener('click', async function() {
-        const sequence = sequenceInput.value.trim();
+        // 获取序列并确保转换为大写
+        const sequence = sequenceInput.value.trim().toUpperCase();
+        
         if (!sequence) {
             utils.showToast('请输入氨基酸序列');
             return;

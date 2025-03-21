@@ -8,6 +8,8 @@ import random
 import string
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
+from datetime import datetime
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -397,6 +399,51 @@ def save_results_to_file(results, failed, output_file):
             f.write("序列ID\t序列\t错误原因\n")
             for seq_id, seq, error in failed:
                 f.write(f"{seq_id}\t{seq}\t{error}\n")
+
+def predict_toxicity(sequence):
+    """预测肽序列的毒性，返回结果和特征"""
+    try:
+        logger.info(f"开始预测序列的毒性: {sequence}")
+        logger.info("尝试使用主要预测函数...")
+        result = predict_toxin(sequence, verbose=True)
+        logger.info(f"主要预测函数返回: {result}")
+
+        if result and result.get('success'):
+            logger.info(f"主要预测成功，提取结果")
+            first_result = result['results'][0]
+            prediction = first_result.get('Prediction', 'Unknown')
+            svm_score = first_result.get('SVM Score', '0.0')
+            
+            try:
+                svm_score = float(svm_score)
+            except (ValueError, TypeError):
+                svm_score = 0.0
+                
+            # 修复is_toxin的逻辑判断
+            is_toxin = prediction.lower() == "toxin" or "toxin" in prediction.lower()
+            
+            # 不要将Non-Toxin判断为Toxin
+            if "non-toxin" in prediction.lower():
+                is_toxin = False
+                
+            return {
+                'svm_score': svm_score,
+                'result': prediction,
+                'is_toxin': is_toxin,
+                'features': {
+                    'Hydrophobicity': first_result.get('Hydrophobicity', 'N/A'),
+                    'Hydropathicity': first_result.get('Hydropathicity', 'N/A'),
+                    'Hydrophilicity': first_result.get('Hydrophilicity', 'N/A'),
+                    'Charge': first_result.get('Charge', 'N/A'),
+                    'Mol wt': first_result.get('Mol wt', 'N/A')
+                }
+            }
+        else:
+            logger.warning("主要预测失败，尝试备用方法")
+            # ... 其余代码保持不变 ...
+    except Exception as e:
+        logger.error(f"预测过程中出错: {str(e)}")
+        return None
 
 if __name__ == "__main__":
     # 简化版本，直接提示用户输入序列

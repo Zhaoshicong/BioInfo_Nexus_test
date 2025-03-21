@@ -295,11 +295,115 @@ const sequenceTools = {
             case 'vaxijen':
                 resultBox.innerHTML = `
                     <p>预测结果: ${result.result}</p>
-                    <p>概率值: ${result.probability}</p>
+                    <p>Vaxijen打分: ${result.score}</p>
                 `;
                 break;
+
+            case 'toxinpred':
+                resultBox.innerHTML = `
+                    <p>序列: ${result.sequence}</p>
+                    <p>预测结果: <span class="${result.is_toxin ? 'error' : 'success'}">${result.result}</span></p>
+                    <p>SVM得分: ${result.svm_score}</p>
+                `;
+                if (result.toxicity_features) {
+                    resultBox.innerHTML += `
+                        <div class="toxin-features">
+                            <h4>详细特征分析:</h4>
+                            <ul>
+                                ${Object.entries(result.toxicity_features).map(([key, value]) => 
+                                    `<li>${key}: ${value}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+                break;
+                
+            case 'physchemparam':
+                // 基本信息
+                resultBox.innerHTML = `
+                    <h4>基本信息:</h4>
+                    <p>氨基酸数量: ${result.amino_acid_count}</p>
+                    <p>分子量: ${result.molecular_weight.toFixed(2)} Da</p>
+                    <p>理论等电点: ${result.theoretical_pi.toFixed(2)}</p>
+                `;
+                
+                // 氨基酸组成
+                if (result.amino_acid_composition) {
+                    resultBox.innerHTML += `
+                        <h4>氨基酸组成:</h4>
+                        <div class="aa-composition" style="max-height: 200px; overflow-y: auto; margin: 10px 0; padding: 10px; border: 1px solid #eee;">
+                            ${Object.entries(result.amino_acid_composition).map(([aa, data]) => 
+                                `<div>${aa}: ${data.count} (${data.percent}%)</div>`).join('')}
+                        </div>
+                    `;
+                }
+                
+                // 电荷残基
+                resultBox.innerHTML += `
+                    <p>带负电荷残基数量 (Asp + Glu): ${result.negative_residues}</p>
+                    <p>带正电荷残基数量 (Arg + Lys): ${result.positive_residues}</p>
+                `;
+
+                // 消光系数
+                if (result.extinction_coefficients) {
+                    resultBox.innerHTML += `
+                        <h4>消光系数:</h4>
+                    `;
+                    if (result.extinction_coefficients.cystines) {
+                        resultBox.innerHTML += `
+                            <p>Cystine状态: ${result.extinction_coefficients.cystines.coefficient} M⁻¹cm⁻¹ 
+                            (Abs 0.1% = ${result.extinction_coefficients.cystines.abs_01})</p>
+                        `;
+                    }
+                    if (result.extinction_coefficients.reduced) {
+                        resultBox.innerHTML += `
+                            <p>还原状态: ${result.extinction_coefficients.reduced.coefficient} M⁻¹cm⁻¹ 
+                            (Abs 0.1% = ${result.extinction_coefficients.reduced.abs_01})</p>
+                        `;
+                    }
+                }
+
+                    // 半衰期
+                if (result.half_life) {
+                    resultBox.innerHTML += `
+                        <h4>估计半衰期:</h4>
+                    `;
+                    if (result.half_life.n_terminal) {
+                        resultBox.innerHTML += `<p>N末端氨基酸: ${result.half_life.n_terminal}</p>`;
+                    }
+                    if (result.half_life.mammalian) {
+                        resultBox.innerHTML += `<p>哺乳动物网织红细胞 (体外): ${result.half_life.mammalian}</p>`;
+                    }
+                    if (result.half_life.yeast) {
+                        resultBox.innerHTML += `<p>酵母 (体内): ${result.half_life.yeast}</p>`;
+                    }
+                    if (result.half_life.ecoli) {
+                        resultBox.innerHTML += `<p>大肠杆菌 (体内): ${result.half_life.ecoli}</p>`;
+                    }
+                }
+
+                resultBox.innerHTML += `<br>`;
+                
+                // 稳定性和特性
+                if (result.instability_index) {
+                    resultBox.innerHTML += `
+                        <p>不稳定指数: ${result.instability_index.toFixed(2)}</p>
+                        <p>蛋白质分类为: ${result.stability_classification || '未知'}</p>
+                        <p>脂肪族指数: ${result.aliphatic_index.toFixed(2)}</p>
+                        <p>疏水性平均值 (GRAVY): ${result.gravy.toFixed(3)}</p>
+                        <p>GRAVY 指数 (Grand Average of Hydropathicity) 的含义：
+GRAVY 指数是蛋白质疏水性的量化指标，通过计算蛋白质序列中所有氨基酸疏水性值的平均值得出。每个氨基酸都有一个预先定义的疏水性值（通常基于 Kyte-Doolittle 疏水性尺度）。
+关于正负值的说明:GRAVY 值为负数，表示该蛋白质整体上是亲水性的 (hydrophilic)。 这意味着该蛋白的氨基酸组成中,亲水性氨基酸(例如;精氨酸、赖氨酸、谷氨酸、天冬氨酸等0的比例相对较高。反之,为正数,则呈现疏水性(hydrophobic)特征。
+关于数值大小的说明: 数值的绝对值越接近于 0,表示该蛋白的疏水性或亲水性不强,可能兼具一定的亲水性和疏水性。相反,绝对值越大,则表示该蛋白的疏水性或亲水性越强。</p>
+                    `;
+                }            
+                break;
+                
+            default:{
+                resultBox.innerHTML = `<p>未知工具类型: ${tool}</p>`;
+                break;
+            }
         }
-        
         // 显示结果容器
         resultsContainer.style.display = 'block';
     }
@@ -308,10 +412,116 @@ const sequenceTools = {
 // 获取工具名称
 function getToolName(tool) {
     switch(tool) {
-        case 'protparam': return '分子量计算';
-        case 'signalp': return '信号肽预测';
-        case 'vaxijen': return '抗原性预测';
-        default: return '序列分析';
+        case 'protparam':
+            return '分子量计算 (ProtParam)';
+        case 'signalp':
+            return '信号肽预测 (SignalP)';
+        case 'vaxijen':
+            return '抗原性预测 (VaxiJen)';
+        case 'toxinpred':
+            return '毒性预测 (ToxinPred)';
+        case 'physchemparam':
+            return '物理化学参数分析';
+        default:
+            return tool;
+    }
+}
+
+// 默认粒子配置
+const defaultParticleConfig = {
+    particles: {
+        number: {
+            value: 80,
+            density: {
+                enable: true,
+                value_area: 800
+            }
+        },
+        color: {
+            value: '#3498db'
+        },
+        shape: {
+            type: 'circle'
+        },
+        opacity: {
+            value: 0.5,
+            random: false,
+            anim: {
+                enable: false
+            }
+        },
+        size: {
+            value: 3,
+            random: true,
+            anim: {
+                enable: false
+            }
+        },
+        line_linked: {
+            enable: true,
+            distance: 150,
+            color: '#3498db',
+            opacity: 0.4,
+            width: 1
+        },
+        move: {
+            enable: true,
+            speed: 2,
+            direction: 'none',
+            random: false,
+            straight: false,
+            out_mode: 'out',
+            bounce: false,
+            attract: {
+                enable: true,
+                rotateX: 600,
+                rotateY: 1200
+            }
+        }
+    },
+    interactivity: {
+        detect_on: 'canvas',
+        events: {
+            onhover: {
+                enable: true,
+                mode: 'grab'
+            },
+            onclick: {
+                enable: true,
+                mode: 'push'
+            },
+            resize: true
+        },
+        modes: {
+            grab: {
+                distance: 140,
+                line_linked: {
+                    opacity: 1
+                }
+            },
+            push: {
+                particles_nb: 4
+            }
+        }
+    },
+    retina_detect: true
+};
+
+// 重新初始化粒子系统
+function reloadParticles() {
+    // 首先检查是否存在粒子系统
+    if (window.pJSDom && window.pJSDom.length > 0) {
+        // 删除现有的粒子系统
+        window.pJSDom = [];
+        const canvas = document.querySelector('#particles-js canvas');
+        if (canvas) {
+            canvas.remove();
+        }
+        
+        // 重新初始化粒子系统
+        setTimeout(() => {
+            particlesJS('particles-js', window.particleConfig || defaultParticleConfig);
+        }, 100);
     }
 }
 
@@ -331,6 +541,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // 初始化页面
     initPage();
+    
+    // 保存粒子配置以便重新初始化
+    if (window.pJSDom && window.pJSDom[0] && window.pJSDom[0].pJS) {
+        window.particleConfig = window.pJSDom[0].pJS.particles.json;
+    }
+    
+    // 添加window resize事件，解决粒子背景拉伸问题
+    window.addEventListener('resize', function() {
+        // 延迟执行以避免频繁触发
+        if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
+        this.resizeTimeout = setTimeout(function() {
+            // 重新加载粒子系统
+            reloadParticles();
+        }, 200);
+    });
 });
 
 // 初始化页面
@@ -391,6 +616,11 @@ function initPage() {
             const result = await sequenceTools.analyzeSequence(tool, sequence);
             utils.hideLoading();
             sequenceTools.displayResults(tool, result);
+            
+            // 添加结果后重新初始化粒子系统
+            setTimeout(function() {
+                reloadParticles();
+            }, 300);
         } catch (error) {
             utils.hideLoading();
             utils.showToast(`分析失败: ${error.message}`);

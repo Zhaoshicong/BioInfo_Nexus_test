@@ -39,43 +39,67 @@ def get_vaxijen_result(protein_sequence):
         # 发送POST请求，设置30秒超时
         response = requests.post(form_action, files=files, headers=headers, timeout=30)
 
-        # 保存响应以便检查
-        #with open("VaxiJen_response.html", "w", encoding="utf-8") as f:
-            #f.write(response.text)
-
+        # 保存响应以便调试
+        #with open("temp/VaxiJen_response.html", "w", encoding="utf-8") as f:
+        #    f.write(response.text)
+        
+        # 打印调试日志
+        logger.info(f"VaxiJen响应状态码: {response.status_code}")
+        
         # 使用BeautifulSoup解析HTML
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 打印响应的前200个字符，帮助调试
-        #print("响应片段:")
-        #print(response.text[:200])
-
-        # 查找包含结果的文本
+        # 尝试多种方式提取结果
+        # 方法1: 查找包含结果的文本
         result_text = soup.find(string=lambda text: text and "Overall Prediction for the Protective Antigen" in text)
-
+        
         if result_text:
-            # 使用正则表达式从文本中提取概率值
-            prob_match = re.search(r"Overall Prediction for the Protective Antigen =<b>\s*(-?\d+)", response.text)
-            result_match = re.search(r"<FONT COLOR=\"#0000FF\">(NON-ANTIGEN|ANTIGEN)</font></b>", response.text)
+            logger.info(f"找到结果文本: {result_text[:100]}")
+        else:
+            logger.warning("未找到结果文本")
 
-            if prob_match and result_match:
-                probability = prob_match.group(1).strip()
-                result = result_match.group(1)
-                return result, probability
+        # 方法2: 使用正则表达式从整个HTML中提取概率值
+        # 修改正则表达式，调整匹配模式
+        prob_match = re.search(r"Overall Prediction for the Protective Antigen =<b>\s*([-+]?\d*\.?\d+)\s*</b>", response.text, re.IGNORECASE)
+        result_match = re.search(r"<FONT COLOR=\"#0000FF\">(NON-ANTIGEN|ANTIGEN)</font>", response.text, re.IGNORECASE)
 
-        # 如果上面的方法失败，尝试直接查找元素
+        if prob_match and result_match:
+            probability = prob_match.group(1).strip()
+            result = result_match.group(1)
+            logger.info(f"通过正则表达式1找到 - 概率: {probability}, 结果: {result}")
+            return result, probability
+
+        # 方法3: 尝试不同的正则表达式
+        prob_match = re.search(r"Overall Prediction for the Protective Antigen =.+?<b>\s*([-+]?\d*\.?\d+)\s*</b>", response.text, re.DOTALL | re.IGNORECASE)
+        result_match = re.search(r"<FONT COLOR=\"#0000FF\">(NON-ANTIGEN|ANTIGEN)</FONT>", response.text, re.IGNORECASE)
+        
+        if prob_match and result_match:
+            probability = prob_match.group(1).strip()
+            result = result_match.group(1)
+            logger.info(f"通过正则表达式2找到 - 概率: {probability}, 结果: {result}")
+            return result, probability
+
+        # 方法4: 尝试使用BeautifulSoup查找元素
         b_tags = soup.find_all('b')
         for b in b_tags:
-            if b.string and re.match(r"\s*-?\d+\s*", b.string):
-                probability = b.string.strip()
+            text = b.get_text().strip()
+            if re.match(r"^[-+]?\d*\.?\d+$", text):
+                probability = text
                 # 查找结果
-                font_tags = soup.find_all('font', color="#0000FF")
+                font_tags = soup.find_all('font', {'color': re.compile(r'#0000FF', re.IGNORECASE)})
                 for font in font_tags:
-                    if font.string in ["ANTIGEN", "NON-ANTIGEN"]:
-                        result = font.string
+                    font_text = font.get_text().strip().upper()
+                    if font_text in ["ANTIGEN", "NON-ANTIGEN"]:
+                        result = font_text
+                        logger.info(f"通过BeautifulSoup找到 - 概率: {probability}, 结果: {result}")
                         return result, probability
 
-        logger.error("无法从响应中提取数据。")
+        # 记录未能提取数据的信息
+        logger.error("无法从响应中提取数据")
+        # 保存响应内容以供调试
+        with open("temp/VaxiJen_error_response.html", "w", encoding="utf-8") as f:
+            f.write(response.text)
+        
         return None, None
 
     except requests.exceptions.Timeout:

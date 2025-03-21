@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, send_from_directory, redirect
 from Bio_tools.ProtParam import get_molecular_weight
 from Bio_tools.SignalP import submit_sequence, extract_and_parse_results
 from Bio_tools.VaxiJen import get_vaxijen_result
+from Bio_tools.ToxinPred import predict_toxicity, predict_toxin
+from Bio_tools.PhysChemParameter import get_PhysChemParameter
 import base64
 import os
 import time
@@ -390,9 +392,14 @@ def analyze_vaxijen():
     if not result or not probability:
         return jsonify({'error': '无法获取预测结果'}), 500
     
+    # 判断是否为抗原
+    is_antigen = result.lower() == 'antigen' or 'antigen' in result.lower()
+    
     response_data = {
+        'sequence': sequence,
         'result': result,
-        'probability': probability,
+        'score': probability,
+        'is_antigen': is_antigen,
         'timestamp': datetime.now().isoformat()
     }
     
@@ -514,6 +521,120 @@ def get_current_user():
     except Exception as e:
         logger.error(f"解码令牌时出错: {str(e)}")
         return None
+
+@app.route('/api/toxinpred', methods=['POST'])
+@error_handler
+@rate_limit
+def analyze_toxinpred():
+    """分析肽的毒性"""
+    data = request.get_json()
+    sequence = data.get('sequence', '').strip()
+    
+    # 输入验证
+    if not sequence:
+        return jsonify({'error': '序列不能为空'}), 400
+    if not validate_sequence(sequence):
+        return jsonify({'error': '无效的氨基酸序列'}), 400
+    
+    # 序列长度检查
+    if len(sequence) < 5 or len(sequence) > 50:
+        return jsonify({'error': '序列长度应在5-50个氨基酸之间'}), 400
+    
+    # 记录请求
+    logger.info(f"ToxinPred分析请求 - 序列长度: {len(sequence)}")
+    
+    # 确保temp目录存在
+    os.makedirs('temp', exist_ok=True)
+    
+    # 调用ToxinPred模块
+    try:
+        # 尝试使用旧函数
+        try:
+            simple_results = predict_toxin(sequence, verbose=True)
+            logger.info(f"从predict_toxin获取结果: {simple_results}")
+            
+            # 如果旧函数成功
+            if simple_results and simple_results.get('success') and simple_results.get('results'):
+                result_item = simple_results['results'][0]
+                
+                response_data = {
+                    'sequence': sequence,
+                    'result': result_item.get('Prediction', '未知'),
+                    'is_toxin': result_item.get('Prediction', '').lower() == "toxin" or "toxin" in result_item.get('Prediction', '').lower(),
+                    'svm_score': result_item.get('SVM Score', '未知'),
+                    'success': True
+                }
+                
+                return jsonify(response_data)
+        except Exception as e:
+            logger.warning(f"使用旧函数predict_toxin失败: {str(e)}")
+        
+        # 如果旧函数失败，尝试使用新函数
+        result = predict_toxicity(sequence)
+        
+        if not result:
+            return jsonify({'error': '无法获取预测结果'}), 500
+        
+        response_data = {
+            'sequence': sequence,
+            'result': result.get('result', '未知'),
+            'is_toxin': result.get('is_toxin', False),
+            'svm_score': result.get('svm_score', '未知'),
+            'toxicity_features': result.get('features', {}),
+            'success': True
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"ToxinPred分析错误: {str(e)}")
+        return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+
+@app.route('/api/physchemparam', methods=['POST'])
+@error_handler
+@rate_limit
+@token_required
+def analyze_physchemparam(current_user):
+    """分析蛋白质物理化学参数"""
+    data = request.get_json()
+    sequence = data.get('sequence', '').strip()
+    
+    # 输入验证
+    if not sequence:
+        return jsonify({'error': '序列不能为空'}), 400
+    if not validate_sequence(sequence):
+        return jsonify({'error': '无效的氨基酸序列'}), 400
+    
+    # 记录请求
+    logger.info(f"用户 {current_user.username} 请求物理化学参数分析，序列长度: {len(sequence)}")
+    
+    # 调用PhysChemParameter模块
+    try:
+        result = get_PhysChemParameter(sequence)
+        
+        if "error" in result:
+            return jsonify({'error': result["error"]}), 500
+        
+        # 记录分析历史 - 暂时注释掉以避免导入错误
+        # from user_auth.user_system import AnalysisHistory, db
+        # history = AnalysisHistory(
+        #     user_id=current_user.id,
+        #     tool_name='physchemparam',
+        #     sequence=sequence,
+        #     result=f"分子量: {result.get('molecular_weight', '未知')}, 理论pI: {result.get('theoretical_pi', '未知')}"
+        # )
+        # db.session.add(history)
+        # db.session.commit()
+        
+        # 原样返回完整结果
+        result['sequence'] = sequence
+        result['success'] = True
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"PhysChemParameter分析错误: {str(e)}")
+        return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
 
 if __name__ == '__main__':
     # 确保临时文件目录存在

@@ -12,6 +12,7 @@ from flask import render_template
 import logging
 import random
 import string
+import time
 
 # 创建logger
 logger = logging.getLogger(__name__)
@@ -104,15 +105,56 @@ def register():
 @auth_bp.route('/send-register-code', methods=['POST'])
 def send_register_code():
     try:
-        data = request.get_json()
+        print("开始处理发送注册验证码请求")
         
-        print(f"收到发送验证码请求: {data}")
+        # 检查请求内容类型和数据格式
+        content_type = request.headers.get('Content-Type', '')
+        print(f"请求Content-Type: {content_type}")
         
-        if not data or not data.get('email'):
+        if 'application/json' in content_type:
+            try:
+                data = request.get_json()
+                print(f"JSON数据: {data}")
+            except Exception as e:
+                print(f"解析JSON数据失败: {str(e)}")
+                return jsonify({'message': '无效的JSON格式'}), 400
+        else:
+            try:
+                # 尝试从表单数据中获取
+                data = request.form.to_dict()
+                print(f"表单数据: {data}")
+                if not data:
+                    # 尝试从请求体中获取原始数据
+                    data_str = request.data.decode('utf-8')
+                    print(f"原始请求数据: {data_str}")
+                    # 尝试解析为JSON
+                    try:
+                        import json
+                        data = json.loads(data_str)
+                        print(f"从原始数据解析的JSON: {data}")
+                    except:
+                        print("无法解析原始数据为JSON")
+            except Exception as e:
+                print(f"处理非JSON数据失败: {str(e)}")
+                return jsonify({'message': '无法解析请求数据'}), 400
+        
+        if not data:
+            print("请求中没有数据")
+            return jsonify({'message': '请求中没有数据'}), 400
+        
+        if not data.get('email'):
             print("请求中没有提供邮箱地址")
             return jsonify({'message': '请提供邮箱地址！'}), 400
         
         email = data['email']
+        print(f"请求中提供的邮箱: {email}")
+        
+        # 验证邮箱格式
+        import re
+        email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        if not email_pattern.match(email):
+            print(f"邮箱格式无效: {email}")
+            return jsonify({'message': '邮箱格式无效！'}), 400
         
         # 检查邮箱是否已注册且已激活
         active_user = User.query.filter_by(email=email, is_active=True).first()
@@ -172,7 +214,9 @@ def send_register_code():
             return jsonify({'message': '发送验证码失败，请稍后再试！'}), 500
     
     except Exception as e:
+        import traceback
         print(f"发送验证码过程中发生异常: {str(e)}")
+        print(f"错误详情: {traceback.format_exc()}")
         return jsonify({'message': f'发送验证码失败: {str(e)}'}), 500
 
 # 发送验证码邮件的函数
@@ -181,6 +225,9 @@ def send_verification_code_email(user_email, code):
         import smtplib
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
+        import traceback
+        
+        print(f"开始发送验证码邮件到 {user_email}")
         
         # 获取邮件配置
         smtp_server = current_app.config['MAIL_SERVER']
@@ -189,6 +236,8 @@ def send_verification_code_email(user_email, code):
         smtp_password = current_app.config['MAIL_PASSWORD']
         use_tls = current_app.config['MAIL_USE_TLS']
         use_ssl = current_app.config['MAIL_USE_SSL']
+        
+        print(f"邮件配置: 服务器={smtp_server}, 端口={smtp_port}, 用户名={smtp_username}, TLS={use_tls}, SSL={use_ssl}")
         
         # 创建邮件
         msg = MIMEMultipart()
@@ -210,27 +259,82 @@ BioInfoNexus 团队
 """
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
-        # 连接到SMTP服务器并发送邮件
-        if use_ssl:
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        else:
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            if use_tls:
-                server.starttls()
+        print(f"准备连接到SMTP服务器 {smtp_server}:{smtp_port}")
         
-        # 登录
-        server.login(smtp_username, smtp_password)
+        # 最大重试次数
+        max_retries = 3
+        retry_count = 0
+        last_error = None
         
-        # 发送邮件
-        server.send_message(msg)
+        while retry_count < max_retries:
+            try:
+                retry_count += 1
+                print(f"尝试发送邮件 (第{retry_count}次尝试)")
+                
+                # 连接到SMTP服务器并发送邮件
+                if use_ssl:
+                    print("使用SSL连接")
+                    server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=30)
+                else:
+                    print("使用普通连接")
+                    server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
+                    if use_tls:
+                        print("启用TLS")
+                        server.starttls()
+                
+                server.set_debuglevel(1)  # 启用SMTP调试
+                
+                # 登录
+                print(f"尝试登录邮件服务器，用户名: {smtp_username}")
+                server.login(smtp_username, smtp_password)
+                
+                # 发送邮件
+                print(f"登录成功，发送邮件到 {user_email}")
+                server.send_message(msg)
+                
+                # 关闭连接
+                server.quit()
+                
+                print(f"验证码邮件已成功发送到 {user_email}")
+                return True
+                
+            except smtplib.SMTPAuthenticationError as auth_error:
+                print(f"SMTP认证错误 (尝试 {retry_count}/{max_retries}): {str(auth_error)}")
+                last_error = auth_error
+                # 认证错误通常无法通过重试解决，直接返回
+                break
+                
+            except (smtplib.SMTPException, ConnectionError, TimeoutError) as e:
+                print(f"SMTP错误 (尝试 {retry_count}/{max_retries}): {str(e)}")
+                last_error = e
+                if retry_count < max_retries:
+                    # 等待一段时间后重试
+                    wait_time = 2 ** retry_count  # 指数退避
+                    print(f"等待 {wait_time} 秒后重试...")
+                    time.sleep(wait_time)
+                    
+        # 如果所有尝试都失败，尝试用Flask-Mail发送
+        try:
+            print("所有SMTP尝试失败，尝试使用Flask-Mail发送")
+            from flask_mail import Message
+            msg = Message(
+                subject="BioInfoNexus - 验证码",
+                recipients=[user_email],
+                body=body,
+                sender=("BioInfoNexus", "bioinfo-nexus@o41w.ren")
+            )
+            mail.send(msg)
+            print(f"使用Flask-Mail成功发送验证码到 {user_email}")
+            return True
+        except Exception as mail_error:
+            print(f"Flask-Mail发送失败: {str(mail_error)}")
+            print(f"所有发送尝试均失败，最后错误: {last_error or mail_error}")
+            print(f"错误详情: {traceback.format_exc()}")
+            return False
         
-        # 关闭连接
-        server.quit()
-        
-        print(f"验证码邮件已成功发送到 {user_email}")
-        return True
     except Exception as e:
-        print(f"发送验证码邮件失败: {str(e)}")
+        print(f"发送验证码邮件时发生未预期的异常: {str(e)}")
+        print(f"错误详情: {traceback.format_exc()}")
         return False
 
 # 忘记密码路由（发送验证码）
@@ -752,3 +856,158 @@ BioInfoNexus Team
         except:
             pass
         return False 
+
+# 测试邮件服务器连接
+@auth_bp.route('/test-mail-connection', methods=['GET'])
+def test_mail_connection():
+    try:
+        import smtplib
+        import traceback
+        
+        print("开始测试邮件服务器连接")
+        
+        # 获取邮件配置
+        smtp_server = current_app.config['MAIL_SERVER']
+        smtp_port = current_app.config['MAIL_PORT']
+        smtp_username = current_app.config['MAIL_USERNAME']
+        smtp_password = current_app.config['MAIL_PASSWORD']
+        use_tls = current_app.config['MAIL_USE_TLS']
+        use_ssl = current_app.config['MAIL_USE_SSL']
+        
+        print(f"邮件配置: 服务器={smtp_server}, 端口={smtp_port}, 用户名={smtp_username}, TLS={use_tls}, SSL={use_ssl}")
+        
+        result = {
+            'config': {
+                'smtp_server': smtp_server,
+                'smtp_port': smtp_port,
+                'smtp_username': smtp_username,
+                'use_tls': use_tls,
+                'use_ssl': use_ssl
+            },
+            'tests': []
+        }
+        
+        # 测试1: 检查DNS解析
+        try:
+            import socket
+            print(f"尝试解析邮件服务器域名: {smtp_server}")
+            ip = socket.gethostbyname(smtp_server)
+            print(f"DNS解析成功: {smtp_server} -> {ip}")
+            result['tests'].append({
+                'name': 'DNS解析',
+                'success': True,
+                'message': f'成功解析为 {ip}'
+            })
+        except Exception as e:
+            print(f"DNS解析失败: {str(e)}")
+            result['tests'].append({
+                'name': 'DNS解析',
+                'success': False,
+                'message': str(e)
+            })
+        
+        # 测试2: 尝试连接到SMTP服务器
+        try:
+            print(f"尝试连接到SMTP服务器: {smtp_server}:{smtp_port}")
+            if use_ssl:
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
+            else:
+                server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+            
+            print("SMTP服务器连接成功")
+            result['tests'].append({
+                'name': 'SMTP连接',
+                'success': True,
+                'message': '连接成功'
+            })
+            
+            # 测试3: 尝试TLS连接(如果启用)
+            if use_tls and not use_ssl:
+                try:
+                    print("尝试启用TLS")
+                    server.starttls()
+                    print("TLS连接成功")
+                    result['tests'].append({
+                        'name': 'TLS连接',
+                        'success': True,
+                        'message': 'TLS连接成功'
+                    })
+                except Exception as e:
+                    print(f"TLS连接失败: {str(e)}")
+                    result['tests'].append({
+                        'name': 'TLS连接',
+                        'success': False,
+                        'message': str(e)
+                    })
+            
+            # 测试4: 尝试登录
+            try:
+                print(f"尝试登录SMTP服务器，用户名: {smtp_username}")
+                server.login(smtp_username, smtp_password)
+                print("SMTP登录成功")
+                result['tests'].append({
+                    'name': 'SMTP认证',
+                    'success': True,
+                    'message': '认证成功'
+                })
+            except Exception as e:
+                print(f"SMTP登录失败: {str(e)}")
+                result['tests'].append({
+                    'name': 'SMTP认证',
+                    'success': False,
+                    'message': str(e)
+                })
+            
+            # 关闭连接
+            try:
+                server.quit()
+            except:
+                pass
+            
+        except Exception as e:
+            print(f"SMTP连接失败: {str(e)}")
+            result['tests'].append({
+                'name': 'SMTP连接',
+                'success': False,
+                'message': str(e)
+            })
+        
+        # 汇总测试结果
+        all_success = all(test['success'] for test in result['tests'])
+        result['overall_success'] = all_success
+        result['message'] = '所有测试通过' if all_success else '部分测试失败'
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        print(f"测试邮件服务器连接时发生异常: {str(e)}")
+        print(f"错误详情: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'message': f'测试过程中发生异常: {str(e)}'
+        }), 500 
+
+# 发送测试邮件
+@auth_bp.route('/send-test-email', methods=['POST'])
+def send_test_email():
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('email'):
+            return jsonify({'message': '请提供邮箱地址！'}), 400
+        
+        email = data['email']
+        
+        # 发送测试邮件
+        result = send_verification_code_email(email, "TEST123")
+        
+        if result:
+            return jsonify({'message': '测试邮件已发送！'}), 200
+        else:
+            return jsonify({'message': '测试邮件发送失败！'}), 500
+    
+    except Exception as e:
+        import traceback
+        print(f"发送测试邮件时发生异常: {str(e)}")
+        print(f"错误详情: {traceback.format_exc()}")
+        return jsonify({'message': f'发送测试邮件失败: {str(e)}'}), 500 

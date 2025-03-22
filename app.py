@@ -7,6 +7,7 @@ from Bio_tools.PhysChemParameter import get_PhysChemParameter
 import base64
 import os
 import time
+import sys
 from functools import wraps
 import logging
 from datetime import datetime, timedelta
@@ -654,6 +655,9 @@ if __name__ == '__main__':
     # 配置应用
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制请求大小为16MB
     app.config['UPLOAD_FOLDER'] = 'uploads'
+    
+    # 设置递归深度限制
+    sys.setrecursionlimit(3000)  # 设置更高的值，默认通常是1000
     
     # 开发环境运行方式
     app.run(

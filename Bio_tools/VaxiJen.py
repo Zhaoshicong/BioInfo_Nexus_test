@@ -49,15 +49,6 @@ def get_vaxijen_result(protein_sequence):
         # 使用BeautifulSoup解析HTML
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 尝试多种方式提取结果
-        # 方法1: 查找包含结果的文本
-        result_text = soup.find(string=lambda text: text and "Overall Prediction for the Protective Antigen" in text)
-        
-        if result_text:
-            logger.info(f"找到结果文本: {result_text[:100]}")
-        else:
-            logger.warning("未找到结果文本")
-
         # 方法2: 使用正则表达式从整个HTML中提取概率值
         # 修改正则表达式，调整匹配模式
         prob_match = re.search(r"Overall Prediction for the Protective Antigen =<b>\s*([-+]?\d*\.?\d+)\s*</b>", response.text, re.IGNORECASE)

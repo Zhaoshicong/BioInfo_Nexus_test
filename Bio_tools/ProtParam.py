@@ -1,5 +1,5 @@
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # 导入BeautifulSoup而不是bs4模块
 import logging
 
 # 配置日志

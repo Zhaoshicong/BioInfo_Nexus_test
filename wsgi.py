@@ -10,18 +10,30 @@ import os
 import sys
 from dotenv import load_dotenv
 
+# 增加递归深度限制
+sys.setrecursionlimit(3000)
+
 # 加载环境变量
 load_dotenv()
 
 # 确保应用目录在Python路径中
 sys.path.insert(0, os.path.dirname(__file__))
 
-# 导入Flask应用
-from app import app as application
-
 # 确保目录存在
 for directory in ['temp', 'uploads/avatars', 'instance']:
     os.makedirs(directory, exist_ok=True)
+
+# 预加载和打补丁，以避免可能的问题
+# 如果使用 gevent，先应用猴子补丁
+try:
+    import gevent.monkey # type: ignore
+    gevent.monkey.patch_all()
+    print("已应用 gevent 猴子补丁")
+except ImportError:
+    print("未找到 gevent 模块，跳过猴子补丁")
+
+# 导入Flask应用
+from app import app as application
 
 if __name__ == "__main__":
     # 显示局域网IP地址

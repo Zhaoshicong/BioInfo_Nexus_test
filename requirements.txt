@@ -14,4 +14,5 @@ SQLAlchemy==2.0.21
 # 添加的生产环境依赖
 supervisor==4.2.5     # 进程管理
 gevent==24.2.1        # 用于Gunicorn的异步工作方式
-psutil==5.9.6         # 用于监控系统资源 
+psutil==5.9.6         # 用于监控系统资源
+Flask-Migrate==3.1.0  # 添加Flask-Migrate 

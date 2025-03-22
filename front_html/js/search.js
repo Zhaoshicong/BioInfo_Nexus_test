@@ -163,6 +163,7 @@ const sequenceTools = {
                         // 格式化预测文本，保留原始格式
                         resultBox.innerHTML = `
                             <p class="success-message">预测完成</p>
+                            <p>序列: ${result.sequence}</p>
                             <pre class="prediction-text">${resultText}</pre>
                         `;
                         
@@ -294,6 +295,7 @@ const sequenceTools = {
                 
             case 'vaxijen':
                 resultBox.innerHTML = `
+                    <p>序列: ${result.sequence}</p>
                     <p>预测结果: ${result.result}</p>
                     <p>Vaxijen打分: ${result.score}</p>
                 `;
@@ -302,17 +304,18 @@ const sequenceTools = {
             case 'toxinpred':
                 resultBox.innerHTML = `
                     <p>序列: ${result.sequence}</p>
-                    <p>预测结果: <span class="${result.is_toxin ? 'error' : 'success'}">${result.result}</span></p>
                     <p>SVM得分: ${result.svm_score}</p>
+                    <p>预测结果: <span class="${result.is_toxin ? 'error' : 'success'}">${result.result}</span></p>
                 `;
                 if (result.toxicity_features) {
                     resultBox.innerHTML += `
                         <div class="toxin-features">
                             <h4>详细特征分析:</h4>
-                            <ul>
-                                ${Object.entries(result.toxicity_features).map(([key, value]) => 
-                                    `<li>${key}: ${value}</li>`).join('')}
-                            </ul>
+                            <p>Hydrophobicity: ${result.toxicity_features.Hydrophobicity}</p>
+                            <p>Hydropathicity: ${result.toxicity_features.Hydropathicity}</p>
+                            <p>Hydrophilicity: ${result.toxicity_features.Hydrophilicity}</p>
+                            <p>Charge: ${result.toxicity_features.Charge}</p>
+                            <p>Mol wt: ${result.toxicity_features['Mol wt']}</p>
                         </div>
                     `;
                 }
@@ -322,7 +325,7 @@ const sequenceTools = {
                 // 基本信息
                 resultBox.innerHTML = `
                     <h4>基本信息:</h4>
-                    <p>氨基酸数量: ${result.amino_acid_count}</p>
+                    <p>序列: ${result.sequence}</p>
                     <p>分子量: ${result.molecular_weight.toFixed(2)} Da</p>
                     <p>理论等电点: ${result.theoretical_pi.toFixed(2)}</p>
                 `;

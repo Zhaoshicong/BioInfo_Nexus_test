@@ -127,7 +127,7 @@ body {
     position: relative;
     width: 100%;
     max-width: 1200px;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgb(248, 248, 248);
     backdrop-filter: blur(10px);
     border-radius: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -304,12 +304,12 @@ body {
 }
 
 .tool-card {
-    background: #f8f9fa;
+    background: #ffffff;
     border-radius: 12px;
     padding: 20px;
     cursor: pointer;
     transition: all 0.3s ease;
-    border: 2px solid transparent;
+    border: 2px solid rgba(52, 152, 219, 0.2);;
 }
 
 .tool-card:hover {

@@ -236,175 +236,6 @@ def index():
 def search():
     return app.send_static_file('search.html')
 
-# 修改API端点，添加用户历史记录功能
-@app.route('/api/protparam', methods=['POST'])
-@error_handler
-@rate_limit
-def analyze_protparam():
-    """分析蛋白质分子量"""
-    data = request.get_json()
-    sequence = data.get('sequence', '').strip()
-    
-    # 输入验证
-    if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
-    if not validate_sequence(sequence):
-        return jsonify({'error': '无效的氨基酸序列'}), 400
-        
-    # 记录请求
-    logger.info(f"ProtParam analysis request - Sequence length: {len(sequence)}")
-    
-    # 执行分析
-    result = get_molecular_weight(sequence)
-    
-    if 'error' in result:
-        return jsonify(result), 400
-        
-    return jsonify({
-        'molecular_weight': result['molecular_weight'],
-        'sequence': result['sequence'],
-        'timestamp': datetime.now().isoformat()
-    })
-
-@app.route('/api/signalp', methods=['POST'])
-@error_handler
-@rate_limit
-def analyze_signalp():
-    data = request.get_json()
-    sequence = data.get('sequence', '').strip()
-    
-    # 输入验证
-    if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
-    if not validate_sequence(sequence):
-        return jsonify({'error': '无效的氨基酸序列'}), 400
-    
-    # 确保temp目录存在
-    os.makedirs('temp', exist_ok=True)
-    
-    # 记录请求
-    logger.info(f"SignalP analysis request - Sequence length: {len(sequence)}")
-    
-    # 提交序列 - 最多尝试3次
-    max_submit_attempts = 3
-    jobid = None
-    session = None
-    
-    for attempt in range(max_submit_attempts):
-        try:
-            logger.info(f"提交序列尝试 {attempt+1}/{max_submit_attempts}")
-            jobid, session = submit_sequence(sequence)
-            if jobid:
-                logger.info(f"成功获取JobID: {jobid}")
-                break
-            else:
-                logger.warning(f"获取JobID失败，等待5秒后重试...")
-                time.sleep(5)
-        except Exception as e:
-            logger.error(f"提交序列时发生错误: {str(e)}")
-            if attempt < max_submit_attempts - 1:
-                time.sleep(5)
-            
-    if not jobid:
-        return jsonify({'error': '无法获取JobID，请稍后重试'}), 500
-    
-    # 获取结果
-    try:
-        logger.info(f"开始获取JobID {jobid} 的结果")
-        result = extract_and_parse_results(jobid, session)
-        
-        if result["success"]:
-            image_path = result.get("image_path")
-            result_text = result.get("result_text", "无详细预测文本")
-            
-            # 如果有图像路径且文件存在
-            if image_path and os.path.exists(image_path):
-                # 创建图像URL - 使用相对路径，确保以/开头
-                if not image_path.startswith('/'):
-                    image_url = f"/{image_path}"
-                else:
-                    image_url = image_path
-                
-                logger.info(f"成功处理JobID {jobid} 的结果，包含图像: {image_url}")
-                
-                response_data = {
-                    'success': True,
-                    'image': image_url,
-                    'result_text': result_text,
-                    'timestamp': datetime.now().isoformat()
-                }
-                
-                return jsonify(response_data)
-            # 如果没有图像路径或文件不存在，但有结果文本
-            elif result_text and result_text != "无详细预测文本":
-                # 只返回文本结果
-                logger.info(f"成功处理JobID {jobid} 的结果，无图像")
-                
-                response_data = {
-                    'success': True,
-                    'result_text': result_text,
-                    'timestamp': datetime.now().isoformat()
-                }
-                
-                return jsonify(response_data)
-            else:
-                # 如果既没有图像也没有有效的结果文本
-                logger.error("未找到任何图像文件和有效结果文本")
-                return jsonify({
-                    'success': False,
-                    'error': '无法生成预测图像和结果文本'
-                }), 500
-        else:
-            error_msg = result.get('error', '分析过程中发生错误')
-            logger.error(f"处理结果失败: {error_msg}")
-            
-            return jsonify({
-                'success': False,
-                'error': error_msg
-            }), 500
-    except Exception as e:
-        logger.error(f"SignalP分析过程中发生异常: {str(e)}")
-        
-        return jsonify({
-            'success': False, 
-            'error': f'分析过程中发生错误: {str(e)}'
-        }), 500
-
-@app.route('/api/vaxijen', methods=['POST'])
-@error_handler
-@rate_limit
-def analyze_vaxijen():
-    data = request.get_json()
-    sequence = data.get('sequence', '').strip()
-    
-    # 输入验证
-    if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
-    if not validate_sequence(sequence):
-        return jsonify({'error': '无效的氨基酸序列'}), 400
-    
-    # 记录请求
-    logger.info(f"VaxiJen analysis request - Sequence length: {len(sequence)}")
-    
-    # 执行分析
-    result, probability = get_vaxijen_result(sequence)
-    
-    if not result or not probability:
-        return jsonify({'error': '无法获取预测结果'}), 500
-    
-    # 判断是否为抗原
-    is_antigen = result.lower() == 'antigen' or 'antigen' in result.lower()
-    
-    response_data = {
-        'sequence': sequence,
-        'result': result,
-        'score': probability,
-        'is_antigen': is_antigen,
-        'timestamp': datetime.now().isoformat()
-    }
-    
-    return jsonify(response_data)
-
 @app.route('/api/delete_temp_file', methods=['POST'])
 @error_handler
 def delete_temp_file():
@@ -521,6 +352,176 @@ def get_current_user():
     except Exception as e:
         logger.error(f"解码令牌时出错: {str(e)}")
         return None
+    
+@app.route('/api/protparam', methods=['POST'])
+@error_handler
+@rate_limit
+def analyze_protparam():
+    """分析蛋白质分子量"""
+    data = request.get_json()
+    sequence = data.get('sequence', '').strip()
+    
+    # 输入验证
+    if not sequence:
+        return jsonify({'error': '序列不能为空'}), 400
+    if not validate_sequence(sequence):
+        return jsonify({'error': '无效的氨基酸序列'}), 400
+        
+    # 记录请求
+    logger.info(f"ProtParam analysis request - Sequence length: {len(sequence)}")
+    
+    # 执行分析
+    result = get_molecular_weight(sequence)
+    
+    if 'error' in result:
+        return jsonify(result), 400
+        
+    return jsonify({
+        'molecular_weight': result['molecular_weight'],
+        'sequence': result['sequence'],
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/api/signalp', methods=['POST'])
+@error_handler
+@rate_limit
+def analyze_signalp():
+    data = request.get_json()
+    sequence = data.get('sequence', '').strip()
+    
+    # 输入验证
+    if not sequence:
+        return jsonify({'error': '序列不能为空'}), 400
+    if not validate_sequence(sequence):
+        return jsonify({'error': '无效的氨基酸序列'}), 400
+    
+    # 确保temp目录存在
+    os.makedirs('temp', exist_ok=True)
+    
+    # 记录请求
+    logger.info(f"SignalP analysis request - Sequence length: {len(sequence)}")
+    
+    # 提交序列 - 最多尝试3次
+    max_submit_attempts = 3
+    jobid = None
+    session = None
+    
+    for attempt in range(max_submit_attempts):
+        try:
+            logger.info(f"提交序列尝试 {attempt+1}/{max_submit_attempts}")
+            jobid, session = submit_sequence(sequence)
+            if jobid:
+                logger.info(f"成功获取JobID: {jobid}")
+                break
+            else:
+                logger.warning(f"获取JobID失败，等待5秒后重试...")
+                time.sleep(5)
+        except Exception as e:
+            logger.error(f"提交序列时发生错误: {str(e)}")
+            if attempt < max_submit_attempts - 1:
+                time.sleep(5)
+            
+    if not jobid:
+        return jsonify({'error': '无法获取JobID，请稍后重试'}), 500
+    
+    # 获取结果
+    try:
+        logger.info(f"开始获取JobID {jobid} 的结果")
+        result = extract_and_parse_results(jobid, session)
+        
+        if result["success"]:
+            image_path = result.get("image_path")
+            result_text = result.get("result_text", "无详细预测文本")
+            
+            # 如果有图像路径且文件存在
+            if image_path and os.path.exists(image_path):
+                # 创建图像URL - 使用相对路径，确保以/开头
+                if not image_path.startswith('/'):
+                    image_url = f"/{image_path}"
+                else:
+                    image_url = image_path
+                
+                logger.info(f"成功处理JobID {jobid} 的结果，包含图像: {image_url}")
+                
+                response_data = {
+                    'success': True,
+                    'sequence': sequence,
+                    'image': image_url,
+                    'result_text': result_text,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                return jsonify(response_data)
+            # 如果没有图像路径或文件不存在，但有结果文本
+            elif result_text and result_text != "无详细预测文本":
+                # 只返回文本结果
+                logger.info(f"成功处理JobID {jobid} 的结果，无图像")
+                
+                response_data = {
+                    'success': True,
+                    'sequence': sequence,
+                    'result_text': result_text,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                return jsonify(response_data)
+            else:
+                # 如果既没有图像也没有有效的结果文本
+                logger.error("未找到任何图像文件和有效结果文本")
+                return jsonify({
+                    'success': False,
+                    'error': '无法生成预测图像和结果文本'
+                }), 500
+        else:
+            error_msg = result.get('error', '分析过程中发生错误')
+            logger.error(f"处理结果失败: {error_msg}")
+            
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            }), 500
+    except Exception as e:
+        logger.error(f"SignalP分析过程中发生异常: {str(e)}")
+        
+        return jsonify({
+            'success': False, 
+            'error': f'分析过程中发生错误: {str(e)}'
+        }), 500
+
+@app.route('/api/vaxijen', methods=['POST'])
+@error_handler
+@rate_limit
+def analyze_vaxijen():
+    data = request.get_json()
+    sequence = data.get('sequence', '').strip()
+    
+    # 输入验证
+    if not sequence:
+        return jsonify({'error': '序列不能为空'}), 400
+    if not validate_sequence(sequence):
+        return jsonify({'error': '无效的氨基酸序列'}), 400
+    
+    # 记录请求
+    logger.info(f"VaxiJen analysis request - Sequence length: {len(sequence)}")
+    
+    # 执行分析
+    result, probability = get_vaxijen_result(sequence)
+    
+    if not result or not probability:
+        return jsonify({'error': '无法获取预测结果'}), 500
+    
+    # 判断是否为抗原
+    is_antigen = result.lower() == 'antigen' or 'antigen' in result.lower()
+    
+    response_data = {
+        'sequence': sequence,
+        'result': result,
+        'score': probability,
+        'is_antigen': is_antigen,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    return jsonify(response_data)
 
 @app.route('/api/toxinpred', methods=['POST'])
 @error_handler
@@ -560,8 +561,15 @@ def analyze_toxinpred():
                 response_data = {
                     'sequence': sequence,
                     'result': result_item.get('Prediction', '未知'),
-                    'is_toxin': result_item.get('Prediction', '').lower() == "toxin" or "toxin" in result_item.get('Prediction', '').lower(),
                     'svm_score': result_item.get('SVM Score', '未知'),
+                    'is_toxin': result_item.get('Prediction', '').lower() == "toxin" or "toxin" in result_item.get('Prediction', '').lower(),
+                    'toxicity_features': {
+                        'Hydrophobicity': result_item.get('Hydrophobicity', '未知'),
+                        'Hydropathicity': result_item.get('Hydropathicity', '未知'),
+                        'Hydrophilicity': result_item.get('Hydrophilicity', '未知'),
+                        'Charge': result_item.get('Charge', '未知'),
+                        'Mol wt': result_item.get('Mol wt', '未知')
+                    },
                     'success': True
                 }
                 

@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/admin-extra.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <!-- Chart.js 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 统一按钮宽度 */
         .btn-sm {
@@ -111,6 +113,22 @@
                             <div class="stat-value" id="reg-today">--</div>
                         </div>
                     </div>
+                    
+                    <!-- 数据可视化图表 -->
+                    <div class="charts-container">
+                        <div class="chart-card" style="position: relative;">
+                            <div style="position: absolute; top: 10px; right: 10px; z-index: 10;">
+                                <select id="time-range-select" class="form-control" style="width: 120px; font-size: 0.9rem;">
+                                    <option value="month">本月</option>
+                                    <option value="year" selected>年度</option>
+                                </select>
+                            </div>
+                            <canvas id="user-growth-chart"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <canvas id="resource-usage-chart"></canvas>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 用户管理 -->
@@ -143,12 +161,22 @@
                 <div id="logs" class="tab-pane">
                     <div class="content-header">
                         <h1 class="content-title">系统日志</h1>
-                        <select id="log-level" class="form-control" style="width: 150px;">
-                            <option value="all">所有级别</option>
-                            <option value="error">错误</option>
-                            <option value="warning">警告</option>
-                            <option value="info">信息</option>
-                        </select>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="log-type" class="form-control" style="width: 180px;">
+                                <option value="app">应用日志</option>
+                                <option value="access">Gunicorn访问日志</option>
+                                <option value="error">Gunicorn错误日志</option>
+                            </select>
+                            <select id="log-level" class="form-control" style="width: 150px;">
+                                <option value="all">所有级别</option>
+                                <option value="error">错误</option>
+                                <option value="warning">警告</option>
+                                <option value="info">信息</option>
+                            </select>
+                            <button id="refresh-logs" class="btn btn-primary btn-sm" style="height: 38px;">
+                                <i class="fas fa-sync-alt"></i> 刷新日志
+                            </button>
+                        </div>
                     </div>
 
                     <div class="logs-container" id="logs-container">
@@ -214,5 +242,6 @@
     </div>
 
     <script src="js/admin.js"></script>
+    <script src="js/dashboard-charts.js"></script>
 </body>
 </html>

@@ -171,13 +171,27 @@ def delete_user(user_id):
 @admin_bp.route('/logs')
 @admin_required
 def view_logs():
-    log_file = 'app.log'  # 直接使用根目录的app.log文件
+    log_type = request.args.get('type', 'app')  # 默认显示app.log
+    
+    # 根据类型选择不同的日志文件
+    if log_type == 'app':
+        log_file = 'app.log'  # 应用日志
+    elif log_type == 'access':
+        log_file = 'logs/gunicorn_access.log'  # Gunicorn访问日志
+    elif log_type == 'error':
+        log_file = 'logs/gunicorn_error.log'  # Gunicorn错误日志
+    else:
+        return jsonify({"error": "无效的日志类型"}), 400
+    
     logs = []
     
     try:
         if os.path.exists(log_file):
             with open(log_file, 'r', encoding='utf-8') as f:
                 logs = f.readlines()[-100:]  # 获取最后100行
+        else:
+            # 如果文件不存在，返回提示信息
+            return jsonify([f"日志文件 {log_file} 不存在或尚未生成"]), 200
         
         # 返回JSON格式的日志列表
         return jsonify(logs), 200
@@ -430,4 +444,4 @@ def api_delete_user(user_id):
     
     except Exception as e:
         logging.error(f"删除用户失败，ID: {user_id}, 错误: {str(e)}")
-        return jsonify({"error": f"删除用户失败: {str(e)}"}), 500 
+        return jsonify({"error": f"删除用户失败: {str(e)}"}), 500

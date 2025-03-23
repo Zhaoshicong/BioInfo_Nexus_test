@@ -1,0 +1,2 @@
+This is a placeholder file to ensure the logs directory exists.
+Gunicorn will store its logs in this directory.

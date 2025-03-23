@@ -185,6 +185,31 @@ body {
     color: var(--primary);
 }
 
+/* 图表容器样式 */
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.chart-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    height: 450px;
+    position: relative;
+    transition: transform 0.3s, box-shadow 0.3s;
+    border: 1px solid rgba(230, 230, 230, 0.5);
+}
+
+.chart-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    border-color: rgba(200, 200, 200, 0.8);
+}
+
 /* 表格样式 */
 .table-container {
     margin-bottom: 2rem;
@@ -520,4 +545,4 @@ label {
     .modal-content {
         width: 95%;
     }
-} 
+}

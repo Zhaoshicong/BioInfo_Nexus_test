@@ -28,6 +28,7 @@ load_dotenv()
 from user_auth.user_system import init_user_system, token_required, User, db
 from user_auth.auth_routes import auth_bp, mail
 from user_auth.admin_routes import admin_bp
+from user_auth.dashboard_api import dashboard_bp
 
 # 配置日志
 logging.basicConfig(
@@ -73,6 +74,7 @@ migrate = Migrate(app, db)
 # 注册蓝图
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(admin_bp, url_prefix='/admin')
+app.register_blueprint(dashboard_bp)
 
 # 添加静态文件服务路由，用于访问temp目录中的图像
 @app.route('/temp/<path:filename>')
@@ -665,4 +667,4 @@ if __name__ == '__main__':
         port=5000,
         debug=True,     # 开发环境开启调试模式
         threaded=True    # 启用多线程
-    ) 
+    )

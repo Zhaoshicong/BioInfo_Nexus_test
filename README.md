@@ -40,7 +40,7 @@ python app.py
 
 ### 生产环境部署
 
-详细的部署指南请参考 [DEPLOYMENT.md](DEPLOYMENT.md)。
+详细的部署指南请参考 [部署流程]
 
 ## 主要工具
 
@@ -49,6 +49,9 @@ BioInfo Nexus集成了以下生物信息学工具：
 1. **ProtParam**：计算蛋白质物理化学参数
 2. **SignalP**：预测蛋白质信号肽
 3. **VaxiJen**：预测蛋白质抗原性
+4. **ToxinPred**：预测蛋白质毒性
+5. **PhysChemParameter**：预测蛋白质物理化学性质
+
 
 ## 技术栈
 

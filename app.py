@@ -6,7 +6,7 @@ from Bio_tools.ToxinPred import predict_toxicity, predict_toxin
 from Bio_tools.PhysChemParameter import get_PhysChemParameter
 import base64
 import os
-import time
+import time 
 import sys
 from functools import wraps
 import logging
@@ -95,98 +95,6 @@ def admin_login_page():
 @app.route('/admin-panel')
 def admin_panel_page():
     return app.send_static_file('admin.html')
-
-# 添加一个路由处理旧的验证链接格式
-@app.route('/verify_email')
-def verify_email_handler():
-    token = request.args.get('token')
-    if not token:
-        return redirect("/")
-    
-    # 直接在这里处理验证逻辑，而不是重定向
-    from user_auth.user_system import User, db
-    
-    user = User.query.filter_by(verification_token=token).first()
-    
-    if not user:
-        # 验证失败，返回错误页面
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>验证失败</title>
-            <meta http-equiv="refresh" content="5;url=/" />
-            <style>
-                body {{ font-family: Arial, sans-serif; text-align: center; padding-top: 50px; }}
-                .message {{ max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; }}
-                .countdown {{ font-weight: bold; }}
-            </style>
-            <script>
-                let seconds = 5;
-                function updateCountdown() {{
-                    document.getElementById('countdown').textContent = seconds;
-                    if (seconds <= 0) {{
-                        window.location.href = '/';
-                    }} else {{
-                        seconds--;
-                        setTimeout(updateCountdown, 1000);
-                    }}
-                }}
-                window.onload = updateCountdown;
-            </script>
-        </head>
-        <body>
-            <div class="message">
-                <h2>验证失败</h2>
-                <p>无效的验证链接！</p>
-                <p><span class="countdown" id="countdown">5</span> 秒后将自动跳转到首页...</p>
-                <p>如果没有自动跳转，请<a href="/">点击这里</a>。</p>
-            </div>
-        </body>
-        </html>
-        """
-    
-    # 验证成功，更新用户状态
-    user.is_active = True
-    user.verification_token = None
-    db.session.commit()
-    
-    # 返回成功页面
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>验证成功</title>
-        <meta http-equiv="refresh" content="5;url=/" />
-        <style>
-            body {{ font-family: Arial, sans-serif; text-align: center; padding-top: 50px; }}
-            .message {{ max-width: 600px; margin: 0 auto; padding: 20px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; }}
-            .countdown {{ font-weight: bold; }}
-        </style>
-        <script>
-            let seconds = 5;
-            function updateCountdown() {{
-                document.getElementById('countdown').textContent = seconds;
-                if (seconds <= 0) {{
-                    window.location.href = '/';
-                }} else {{
-                    seconds--;
-                    setTimeout(updateCountdown, 1000);
-                }}
-            }}
-            window.onload = updateCountdown;
-        </script>
-    </head>
-    <body>
-        <div class="message">
-            <h2>验证成功</h2>
-            <p>邮箱验证成功！您现在可以登录了。</p>
-            <p><span class="countdown" id="countdown">5</span> 秒后将自动跳转到首页...</p>
-            <p>如果没有自动跳转，请<a href="/">点击这里</a>。</p>
-        </div>
-    </body>
-    </html>
-    """
 
 def validate_sequence(sequence):
     """验证氨基酸序列的有效性"""

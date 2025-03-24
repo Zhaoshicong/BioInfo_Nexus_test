@@ -116,21 +116,53 @@ function loadDashboardData() {
 // 渲染用户列表
 function renderUsersList(users) {
     console.log('渲染用户列表:', users);
-    const tbody = document.getElementById('users-list');
-    tbody.innerHTML = '';
+    
+    // 清空用户列表
+    const adminUsersList = document.getElementById('admin-users-list');
+    const normalUsersList = document.getElementById('normal-users-list');
+    
+    adminUsersList.innerHTML = '';
+    normalUsersList.innerHTML = '';
     
     if (users.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="6" style="text-align: center;">暂无数据</td>';
-        tbody.appendChild(tr);
+        const noDataRow = '<tr><td colspan="6" style="text-align: center;">暂无数据</td></tr>';
+        adminUsersList.innerHTML = noDataRow;
+        normalUsersList.innerHTML = noDataRow;
         return;
     }
     
-    // 不再过滤admin账户
-    const filteredUsers = users;
+    // 分类用户
+    const adminUsers = [];
+    const normalUsers = [];
     
+    users.forEach(user => {
+        // 确定用户角色
+        if (user.role === 'admin' || user.role === 1 || user.role === true || user.is_admin === 1 || user.is_admin === true) {
+            adminUsers.push({...user, role: 'admin'});
+        } else {
+            normalUsers.push({...user, role: 'user'});
+        }
+    });
+    
+    // 渲染管理员列表
+    if (adminUsers.length > 0) {
+        renderUserTable(adminUsers, adminUsersList);
+    } else {
+        adminUsersList.innerHTML = '<tr><td colspan="6" style="text-align: center;">暂无管理员</td></tr>';
+    }
+    
+    // 渲染普通用户列表
+    if (normalUsers.length > 0) {
+        renderUserTable(normalUsers, normalUsersList);
+    } else {
+        normalUsersList.innerHTML = '<tr><td colspan="6" style="text-align: center;">暂无普通用户</td></tr>';
+    }
+}
+
+// 渲染用户表格
+function renderUserTable(users, tableBody) {
     // 为用户添加序号
-    filteredUsers.forEach((user, index) => {
+    users.forEach((user, index) => {
         // 确保用户ID存在
         const userId = user.id;
         if (!userId) {
@@ -140,10 +172,10 @@ function renderUsersList(users) {
         
         // 确定用户角色
         let roleDisplay;
-        let role = '';
+        let role = user.role || '';
         
         // 处理角色信息：可能是布尔值、数字或字符串
-        if (user.role === 'admin' || user.role === 1 || user.role === true || user.is_admin === 1 || user.is_admin === true) {
+        if (role === 'admin' || role === 1 || role === true || user.is_admin === 1 || user.is_admin === true) {
             roleDisplay = '<span class="role-badge role-admin">管理员</span>';
             role = 'admin';
         } else {
@@ -187,7 +219,7 @@ function renderUsersList(users) {
                 }
             </td>
         `;
-        tbody.appendChild(tr);
+        tableBody.appendChild(tr);
     });
 }
 
@@ -262,16 +294,29 @@ function filterLogs() {
 // 筛选用户
 function filterUsers() {
     const filter = document.getElementById('user-search').value.toLowerCase();
-    const rows = document.querySelectorAll('#users-list tr');
+    const adminUserRows = document.querySelectorAll('#admin-users-list tr');
+    const normalUserRows = document.querySelectorAll('#normal-users-list tr');
     
+    // 筛选管理员列表
+    filterUserRows(adminUserRows, filter);
+    
+    // 筛选普通用户列表
+    filterUserRows(normalUserRows, filter);
+}
+
+// 筛选用户行
+function filterUserRows(rows, filter) {
     rows.forEach(row => {
-        const username = row.cells[1]?.textContent.toLowerCase() || '';
-        const email = row.cells[2]?.textContent.toLowerCase() || '';
-        
-        if (username.includes(filter) || email.includes(filter)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
+        // 检查是否是数据行（有单元格）
+        if (row.cells && row.cells.length > 1) {
+            const username = row.cells[1]?.textContent.toLowerCase() || '';
+            const email = row.cells[2]?.textContent.toLowerCase() || '';
+            
+            if (username.includes(filter) || email.includes(filter)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
         }
     });
 }
@@ -442,22 +487,101 @@ function saveSettings(event) {
 
 // 初始化标签页
 function initTabs() {
-    const tabs = document.querySelectorAll('.sidebar-menu a');
+    const tabs = document.querySelectorAll('.sidebar-menu > li > a, .submenu > li > a');
     const panes = document.querySelectorAll('.tab-pane');
+    const subPanes = document.querySelectorAll('.subtab-pane');
+    const menuToggles = document.querySelectorAll('.menu-toggle');
     
-    tabs.forEach(tab => {
+    // 为菜单切换按钮添加事件监听
+    menuToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const target = this.getAttribute('data-tab');
+            const parentLi = this.closest('li');
+            
+            // 切换菜单的展开/折叠状态
+            if (parentLi.classList.contains('active')) {
+                // 如果已经是active状态，则只切换折叠状态，不切换内容
+                parentLi.classList.remove('active');
+                e.stopPropagation(); // 阻止事件冒泡，防止触发标签切换
+            } else {
+                // 如果不是active状态，则展开子菜单并切换到该标签
+                document.querySelectorAll('.sidebar-menu > li').forEach(li => {
+                    li.classList.remove('active');
+                });
+                parentLi.classList.add('active');
+                
+                // 切换到对应的标签内容
+                panes.forEach(p => p.classList.remove('active'));
+                document.getElementById(target).classList.add('active');
+                
+                // 默认显示第一个子标签
+                const firstSubTab = parentLi.querySelector('.submenu li:first-child a');
+                if (firstSubTab) {
+                    const firstSubTabTarget = firstSubTab.getAttribute('data-tab');
+                    document.querySelectorAll('.submenu a').forEach(t => t.classList.remove('active'));
+                    firstSubTab.classList.add('active');
+                    
+                    subPanes.forEach(p => p.classList.remove('active'));
+                    document.getElementById(firstSubTabTarget).classList.add('active');
+                }
+            }
+        });
+    });
+    
+    // 为子标签添加事件监听
+    document.querySelectorAll('.submenu > li > a').forEach(tab => {
         tab.addEventListener('click', function(e) {
             e.preventDefault();
             
-            // 移除所有active类
-            tabs.forEach(t => t.classList.remove('active'));
-            panes.forEach(p => p.classList.remove('active'));
+            const target = this.getAttribute('data-tab');
+            const parentTab = this.getAttribute('data-parent');
             
-            // 添加active类到当前tab
+            // 移除所有子标签的active类
+            document.querySelectorAll('.submenu a').forEach(t => t.classList.remove('active'));
+            subPanes.forEach(p => p.classList.remove('active'));
+            
+            // 添加active类到当前子标签
+            this.classList.add('active');
+            
+            // 确保父标签也是active
+            const parentTabEl = document.querySelector(`a[data-tab="${parentTab}"]`);
+            if (parentTabEl && !parentTabEl.closest('li').classList.contains('active')) {
+                document.querySelectorAll('.sidebar-menu > li').forEach(li => {
+                    li.classList.remove('active');
+                });
+                parentTabEl.closest('li').classList.add('active');
+                
+                // 显示父标签内容
+                panes.forEach(p => p.classList.remove('active'));
+                document.getElementById(parentTab).classList.add('active');
+            }
+            
+            // 显示对应的子标签内容
+            document.getElementById(target).classList.add('active');
+        });
+    });
+    
+    // 为非折叠菜单的主标签添加事件监听
+    document.querySelectorAll('.sidebar-menu > li > a:not(.menu-toggle)').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const target = this.getAttribute('data-tab');
+            
+            // 移除所有标签的active类
+            document.querySelectorAll('.sidebar-menu a').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.sidebar-menu > li').forEach(li => {
+                li.classList.remove('active');
+            });
+            panes.forEach(p => p.classList.remove('active'));
+            subPanes.forEach(p => p.classList.remove('active'));
+            
+            // 添加active类到当前标签
             this.classList.add('active');
             
             // 显示对应的内容区
-            const target = this.getAttribute('data-tab');
             document.getElementById(target).classList.add('active');
         });
     });
@@ -517,4 +641,4 @@ function formatDate(dateStr) {
     }
     
     return date.toLocaleString('zh-CN');
-} 
+}

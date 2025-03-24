@@ -34,7 +34,7 @@
 }
 
 /* 修复角色单元格样式 */
-td:nth-child(4) {
+th:nth-child(4), td:nth-child(4) {
     min-width: 80px; /* 给角色列设置最小宽度 */
     text-align: center; /* 居中对齐 */
 }
@@ -45,4 +45,128 @@ th {
     letter-spacing: normal; /* 恢复正常字间距 */
     writing-mode: horizontal-tb !important; /* 强制水平书写模式 */
     text-orientation: mixed; /* 正常文本方向 */
-} 
+}
+
+/* 子菜单样式 */
+.submenu {
+    list-style: none;
+    margin-left: 20px;
+    padding: 5px 0;
+    display: none;
+    transition: all 0.3s ease;
+}
+
+.sidebar-menu > li.active .submenu {
+    display: block;
+}
+
+.submenu a {
+    padding: 8px 15px 8px 35px;
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+.submenu a:hover, .submenu a.active {
+    opacity: 1;
+}
+
+/* 折叠菜单图标样式 */
+.submenu-icon {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+}
+
+.menu-toggle {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding-right: 1rem;
+}
+
+.submenu-icon {
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.sidebar-menu > li.active .submenu-icon {
+    transform: rotate(180deg);
+}
+
+/* 子标签内容样式 */
+.user-subtabs {
+    margin-top: 20px;
+}
+
+.subtab-pane {
+    display: none;
+}
+
+.subtab-pane.active {
+    display: block;
+}
+
+/* 图表卡片相关样式 */
+.chart-card-relative {
+    position: relative;
+}
+
+.chart-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+.chart-select {
+    width: 120px;
+    font-size: 0.9rem;
+}
+
+/* 搜索框样式 */
+.search-input {
+    width: 250px;
+}
+
+/* 日志控制区样式 */
+.log-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.log-type-select {
+    width: 180px;
+}
+
+.log-level-select {
+    width: 150px;
+}
+
+.refresh-button {
+    height: 38px;
+}
+  
+/* 确保页面填满整个屏幕 */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* 确保导航栏高度固定 */
+.navbar {
+    height: 60px;
+}
+
+/* 确保日志容器充分利用可用空间 */
+.logs-container {
+    height: calc(100vh - 200px);
+}
+
+/* 确保表格容器充分利用可用空间 */
+.table-container {
+    height: calc(100vh - 200px);
+    overflow: auto;
+}

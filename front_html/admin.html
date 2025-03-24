@@ -10,56 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
     <!-- Chart.js 库 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* 统一按钮宽度 */
-        .btn-sm {
-            min-width: 120px; /* 设置最小宽度 */
-            text-align: center;
-            margin: 2px;
-        }
-        
-        /* 角色显示样式 */
-        .role-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            white-space: nowrap; /* 防止文字换行 */
-            letter-spacing: normal; /* 恢复正常字间距 */
-            writing-mode: horizontal-tb; /* 强制水平书写模式 */
-            text-orientation: mixed; /* 正常文本方向 */
-            width: auto; /* 自动宽度 */
-            height: auto; /* 自动高度 */
-            text-align: center; /* 文字居中 */
-        }
-        
-        .role-admin {
-            background-color: #e6f7ff;
-            color: #1890ff;
-            border: 1px solid #91d5ff;
-        }
-        
-        .role-user {
-            background-color: #f6ffed;
-            color: #52c41a;
-            border: 1px solid #b7eb8f;
-        }
-        
-        /* 修复角色单元格样式 */
-        td:nth-child(4) {
-            min-width: 80px; /* 给角色列设置最小宽度 */
-            text-align: center; /* 居中对齐 */
-        }
-        
-        /* 确保表头文字水平显示 */
-        th {
-            white-space: nowrap; /* 防止文字换行 */
-            letter-spacing: normal; /* 恢复正常字间距 */
-            writing-mode: horizontal-tb !important; /* 强制水平书写模式 */
-            text-orientation: mixed; /* 正常文本方向 */
-        }
-    </style>
+    <!-- 所有样式已移至CSS文件 -->
 </head>
 <body>
     <!-- 顶部导航 -->
@@ -80,7 +31,13 @@
             <div class="sidebar">
                 <ul class="sidebar-menu">
                     <li><a href="#dashboard" class="active" data-tab="dashboard"><i class="fas fa-tachometer-alt"></i> 控制面板</a></li>
-                    <li><a href="#users" data-tab="users"><i class="fas fa-users"></i> 用户管理</a></li>
+                    <li>
+                        <a href="#users" data-tab="users" class="menu-toggle"><i class="fas fa-users"></i> 用户管理 <i class="fas fa-chevron-down submenu-icon"></i></a>
+                        <ul class="submenu">
+                            <li><a href="#admin-users" data-tab="admin-users" data-parent="users"><i class="fas fa-user-shield"></i> 管理员</a></li>
+                            <li><a href="#normal-users" data-tab="normal-users" data-parent="users"><i class="fas fa-user"></i> 普通用户</a></li>
+                        </ul>
+                    </li>
                     <li><a href="#logs" data-tab="logs"><i class="fas fa-file-alt"></i> 系统日志</a></li>
                     <li><a href="#settings" data-tab="settings"><i class="fas fa-cog"></i> 系统设置</a></li>
                 </ul>
@@ -116,9 +73,9 @@
                     
                     <!-- 数据可视化图表 -->
                     <div class="charts-container">
-                        <div class="chart-card" style="position: relative;">
-                            <div style="position: absolute; top: 10px; right: 10px; z-index: 10;">
-                                <select id="time-range-select" class="form-control" style="width: 120px; font-size: 0.9rem;">
+                        <div class="chart-card chart-card-relative">
+                            <div class="chart-controls">
+                                <select id="time-range-select" class="form-control chart-select">
                                     <option value="month">本月</option>
                                     <option value="year" selected>年度</option>
                                 </select>
@@ -135,25 +92,51 @@
                 <div id="users" class="tab-pane">
                     <div class="content-header">
                         <h1 class="content-title">用户管理</h1>
-                        <input type="text" id="user-search" placeholder="搜索用户..." class="form-control" style="width: 250px;">
+                        <input type="text" id="user-search" placeholder="搜索用户..." class="form-control search-input">
                     </div>
-
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="white-space: nowrap; writing-mode: horizontal-tb;">序号</th>
-                                    <th>用户名</th>
-                                    <th>邮箱</th>
-                                    <th>角色</th>
-                                    <th>注册时间</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="users-list">
-                                <!-- 数据将通过JavaScript动态加载 -->
-                            </tbody>
-                        </table>
+                    
+                    <!-- 用户管理子标签 -->
+                    <div class="user-subtabs">
+                        
+                        <div id="admin-users" class="subtab-pane">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>序号</th>
+                                            <th>用户名</th>
+                                            <th>邮箱</th>
+                                            <th>角色</th>
+                                            <th>注册时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-users-list">
+                                        <!-- 数据将通过JavaScript动态加载 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div id="normal-users" class="subtab-pane">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>序号</th>
+                                            <th>用户名</th>
+                                            <th>邮箱</th>
+                                            <th>角色</th>
+                                            <th>注册时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="normal-users-list">
+                                        <!-- 数据将通过JavaScript动态加载 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -161,19 +144,19 @@
                 <div id="logs" class="tab-pane">
                     <div class="content-header">
                         <h1 class="content-title">系统日志</h1>
-                        <div style="display: flex; gap: 10px;">
-                            <select id="log-type" class="form-control" style="width: 180px;">
+                        <div class="log-controls">
+                            <select id="log-type" class="form-control log-type-select">
                                 <option value="app">应用日志</option>
                                 <option value="access">Gunicorn访问日志</option>
                                 <option value="error">Gunicorn错误日志</option>
                             </select>
-                            <select id="log-level" class="form-control" style="width: 150px;">
+                            <select id="log-level" class="form-control log-level-select">
                                 <option value="all">所有级别</option>
                                 <option value="error">错误</option>
                                 <option value="warning">警告</option>
                                 <option value="info">信息</option>
                             </select>
-                            <button id="refresh-logs" class="btn btn-primary btn-sm" style="height: 38px;">
+                            <button id="refresh-logs" class="btn btn-primary btn-sm refresh-button">
                                 <i class="fas fa-sync-alt"></i> 刷新日志
                             </button>
                         </div>

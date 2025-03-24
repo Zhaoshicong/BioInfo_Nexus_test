@@ -41,9 +41,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
-    padding: 0 1rem;
+    padding: 0 1.5rem;
 }
 
 .nav-logo {
@@ -71,17 +71,18 @@ body {
 
 /* 主内容区域 */
 .admin-container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 0 1rem;
+    width: 100%;
+    margin: 0;
+    padding: 0;
 }
 
 .main-content {
     display: flex;
     background-color: white;
-    border-radius: 8px;
+    border-radius: 0;
     box-shadow: var(--box-shadow);
     overflow: hidden;
+    height: calc(100vh - 60px); /* 减去导航栏高度 */
 }
 
 /* 侧边栏样式 */
@@ -90,6 +91,8 @@ body {
     background-color: #fff;
     border-right: 1px solid var(--border-color);
     flex-shrink: 0;
+    height: 100%;
+    overflow-y: auto;
 }
 
 .sidebar-menu {
@@ -109,6 +112,17 @@ body {
     text-decoration: none;
     transition: all 0.2s;
     border-left: 3px solid transparent;
+    width: 100%;
+}
+
+.sidebar-menu a.menu-toggle {
+    justify-content: space-between;
+    padding-right: 0.5rem;
+}
+
+.sidebar-menu a.menu-toggle .submenu-icon {
+    margin-left: auto;
+    margin-right: 0.1rem;
 }
 
 .sidebar-menu a i {
@@ -129,6 +143,7 @@ body {
     flex: 1;
     padding: 2rem;
     overflow: auto;
+    height: 100%;
 }
 
 .content-header {
@@ -188,7 +203,7 @@ body {
 /* 图表容器样式 */
 .charts-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -222,12 +237,20 @@ table {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
+    table-layout: fixed;
 }
 
 th, td {
     padding: 1rem;
     border-bottom: 1px solid var(--border-color);
 }
+
+th:nth-child(1), td:nth-child(1) { width: 6%; }  /* 序号 */
+th:nth-child(2), td:nth-child(2) { width: 20%; } /* 用户名 */
+th:nth-child(3), td:nth-child(3) { width: 25%; overflow: visible; word-wrap: break-word; white-space: normal; } /* 邮箱 */
+th:nth-child(4), td:nth-child(4) { width: 12%; } /* 角色 */
+th:nth-child(5), td:nth-child(5) { width: 20%; } /* 注册时间 */
+th:nth-child(6), td:nth-child(6) { width: 17%; } /* 操作 */
 
 th {
     background-color: var(--bg-light);
@@ -366,12 +389,12 @@ label {
 
 .btn-warning {
     color: white;
-    background-color: var(--warning);
-    border-color: var(--warning);
+    background-color: #1890ff;
+    border-color: #1890ff;
 }
 
 .btn-warning:hover {
-    background-color: #e0a800;
+    background-color: #336696;
 }
 
 .btn-secondary {
@@ -526,12 +549,14 @@ label {
 @media (max-width: 768px) {
     .main-content {
         flex-direction: column;
+        height: auto;
     }
     
     .sidebar {
         width: 100%;
         border-right: none;
         border-bottom: 1px solid var(--border-color);
+        height: auto;
     }
     
     .stats-container {
@@ -540,6 +565,7 @@ label {
     
     .content {
         padding: 1rem;
+        height: auto;
     }
     
     .modal-content {

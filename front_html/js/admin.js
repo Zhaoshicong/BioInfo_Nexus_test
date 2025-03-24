@@ -111,6 +111,9 @@ function loadDashboardData() {
     
     // 获取系统日志
     loadSystemLogs();
+
+    // 监听日志类型切换
+    document.getElementById('log-type').addEventListener('change', loadSystemLogs);
 }
 
 // 渲染用户列表
@@ -225,7 +228,8 @@ function renderUserTable(users, tableBody) {
 
 // 加载系统日志
 function loadSystemLogs() {
-    fetch(`${API_BASE}/api/logs`, {
+    const logType = document.getElementById('log-type').value;
+    fetch(`${API_BASE}/logs?type=${logType}`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }

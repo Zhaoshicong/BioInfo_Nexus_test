@@ -171,12 +171,10 @@ def delete_user(user_id):
 @admin_bp.route('/logs')
 @admin_required
 def view_logs():
-    log_type = request.args.get('type', 'app')  # 默认显示app.log
-    
+    log_type = request.args.get('type', 'access')  # 默认显示access
+  
     # 根据类型选择不同的日志文件
-    if log_type == 'app':
-        log_file = 'app.log'  # 应用日志
-    elif log_type == 'access':
+    if log_type == 'access':
         log_file = 'logs/gunicorn_access.log'  # Gunicorn访问日志
     elif log_type == 'error':
         log_file = 'logs/gunicorn_error.log'  # Gunicorn错误日志

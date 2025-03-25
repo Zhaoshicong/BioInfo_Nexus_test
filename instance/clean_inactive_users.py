@@ -14,12 +14,11 @@ import datetime
 import argparse
 import logging
 
-# 配置日志
+# 配置日志 - 只使用标准输出
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("user_cleanup.log"),
         logging.StreamHandler()
     ]
 )
@@ -190,4 +189,4 @@ def main():
         conn.close()
 
 if __name__ == "__main__":
-    main() 
+    main()

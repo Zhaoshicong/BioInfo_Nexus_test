@@ -50,8 +50,8 @@ def init_user_system(app):
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bioinfo_nexus.db?timeout=30&check_same_thread=False'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_size': 10,  # 连接池的大小
-        'max_overflow': 20,  # 超过pool_size后，最多可以创建的额外连接数
+        'pool_size': 30,  # 连接池的大小
+        'max_overflow': 40,  # 超过pool_size后，最多可以创建的额外连接数
         'pool_timeout': 30,  # 等待池中连接的超时时间（秒）
         'pool_recycle': 1800,  # 连接在池中的最大生存时间（秒）
     }
@@ -115,4 +115,4 @@ def admin_required(f):
             return jsonify({'message': '需要管理员权限！'}), 403
         return f(current_user, *args, **kwargs)
     
-    return decorated 
+    return decorated

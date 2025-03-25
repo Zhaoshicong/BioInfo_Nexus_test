@@ -22,8 +22,8 @@ function initCharts() {
     // 设置时间范围选择器事件
     setupTimeRangeSelector();
     
-    // 每5分钟刷新一次图表数据
-    setInterval(refreshChartData, 300000);
+    // 每2.5分钟刷新一次图表数据
+    setInterval(refreshChartData, 150000);
 }
 
 // 设置时间范围选择器事件
@@ -145,76 +145,30 @@ function initResourceUsageChart() {
 function initUserGrowthChart() {
     const ctx = document.getElementById('user-growth-chart').getContext('2d');
     
+    // 创建渐变背景
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(54, 162, 235, 0.4)');
+    gradient.addColorStop(1, 'rgba(54, 162, 235, 0.01)');
+    
     userGrowthChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: [],
             datasets: [
                 {
-                    label: '新增用户',
+                    label: '用户数量',
                     data: [],
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: 'rgba(75, 192, 192, 1)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: 'rgba(75, 192, 192, 1)',
-                    pointHoverBorderWidth: 3,
-                    fill: true
-                },
-                {
-                    label: '累计用户',
-                    data: [],
-                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                    borderColor: 'rgba(153, 102, 255, 1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: 'rgba(153, 102, 255, 1)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: 'rgba(153, 102, 255, 1)',
-                    pointHoverBorderWidth: 3,
-                    fill: true
-                },
-                {
-                    label: '活跃用户',
-                    data: [],
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    backgroundColor: gradient,
                     borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointHoverRadius: 8,
+                    borderWidth: 2,
+                    tension: 0.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
                     pointBackgroundColor: 'rgba(54, 162, 235, 1)',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
                     pointHoverBackgroundColor: '#fff',
                     pointHoverBorderColor: 'rgba(54, 162, 235, 1)',
-                    pointHoverBorderWidth: 3,
-                    fill: true
-                },
-                {
-                    label: '流失用户',
-                    data: [],
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: 'rgba(255, 99, 132, 1)',
                     pointHoverBorderWidth: 3,
                     fill: true
                 }
@@ -237,16 +191,7 @@ function initUserGrowthChart() {
                     }
                 },
                 legend: {
-                    position: 'bottom',
-                    labels: {
-                        font: {
-                            size: 13,
-                            weight: 'bold'
-                        },
-                        padding: 15,
-                        usePointStyle: true,
-                        pointStyleWidth: 10
-                    }
+                    display: false // 隐藏图例
                 },
                 tooltip: {
                     mode: 'index',
@@ -261,27 +206,30 @@ function initUserGrowthChart() {
                     },
                     padding: 12,
                     cornerRadius: 6,
-                    displayColors: true
+                    displayColors: true,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            return tooltipItems[0].label;
+                        },
+                        label: function(context) {
+                            return '用户数量: ' + context.raw;
+                        }
+                    }
                 }
             },
             scales: {
                 y: {
-                    beginAtZero: true,
+                    beginAtZero: false,
                     title: {
-                        display: true,
-                        text: '用户数',
-                        font: {
-                            size: 14,
-                            weight: 'bold'
-                        },
-                        padding: {top: 0, bottom: 10}
+                        display: false
                     },
                     ticks: {
                         font: {
                             size: 12
                         },
                         padding: 8,
-                        stepSize: 1,
+                        autoSkip: true,
+                        maxTicksLimit: 8,
                         precision: 0
                     },
                     grid: {
@@ -290,13 +238,7 @@ function initUserGrowthChart() {
                 },
                 x: {
                     title: {
-                        display: true,
-                        text: '时间',
-                        font: {
-                            size: 14,
-                            weight: 'bold'
-                        },
-                        padding: {top: 10, bottom: 0}
+                        display: false // 隐藏X轴标题
                     },
                     ticks: {
                         font: {
@@ -308,6 +250,11 @@ function initUserGrowthChart() {
                     grid: {
                         display: false
                     }
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.5 // 曲线平滑度
                 }
             },
             animation: {
@@ -344,6 +291,7 @@ function refreshChartData() {
     })
     .then(data => {
         // 更新系统资源使用图表
+        console.log('获取的系统资源使用数据:', data);
         resourceUsageChart.data.datasets[0].data = [
             data.cpu || 0,     // CPU
             data.memory || 0,   // 内存
@@ -406,10 +354,8 @@ function updateUserGrowthChart() {
     .then(data => {
         // 更新图表数据
         userGrowthChart.data.labels = data.labels || [];
-        userGrowthChart.data.datasets[0].data = data.new_users || [];
-        userGrowthChart.data.datasets[1].data = data.total_users || [];
-        userGrowthChart.data.datasets[2].data = data.active_users || [];
-        userGrowthChart.data.datasets[3].data = data.churn_users || [];
+        // 使用总用户数量数据
+        userGrowthChart.data.datasets[0].data = data.total_users || [];
         
         // 恢复正常显示
         if (userGrowthChartElement) {
@@ -424,65 +370,58 @@ function updateUserGrowthChart() {
         
         // 出错时使用模拟数据
         let labels = [];
-        let newUsers = [];
-        let totalUsers = [];
         let activeUsers = [];
-        let churnUsers = [];
         
         // 根据时间范围选择器生成对应的数据
+        let dataPointCount = 12; // 默认数据点数量
+        
         switch(timeRangeSelector) {
-            case 'week':
-                labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-                newUsers = [5, 7, 8, 12, 15, 20, 10];
-                activeUsers = [30, 35, 40, 45, 50, 60, 45];
-                churnUsers = [2, 3, 1, 2, 3, 4, 5];
-                break;
             case 'month':
                 labels = Array.from({length: 30}, (_, i) => `${i+1}日`);
-                newUsers = generateRandomData(30, 1, 10);
-                activeUsers = generateRandomData(30, 20, 60);
-                churnUsers = generateRandomData(30, 0, 5);
-                break;
-            case 'quarter':
-                // 季度数据 - 最近3个月的数据
-                labels = [];
-                const currentMonth = new Date().getMonth();
-                for (let i = 0; i < 3; i++) {
-                    // 获取最近3个月的月份名称
-                    const monthIndex = (currentMonth - 2 + i) >= 0 ? 
-                                      (currentMonth - 2 + i) : 
-                                      (currentMonth - 2 + i + 12);
-                    const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-                    labels.push(monthNames[monthIndex]);
-                }
-                // 为季度生成不同的随机数据
-                newUsers = generateRandomData(3, 15, 45);
-                activeUsers = generateRandomData(3, 50, 120);
-                churnUsers = generateRandomData(3, 5, 15);
+                dataPointCount = 30;
                 break;
             case 'year':
             default:
                 // 年度数据 - 12个月
                 labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-                // 为年度生成不同的随机数据
-                newUsers = generateRandomData(12, 10, 50);
-                activeUsers = generateRandomData(12, 40, 130);
-                churnUsers = generateRandomData(12, 3, 18);
+                dataPointCount = 12;
                 break;
         }
         
-        // 计算累计用户数
-        totalUsers = newUsers.reduce((acc, curr, idx) => {
-            if (idx === 0) return [curr];
-            return [...acc, acc[idx-1] + curr - churnUsers[idx]];
-        }, []);
+        // 使用平滑曲线生成器生成更美观的数据
+        if (window.smoothCurveGenerator) {
+            // 根据不同的时间范围设置不同的数据范围
+            let minValue, maxValue;
+            
+            switch(timeRangeSelector) {
+                case 'week':
+                    minValue = 30;
+                    maxValue = 80;
+                    break;
+                case 'month':
+                    minValue = 20;
+                    maxValue = 100;
+                    break;
+                case 'quarter':
+                    minValue = 40;
+                    maxValue = 120;
+                    break;
+                case 'year':
+                default:
+                    minValue = 30;
+                    maxValue = 150;
+                    break;
+            }
+            
+            activeUsers = window.smoothCurveGenerator.generateSmoothCurveData(dataPointCount, minValue, maxValue);
+        } else {
+            // 如果平滑曲线生成器不可用，则使用普通随机数据
+            activeUsers = generateRandomData(dataPointCount, 30, 150);
+        }
         
         // 更新图表数据
         userGrowthChart.data.labels = labels;
-        userGrowthChart.data.datasets[0].data = newUsers;
-        userGrowthChart.data.datasets[1].data = totalUsers;
-        userGrowthChart.data.datasets[2].data = activeUsers;
-        userGrowthChart.data.datasets[3].data = churnUsers;
+        userGrowthChart.data.datasets[0].data = activeUsers;
         
         // 更新图表
         userGrowthChart.update();
@@ -502,6 +441,21 @@ function updateUserGrowthChart() {
     userGrowthChart.options.plugins.title.text = titleText;
     userGrowthChart.update();
 }
+    
+    // 更新图表标题
+    let titleText = '用户增长趋势';
+    switch(timeRangeSelector) {
+        case 'month':
+            titleText = '本月用户增长趋势';
+            break;
+        case 'year':
+            titleText = '年度用户增长趋势';
+            break;
+    }
+    
+    userGrowthChart.options.plugins.title.text = titleText;
+    userGrowthChart.update();
+
 
 // 导出函数供其他模块使用
 window.dashboardCharts = {

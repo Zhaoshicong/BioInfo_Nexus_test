@@ -128,7 +128,7 @@ def rate_limit(func):
         requests[ip] = [t for t in requests.get(ip, []) if current_time - t < 60]
         
         # 检查请求频率（每分钟最多10次）
-        if len(requests.get(ip, [])) >= 10:
+        if len(requests.get(ip, [])) >= 15:
             return jsonify({
                 'error': '请求过于频繁',
                 'message': '请稍后再试'

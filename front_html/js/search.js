@@ -70,7 +70,7 @@ const sequenceTools = {
                 if (retryCount === 0) {
                     utils.updateLoadingText("正在提交序列...");
                     await new Promise(resolve => setTimeout(resolve, 500));
-                    utils.updateLoadingText("服务器正在处理序列，请等待(约2秒)...");
+                    utils.updateLoadingText("服务器正在处理序列，请等待(约10秒)...");
                     await new Promise(resolve => setTimeout(resolve, 500));
                     utils.updateLoadingText("正在获取分析结果...");
                 }

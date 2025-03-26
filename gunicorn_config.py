@@ -18,7 +18,7 @@ worker_class = "gevent"
 workers = multiprocessing.cpu_count() * 2 + 1
 
 # 每个工作进程的线程数
-threads = 2
+threads = 3
 
 # 最大请求数，超过这个数量后工作进程会重启
 max_requests = 2000
@@ -44,4 +44,4 @@ preload_app = True
 daemon = False
 
 # 确保日志目录存在
-os.makedirs("logs", exist_ok=True) 
+os.makedirs("logs", exist_ok=True)

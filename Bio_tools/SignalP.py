@@ -121,8 +121,8 @@ def extract_and_parse_results(jobid, session):
     logger.info(f"访问结果页面: {result_url}")
     
     # 初始等待
-    logger.info("等待10秒让服务器处理请求...")
-    time.sleep(10)  # 设置为10秒
+    logger.info("等待5秒让服务器处理请求...")
+    time.sleep(5)  # 设置为5秒
     
     # 尝试获取结果
     max_attempts = 15  # 增加尝试次数
@@ -135,8 +135,8 @@ def extract_and_parse_results(jobid, session):
             
             # 检查是否仍在处理
             if "Please wait" in response.text or "Job in progress" in response.text:
-                logger.info("任务仍在处理中，等待10秒...")  # 减少等待时间
-                time.sleep(10)
+                logger.info("任务仍在处理中，等待5秒...")  # 进一步减少等待时间
+                time.sleep(5)
                 attempt += 1
                 continue
                 

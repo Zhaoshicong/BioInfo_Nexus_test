@@ -64,14 +64,14 @@ const sequenceTools = {
             
             // 对于SignalP分析，显示特殊提示并强制等待
             if (tool === 'signalp') {
-                utils.showToast("SignalP分析需要较长时间(10-20秒)，请耐心等待...");
+                utils.showToast("SignalP分析需要较长时间(5-10秒)，请耐心等待...");
                 
-                // 强制等待10秒，模拟服务器处理时间
+                // 强制等待1秒，模拟服务器处理时间
                 if (retryCount === 0) {
                     utils.updateLoadingText("正在提交序列...");
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    utils.updateLoadingText("服务器正在处理序列，请等待(约10秒)...");
-                    await new Promise(resolve => setTimeout(resolve, 10000));
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    utils.updateLoadingText("服务器正在处理序列，请等待(约2秒)...");
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     utils.updateLoadingText("正在获取分析结果...");
                 }
             }
@@ -751,4 +751,4 @@ if (contactLink && emailTooltip) {
     document.addEventListener('click', function() {
         emailTooltip.classList.remove('show');
     });
-} 
+}

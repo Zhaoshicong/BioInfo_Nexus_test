@@ -40,25 +40,26 @@ python app.py
 
 ### 生产环境部署
 
-详细的部署指南请参考 [部署流程]
+详细的部署指南请参考 [BioInfo_Nexus_宝塔部署流程.txt](BioInfo_Nexus_宝塔部署流程.txt) 文件。
 
 ## 主要工具
 
 BioInfo Nexus集成了以下生物信息学工具：
 
-1. **ProtParam**：计算蛋白质物理化学参数
-2. **SignalP**：预测蛋白质信号肽
-3. **VaxiJen**：预测蛋白质抗原性
-4. **ToxinPred**：预测蛋白质毒性
-5. **PhysChemParameter**：预测蛋白质物理化学性质
+1. **ProtParam**：计算蛋白质分子量等基本物理化学参数，基于BioPython工具
+2. **SignalP**：预测蛋白质信号肽位置和切割位点，使用DTU SignalP-4.1服务
+3. **VaxiJen**：预测蛋白质抗原性，判断蛋白质是否具有抗原特性
+4. **ToxinPred**：预测蛋白质毒性，评估蛋白质是否具有毒素特征
+5. **PhysChemParameter**：全面分析蛋白质物理化学性质，包括氨基酸组成、等电点、稳定性指数、消光系数和半衰期等
 
 
 ## 技术栈
 
-- **后端**：Flask, SQLAlchemy, JWT
+- **后端**：Flask, SQLAlchemy, Flask-JWT-Extended, Flask-Mail, Flask-Migrate
 - **前端**：HTML, CSS, JavaScript
 - **数据库**：SQLite (开发), MySQL/PostgreSQL (生产)
-- **部署**：Gunicorn, Nginx
+- **部署**：Gunicorn, Nginx, Supervisor
+- **其他**：BeautifulSoup4, Pillow, Python-dotenv
 
 ## 贡献指南
 
@@ -77,3 +78,6 @@ BioInfo Nexus集成了以下生物信息学工具：
 ## 联系方式
 
 如有任何问题或建议，请联系：
+- **项目维护者**：BioInfo Nexus团队
+- **问题反馈**：请在项目仓库中提交Issue
+- **功能建议**：欢迎通过Pull Request贡献代码

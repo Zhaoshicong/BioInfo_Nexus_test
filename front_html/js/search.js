@@ -142,9 +142,23 @@ const sequenceTools = {
         
         switch(tool) {
             case 'protparam':
+                // 将氨基酸组成转换为紧凑表格形式
+                let aaTable = '<table class="aa-composition"><tr>';
+                let count = 0;
+                for (const [aa, percent] of Object.entries(result.amino_acid_composition)) {
+                    aaTable += `<td>${aa}: ${percent}</td>`;
+                    count++;
+                    if (count % 4 === 0) {
+                        aaTable += '</tr><tr>';
+                    }
+                }
+                aaTable += '</tr></table>';
+                
                 resultBox.innerHTML = `
                     <p>序列: ${result.sequence}</p>
                     <p>分子量: ${result.molecular_weight} Da</p>
+                    <p>氨基酸组成:</p>
+                    ${aaTable}
                 `;
                 break;
                 
@@ -416,7 +430,7 @@ GRAVY 指数是蛋白质疏水性的量化指标，通过计算蛋白质序列�
 function getToolName(tool) {
     switch(tool) {
         case 'protparam':
-            return '分子量计算 (ProtParam)';
+            return '分子量计算 (BioPython)';
         case 'signalp':
             return '信号肽预测 (SignalP)';
         case 'vaxijen':

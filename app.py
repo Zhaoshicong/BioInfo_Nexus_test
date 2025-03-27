@@ -128,7 +128,7 @@ def rate_limit(func):
         requests[ip] = [t for t in requests.get(ip, []) if current_time - t < 60]
         
         # 检查请求频率（每分钟最多10次）
-        if len(requests.get(ip, [])) >= 15:
+        if len(requests.get(ip, [])) >= 10:
             return jsonify({
                 'error': '请求过于频繁',
                 'message': '请稍后再试'
@@ -290,6 +290,7 @@ def analyze_protparam():
     return jsonify({
         'molecular_weight': result['molecular_weight'],
         'sequence': result['sequence'],
+        'amino_acid_composition': result['amino_acid_composition'],
         'timestamp': datetime.now().isoformat()
     })
 

@@ -427,34 +427,10 @@ function updateUserGrowthChart() {
         userGrowthChart.update();
     });
     
-    // 更新图表标题
-    let titleText = '用户增长趋势';
-    switch(timeRangeSelector) {
-        case 'month':
-            titleText = '本月用户增长趋势';
-            break;
-        case 'year':
-            titleText = '年度用户增长趋势';
-            break;
-    }
-    
-    userGrowthChart.options.plugins.title.text = titleText;
-    userGrowthChart.update();
+
 }
     
-    // 更新图表标题
-    let titleText = '用户增长趋势';
-    switch(timeRangeSelector) {
-        case 'month':
-            titleText = '本月用户增长趋势';
-            break;
-        case 'year':
-            titleText = '年度用户增长趋势';
-            break;
-    }
-    
-    userGrowthChart.options.plugins.title.text = titleText;
-    userGrowthChart.update();
+
 
 
 // 导出函数供其他模块使用

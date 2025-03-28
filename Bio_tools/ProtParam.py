@@ -19,7 +19,7 @@ def get_molecular_weight(sequence):
         return {
             "sequence": sequence,
             "molecular_weight": f"{molecular_weight:.2f}",
-            "amino_acid_composition": {k:f"{v:.2%}" for k,v in aa_composition.items()}
+            "amino_acid_composition": {k:f"{v:.2f}%" for k,v in aa_composition.items()}
         }
         
     except ValueError as e:

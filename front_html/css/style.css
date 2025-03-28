@@ -1284,3 +1284,65 @@ body:has(.reset-password-container) .content-wrapper {
     justify-content: center;
     font-weight: 500;
 }
+
+/* 密码强度验证浮窗的样式 */
+.password-strength-popup {
+    position: absolute;
+    z-index: 9999;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    padding: 8px 10px;
+    width: 240px;
+    display: none;
+    border: 1px solid #e0e0e0;
+    top: 100%;
+    left: 0;
+    margin-top: 5px;
+}
+
+.password-strength-popup.show-popup {
+    display: block;
+}
+
+.strength-arrow {
+    position: absolute;
+    top: -7px;
+    left: 15px;
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 7px solid white;
+}
+
+.strength-item {
+    margin: 6px 0;
+    display: flex;
+    align-items: center;
+    color: #666;
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+.strength-item i {
+    margin-right: 6px;
+    font-size: 14px;
+    min-width: 14px;
+}
+
+.strength-item.valid {
+    color: #27ae60;
+}
+
+.strength-item.invalid {
+    color: #e74c3c;
+}
+
+.strength-item i.fa-times-circle {
+    color: #e74c3c;
+}
+
+.strength-item i.fa-check-circle {
+    color: #27ae60;
+}

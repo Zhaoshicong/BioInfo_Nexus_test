@@ -7,7 +7,7 @@
     <link rel="icon" href="img_data/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="img_data/favicon.ico" type="image/x-icon">
     <link href="css/icon-font.css" rel="stylesheet">
-    <link href="https://cdn.staticfile.org/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 </head>
@@ -77,16 +77,27 @@
                         <div class="form-group">
                             <label for="reg-password">密码</label>
                             <div class="password-container">
-                                <input type="password" id="reg-password" name="reg-password" placeholder="请输入密码" required>
+                                <input type="password" id="reg-password" name="reg-password" placeholder="请输入密码(至少8位,由字母数字组成)" required>
                                 <button type="button" class="password-toggle" data-target="reg-password">
                                     <i class="fas fa-eye eye-icon"></i>
                                 </button>
+                                
+                                <!-- 密码强度浮窗 -->
+                                <div id="password-strength-popup" class="password-strength-popup">
+                                    <div class="strength-arrow"></div>
+                                    <div class="strength-item" id="length-check">
+                                        <i class="fas fa-times-circle"></i> 至少8个字符
+                                    </div>
+                                    <div class="strength-item" id="letter-check">
+                                        <i class="fas fa-times-circle"></i> 包含字母和数字
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="reg-confirm-password">确认密码</label>
                             <div class="password-container">
-                                <input type="password" id="reg-confirm-password" name="reg-confirm-password" placeholder="请再次输入密码" required>
+                                <input type="password" id="reg-confirm-password" name="reg-confirm-password" placeholder="请再次输入密码(至少8位,由字母数字组成)" required>
                                 <button type="button" class="password-toggle" data-target="reg-confirm-password">
                                     <i class="fas fa-eye eye-icon"></i>
                                 </button>

@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 设置发送验证码功能
     setupVerificationCode();
     
+    // 设置密码强度验证
+    setupPasswordStrengthValidator();
+    
     // 处理表单提交
     setupResetForm();
 });
@@ -124,9 +127,100 @@ function setupVerificationCode() {
     }
 }
 
+// 设置密码强度验证
+function setupPasswordStrengthValidator() {
+    const passwordInput = document.getElementById('newPassword');
+    const confirmPasswordInput = document.getElementById('confirmNewPassword');
+    const popup = document.getElementById('password-strength-popup');
+    
+    if (!popup || !passwordInput) {
+        console.error('找不到密码强度浮窗或密码输入框');
+        return;
+    }
+    
+    console.log('初始化密码强度验证浮窗');
+    
+    // 调整浮窗位置
+    function updatePopupPosition() {
+        if (passwordInput && popup) {
+            const rect = passwordInput.getBoundingClientRect();
+            popup.style.top = (rect.bottom + 5) + 'px';
+            popup.style.left = rect.left + 'px';
+        }
+    }
+    
+    // 初始调整位置
+    updatePopupPosition();
+    
+    // 窗口大小改变时重新调整位置
+    window.addEventListener('resize', updatePopupPosition);
+    
+    // 输入框聚焦时显示浮窗
+    passwordInput.addEventListener('focus', function() {
+        updatePopupPosition();
+        popup.classList.add('show-popup');
+        console.log('输入框聚焦，显示浮窗');
+    });
+    
+    // 输入框输入时更新密码强度
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        
+        // 检查长度
+        const lengthCheck = document.getElementById('length-check');
+        const hasLength = password.length >= 8 ;
+        updateCheckIcon(lengthCheck, hasLength);
+        
+        // 检查是否同时包含字母和数字
+        const letterNumberCheck = document.getElementById('letter-check');
+        const hasLetterAndNumber = /[a-zA-Z]/.test(password) && /[0-9]/.test(password);
+        updateCheckIcon(letterNumberCheck, hasLetterAndNumber);
+        
+        // 如果输入框有值，显示浮窗；否则隐藏
+        if (password.length > 0) {
+            popup.classList.add('show-popup');
+            updatePopupPosition();
+        } else {
+            popup.classList.remove('show-popup');
+        }
+    });
+    
+    // 更新检查图标
+    function updateCheckIcon(element, isValid) {
+        if (!element) return;
+        
+        const icon = element.querySelector('i');
+        if (!icon) return;
+        
+        if (isValid) {
+            icon.className = 'fas fa-check-circle';
+            element.classList.add('valid');
+            element.classList.remove('invalid');
+        } else {
+            icon.className = 'fas fa-times-circle';
+            element.classList.add('invalid');
+            element.classList.remove('valid');
+        }
+    }
+    
+    // 点击页面其他区域时隐藏浮窗
+    document.addEventListener('click', function(e) {
+        if (e.target !== passwordInput && 
+            e.target !== confirmPasswordInput && 
+            !popup.contains(e.target)) {
+            popup.classList.remove('show-popup');
+        }
+    });
+}
+
 // 处理表单提交
 function setupResetForm() {
     const resetForm = document.getElementById('resetPasswordForm');
+    if (!resetForm) {
+        console.error('找不到重置密码表单');
+        return;
+    }
+    
     resetForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -156,6 +250,16 @@ function setupResetForm() {
         if (password !== confirmPassword) {
             showMessage('两次输入的密码不一致！', 'error');
             return;
+        }
+        
+        // 验证密码强度 - 添加这部分以确保表单验证仍然工作
+        const hasLength = password.length >= 6 && password.length <= 20;
+        const hasLetter = /[a-zA-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        
+        if (!hasLength || !hasLetter || !hasNumber) {
+            showMessage('密码不符合强度要求，请确保密码6-20位，包含字母和数字！', 'error');
+            return false;
         }
         
         // 显示加载状态
@@ -256,4 +360,4 @@ function showMessage(message, type) {
     const messageElement = document.getElementById('resetMessage');
     messageElement.textContent = message;
     messageElement.className = `message ${type}`;
-} 
+}

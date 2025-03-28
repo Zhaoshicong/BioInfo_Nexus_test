@@ -16,9 +16,6 @@ supervisor==4.2.5     # 进程管理
 gevent==24.2.1        # 用于Gunicorn的异步工作方式
 psutil==5.9.6         # 用于监控系统资源
 Flask-Migrate==3.1.0  # 添加Flask-Migrate
-# 添加Celery异步任务处理依赖
-celery==5.3.6         # Celery异步任务队列
-redis==5.0.1          # Redis作为Celery的消息代理和结果后端
 # 添加生物信息学计算依赖
 biopython==1.83       # BioPython生物信息学计算库
 numpy==1.26.4         # NumPy数值计算库

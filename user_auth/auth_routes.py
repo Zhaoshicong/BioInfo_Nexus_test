@@ -28,6 +28,20 @@ def generate_verification_code(length=6):
     return ''.join(random.choice(string.digits) for _ in range(length))
 
 # 注册路由
+# 验证密码强度的函数
+def validate_password_strength(password):
+    """验证密码强度，确保密码至少8位且包含数字和字母"""
+    if len(password) < 8:
+        return False, "密码长度必须至少为8位"
+    
+    if not any(char.isdigit() for char in password):
+        return False, "密码必须包含至少一个数字"
+    
+    if not any(char.isalpha() for char in password):
+        return False, "密码必须包含至少一个字母"
+    
+    return True, ""
+
 @auth_bp.route('/register', methods=['POST'])
 def register():
     try:
@@ -42,6 +56,12 @@ def register():
             if not data.get(field):
                 print(f"缺少必填字段: {field}")
                 return jsonify({'message': f'缺少必填字段: {field}'}), 400
+        
+        # 验证密码强度
+        is_valid, error_msg = validate_password_strength(data['password'])
+        if not is_valid:
+            print(f"密码强度不足: {error_msg}")
+            return jsonify({'message': error_msg}), 400
         
         email = data['email']
         verification_code = data['verification_code']

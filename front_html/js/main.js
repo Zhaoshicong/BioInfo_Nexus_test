@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupPasswordToggles();
     setupPasswordReset();
     setupFeatureTooltips();
+    setupPasswordStrengthValidator();
     
     // 检查URL参数，如果有重置密码的token，则显示重置密码模态框
     checkResetPasswordToken();
@@ -404,27 +405,142 @@ function validateLogin(event) {
     return false;
 }
 
+// 设置密码强度验证浮窗
+function setupPasswordStrengthValidator() {
+    const passwordInput = document.getElementById('reg-password');
+    const confirmPasswordInput = document.getElementById('reg-confirm-password');
+    const popup = document.getElementById('password-strength-popup');
+    
+    if (!popup || !passwordInput) {
+        return;
+    }
+    
+    // 输入框聚焦时显示浮窗
+    passwordInput.addEventListener('focus', function() {
+        popup.classList.add('show-popup');
+    });
+    
+    // 输入框输入时更新密码强度
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        
+        // 检查长度
+        const lengthCheck = document.getElementById('length-check');
+        const hasLength = password.length >= 8;
+        updateCheckIcon(lengthCheck, hasLength);
+        
+        // 检查是否同时包含字母和数字
+        const letterNumberCheck = document.getElementById('letter-check');
+        const hasLetterAndNumber = /[a-zA-Z]/.test(password) && /[0-9]/.test(password);
+        updateCheckIcon(letterNumberCheck, hasLetterAndNumber);
+        
+        // 如果输入框有值，显示浮窗；否则隐藏
+        if (password.length > 0) {
+            popup.classList.add('show-popup');
+        } else {
+            popup.classList.remove('show-popup');
+        }
+    });
+    
+    // 更新检查图标
+    function updateCheckIcon(element, isValid) {
+        if (!element) return;
+        
+        const icon = element.querySelector('i');
+        if (!icon) return;
+        
+        if (isValid) {
+            icon.className = 'fas fa-check-circle';
+            element.classList.add('valid');
+            element.classList.remove('invalid');
+        } else {
+            icon.className = 'fas fa-times-circle';
+            element.classList.add('invalid');
+            element.classList.remove('valid');
+        }
+    }
+    
+    // 点击页面其他区域时隐藏浮窗
+    document.addEventListener('click', function(e) {
+        if (e.target !== passwordInput && 
+            e.target !== confirmPasswordInput && 
+            !popup.contains(e.target) &&
+            !e.target.closest('.password-toggle')) {
+            popup.classList.remove('show-popup');
+        }
+    });
+    
+    // 处理切换标签时的浮窗隐藏
+    const authTabs = document.querySelectorAll('.auth-tab');
+    authTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            popup.classList.remove('show-popup');
+        });
+    });
+}
+
 // 验证注册表单
 function validateRegister(event) {
     event.preventDefault();
     
-    const regEmail = document.getElementById('reg-email').value;
-    const regPassword = document.getElementById('reg-password').value;
-    const regConfirmPassword = document.getElementById('reg-confirm-password').value;
-    const regVerificationCode = document.getElementById('reg-verification-code').value;
+    // 获取表单数据
+    const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
+    const confirmPassword = document.getElementById('reg-confirm-password').value;
+    const verificationCode = document.getElementById('reg-verification-code').value;
     
-    // 验证输入
-    if (!regEmail || !regPassword || !regConfirmPassword || !regVerificationCode) {
-        showAuthError('register', 'error', '请填写所有必填字段！');
+    // 验证邮箱
+    if (!email) {
+        showAuthError('register', 'error', '请输入邮箱地址');
         return false;
     }
     
-    if (regPassword !== regConfirmPassword) {
-        showAuthError('register', 'error', '两次输入的密码不一致！');
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showAuthError('register', 'error', '请输入有效的邮箱地址');
         return false;
     }
     
-    // 显示加载状态
+    // 验证密码
+    if (!password) {
+        showAuthError('register', 'error', '请输入密码');
+        return false;
+    }
+    
+    // 验证密码长度和复杂度
+    const hasLength = password.length >= 8;
+    const hasLetterAndNumber = /[a-zA-Z]/.test(password) && /[0-9]/.test(password);
+    
+    // 如果密码不符合要求
+    if (!hasLength || !hasLetterAndNumber) {
+        showAuthError('register', 'error', '密码不符合要求，请确保密码至少8位，同时包含字母和数字');
+        
+        // 强制显示密码强度浮窗并聚焦密码输入框
+        const popup = document.getElementById('password-strength-popup');
+        const passwordInput = document.getElementById('reg-password');
+        
+        if (popup && passwordInput) {
+            popup.classList.add('show-popup');
+            passwordInput.focus();
+        }
+        
+        return false;
+    }
+    
+    // 验证密码确认
+    if (password !== confirmPassword) {
+        showAuthError('register', 'error', '两次输入的密码不一致');
+        return false;
+    }
+    
+    // 验证验证码
+    if (!verificationCode) {
+        showAuthError('register', 'error', '请输入验证码');
+        return false;
+    }
+    
+    // 显示注册中状态
     const registerBtn = document.querySelector('.register-btn');
     const originalText = registerBtn.textContent;
     registerBtn.textContent = '注册中...';
@@ -436,10 +552,10 @@ function validateRegister(event) {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            email: regEmail,
-            password: regPassword,
-            verification_code: regVerificationCode
+        body: JSON.stringify({ 
+            email, 
+            password,
+            verification_code: verificationCode
         })
     })
     .then(response => {
@@ -455,24 +571,31 @@ function validateRegister(event) {
         registerBtn.disabled = false;
         
         if (isSuccess) {
-            // 注册成功，显示成功弹窗
-            showSuccessModal('注册成功', '您的账号已成功注册，请使用您的邮箱和密码登录系统。', function() {
-                // 清空表单
+            // 显示成功消息
+            showSuccessModal('注册成功', data.message || '账号注册成功！请登录您的账号。', () => {
+                // 切换到登录标签
+                const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+                if (loginTab) {
+                    loginTab.click();
+                }
+                // 重置注册表单
                 document.getElementById('registerForm').reset();
-                
-                // 切换到登录选项卡
-                document.querySelector('[data-tab="login"]').click();
             });
         } else {
-            // 注册失败
+            // 显示错误信息
             showAuthError('register', 'error', data.message || '注册失败，请稍后再试。');
+            
+            // 如果是邮箱已注册但未验证，显示验证提示
+            if (data.code && data.code === 'email_unverified') {
+                showVerificationPrompt(email);
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
         registerBtn.textContent = originalText;
         registerBtn.disabled = false;
-        showAuthError('register', 'error', '注册请求失败，请稍后再试。');
+        showAuthError('register', 'error', '注册请求失败，请检查网络连接或稍后再试。');
     });
     
     return false;

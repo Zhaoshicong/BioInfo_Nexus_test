@@ -4,6 +4,8 @@ from Bio_tools.SignalP import submit_sequence, extract_and_parse_results
 from Bio_tools.VaxiJen import get_vaxijen_result
 from Bio_tools.ToxinPred import predict_toxicity, predict_toxin
 from Bio_tools.PhysChemParameter import get_PhysChemParameter
+from Bio_tools.SequenceAnnotation import sequence_annotation
+from Bio_tools.Translate import translate_sequence, get_available_tables
 import base64
 import os
 import time 
@@ -554,6 +556,78 @@ def analyze_physchemparam(current_user):
         
     except Exception as e:
         logger.error(f"PhysChemParameter分析错误: {str(e)}")
+        return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+
+@app.route('/api/translate', methods=['POST'])
+@error_handler
+@rate_limit
+@token_required
+def analyze_translate(current_user):
+    """翻译DNA/RNA序列为蛋白质序列"""
+    data = request.get_json()
+    sequence = data.get('sequence', '').strip()
+    seq_type = data.get('seq_type')  # 可以是 'dna' 或 'rna'，如果未提供则自动检测
+    table_id = data.get('table_id', 1)  # 遗传密码表ID，默认为1
+    to_stop = data.get('to_stop', False)  # 是否在第一个终止密码子处停止翻译
+    cds = data.get('cds', False)  # 是否将序列视为完整的编码序列
+    
+    # 输入验证
+    if not sequence:
+        return jsonify({'error': '序列不能为空'}), 400
+    
+    # 记录请求
+    logger.info(f"用户 {current_user.username} 请求序列翻译，序列长度: {len(sequence)}")
+    
+    # 调用Translate模块
+    try:
+        result = translate_sequence(sequence, seq_type, table_id, to_stop, cds)
+        
+        if "error" in result:
+            return jsonify({'error': result["error"]}), 500
+        
+        # 获取可用的遗传密码表信息
+        tables = get_available_tables()
+        
+        # 添加到结果中
+        result['available_tables'] = tables
+        result['success'] = True
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"序列翻译错误: {str(e)}")
+        return jsonify({'error': f'翻译过程发生错误: {str(e)}'}), 500
+
+@app.route('/api/sequence_annotation', methods=['POST'])
+@error_handler
+@rate_limit
+@token_required
+def analyze_sequence_annotation(current_user):
+    """分析蛋白质序列的功能注释和特征预测"""
+    data = request.get_json()
+    sequence = data.get('sequence', '').strip()
+    
+    # 输入验证
+    if not sequence:
+        return jsonify({'error': '序列不能为空'}), 400
+    
+    # 记录请求
+    logger.info(f"用户 {current_user.username} 请求序列注释分析，序列长度: {len(sequence)}")
+    
+    # 调用SequenceAnnotation模块
+    try:
+        result = sequence_annotation(sequence)
+        
+        if "error" in result:
+            return jsonify({'error': result["error"]}), 500
+        
+        # 标记成功
+        result['success'] = True
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"序列注释分析错误: {str(e)}")
         return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
 
 if __name__ == '__main__':

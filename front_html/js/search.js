@@ -155,11 +155,225 @@ const sequenceTools = {
                 aaTable += '</tr></table>';
                 
                 resultBox.innerHTML = `
-                    <p>序列: ${result.sequence}</p>
+                    <h4>序列:</h4>
+                    <div class="sequence-text">${result.sequence}</div>
                     <p>分子量: ${result.molecular_weight} Da</p>
                     <p>氨基酸组成:</p>
                     ${aaTable}
                 `;
+                break;
+                
+            case 'sequence_annotation':
+                // 基本信息
+                resultBox.innerHTML = `
+                    <h4>序列:</h4>
+                    <div class="sequence-text">${result.sequence}</div>
+                    <h4>基本信息:</h4>
+                    <p>分子量: ${result.molecular_weight} Da</p>
+                    <p>理论等电点: ${result.isoelectric_point}</p>
+                `;
+                
+                // 稳定性和疏水性
+                resultBox.innerHTML += `
+                    <h4>稳定性与疏水性:</h4>
+                    <p>不稳定指数: ${result.instability_index} (${result.stability})</p>
+                    <p>芳香族氨基酸比例: ${result.aromaticity}</p>
+                    <p>疏水性平均值 (GRAVY): ${result.gravy} (${result.hydrophobicity})</p>
+                `;
+                
+                // 二级结构预测
+                resultBox.innerHTML += `
+                    <h4>二级结构预测:</h4>
+                    <div class="secondary-structure">
+                        <div class="structure-item">
+                            <span>α-螺旋 (Helix):</span>
+                            <div class="progress-bar">
+                                <div class="progress" style="width: ${result.secondary_structure.helix}%;"></div>
+                            </div>
+                            <span>${result.secondary_structure.helix}%</span>
+                        </div>
+                        <div class="structure-item">
+                            <span>β-折叠 (Sheet):</span>
+                            <div class="progress-bar">
+                                <div class="progress" style="width: ${result.secondary_structure.sheet}%;"></div>
+                            </div>
+                            <span>${result.secondary_structure.sheet}%</span>
+                        </div>
+                        <div class="structure-item">
+                            <span>转角 (Turn):</span>
+                            <div class="progress-bar">
+                                <div class="progress" style="width: ${result.secondary_structure.turn}%;"></div>
+                            </div>
+                            <span>${result.secondary_structure.turn}%</span>
+                        </div>
+                    </div>
+                `;
+                
+                // 功能域预测
+                if (result.domains && result.domains.length > 0) {
+                    resultBox.innerHTML += `
+                        <h4>预测的功能域:</h4>
+                        <div class="domains-container">
+                            ${result.domains.map(domain => `
+                                <div class="domain-item">
+                                    <p>名称: ${domain.name}</p>
+                                    <p>位置: ${domain.start}-${domain.end}</p>
+                                    <p>序列: ${domain.sequence}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    resultBox.innerHTML += `
+                        <h4>预测的功能域:</h4>
+                        <p>未检测到明显的功能域</p>
+                    `;
+                }
+                
+                // 信号肽预测
+                resultBox.innerHTML += `
+                    <h4>信号肽预测:</h4>
+                    <p>预测结果: ${result.signal_peptide.predicted ? '可能含有信号肽' : '可能不含信号肽'}</p>
+                    <p>概率: ${result.signal_peptide.probability}</p>
+                    ${result.signal_peptide.cleavage_site ? `<p>可能的切割位点: ${result.signal_peptide.cleavage_site}</p>` : ''}
+                `;
+                
+                // 跨膜区域预测
+                if (result.transmembrane_regions && result.transmembrane_regions.length > 0) {
+                    resultBox.innerHTML += `
+                        <h4>预测的跨膜区域:</h4>
+                        <div class="tm-regions-container">
+                            ${result.transmembrane_regions.map(region => `
+                                <div class="tm-region-item">
+                                    <p>位置: ${region.start}-${region.end}</p>
+                                    <p>平均疏水性: ${region.avg_hydrophobicity}</p>
+                                    <p>序列: ${region.sequence}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    resultBox.innerHTML += `
+                        <h4>预测的跨膜区域:</h4>
+                        <p>未检测到明显的跨膜区域</p>
+                    `;
+                }
+                break;
+                
+            case 'translate':
+                // 基本翻译结果
+                resultBox.innerHTML = `
+                    <h4>原始序列:</h4>
+                    <div class="sequence-text">${result.original_sequence}</div>
+                    <h4>翻译结果:</h4>
+                    <div class="translation-result">
+                        <p><strong>翻译后蛋白质序列:</strong></p>
+                        <div class="sequence-text">${result.translated_sequence}</div>
+                    </div>
+                `;
+                
+                // 翻译信息
+                resultBox.innerHTML += `
+                    <div class="translation-info">
+                        <p>使用的遗传密码表: ${result.translation_table_name} (ID: ${result.translation_table})</p>
+                    </div>
+                `;
+                
+                // 添加控制选项
+                if (result.available_tables) {
+                    const tableOptions = Object.entries(result.available_tables)
+                        .map(([id, name]) => `<option value="${id}" ${id == result.translation_table ? 'selected' : ''}>${id}: ${name}</option>`)
+                        .join('');
+                    
+                    resultBox.innerHTML += `
+                        <div class="translation-controls">
+                            <h4>翻译设置:</h4>
+                            <div class="control-group">
+                                <label for="table-select">遗传密码表:</label>
+                                <select id="table-select" class="table-select">
+                                    ${tableOptions}
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <input type="checkbox" id="to-stop-checkbox" class="to-stop-checkbox">
+                                    在第一个终止密码子处停止翻译
+                                </label>
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <input type="checkbox" id="cds-checkbox" class="cds-checkbox">
+                                    作为完整编码序列处理(检查起始/终止密码子)
+                                </label>
+                            </div>
+                            <div class="sequence-type">
+                                <span>序列类型:</span>
+                                <label>
+                                    <input type="radio" name="seq-type" value="dna" checked>
+                                    DNA
+                                </label>
+                                <label>
+                                    <input type="radio" name="seq-type" value="rna">
+                                    RNA
+                                </label>
+                            </div>
+                            <button class="retranslate-btn">重新翻译</button>
+                        </div>
+                    `;
+                    
+                    // 添加重新翻译的事件处理
+                    setTimeout(() => {
+                        const retranslateBtn = document.querySelector('.retranslate-btn');
+                        if (retranslateBtn) {
+                            retranslateBtn.addEventListener('click', () => {
+                                const tableId = parseInt(document.querySelector('.table-select').value);
+                                const toStop = document.querySelector('.to-stop-checkbox').checked;
+                                const cds = document.querySelector('.cds-checkbox').checked;
+                                const seqType = document.querySelector('input[name="seq-type"]:checked').value;
+                                
+                                // 显示加载状态
+                                utils.showLoading('正在重新翻译...');
+                                
+                                // 发送翻译请求
+                                fetch('/api/translate', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        ...utils.getAuthHeader()
+                                    },
+                                    body: JSON.stringify({
+                                        sequence: result.original_sequence,
+                                        seq_type: seqType,
+                                        table_id: tableId,
+                                        to_stop: toStop,
+                                        cds: cds
+                                    })
+                                })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('翻译请求失败');
+                                    }
+                                    return response.json();
+                                })
+                                .then(newResult => {
+                                    utils.hideLoading();
+                                    // 更新翻译结果
+                                    document.querySelector('.sequence-display').textContent = newResult.translated_sequence;
+                                    document.querySelector('.translation-info').innerHTML = `
+                                        <p>使用的遗传密码表: ${newResult.translation_table_name} (ID: ${newResult.translation_table})</p>
+                                    `;
+                                    utils.showToast('翻译成功!');
+                                })
+                                .catch(error => {
+                                    utils.hideLoading();
+                                    utils.showToast(`错误: ${error.message}`);
+                                });
+                            });
+                        }
+                    }, 100);
+                }
+                
+                // 不再需要添加CSS样式，已移至search.css
                 break;
                 
             case 'signalp':
@@ -176,8 +390,10 @@ const sequenceTools = {
                     if (hasValidText) {
                         // 格式化预测文本，保留原始格式
                         resultBox.innerHTML = `
+                            <h4>序列:</h4>
+                            <div class="sequence-text">${result.sequence}</div>
+                            <p>序列长度: ${result.sequence.length} 个氨基酸</p>
                             <p class="success-message">预测完成</p>
-                            <p>序列: ${result.sequence}</p>
                             <pre class="prediction-text">${resultText}</pre>
                         `;
                         
@@ -309,7 +525,8 @@ const sequenceTools = {
                 
             case 'vaxijen':
                 resultBox.innerHTML = `
-                    <p>序列: ${result.sequence}</p>
+                    <h4>序列:</h4>
+                    <div class="sequence-text">${result.sequence}</div>
                     <p>预测结果: ${result.result}</p>
                     <p>Vaxijen打分: ${result.score}</p>
                 `;
@@ -317,7 +534,8 @@ const sequenceTools = {
 
             case 'toxinpred':
                 resultBox.innerHTML = `
-                    <p>序列: ${result.sequence}</p>
+                    <h4>序列:</h4>
+                    <div class="sequence-text">${result.sequence}</div>
                     <p>SVM得分: ${result.svm_score}</p>
                     <p>预测结果: <span class="${result.is_toxin ? 'error' : 'success'}">${result.result}</span></p>
                 `;
@@ -338,8 +556,9 @@ const sequenceTools = {
             case 'physchemparam':
                 // 基本信息
                 resultBox.innerHTML = `
+                    <h4>序列:</h4>
+                    <div class="sequence-text">${result.sequence}</div>
                     <h4>基本信息:</h4>
-                    <p>序列: ${result.sequence}</p>
                     <p>分子量: ${result.molecular_weight.toFixed(2)} Da</p>
                     <p>理论等电点: ${result.theoretical_pi.toFixed(2)}</p>
                 `;
@@ -348,7 +567,7 @@ const sequenceTools = {
                 if (result.amino_acid_composition) {
                     resultBox.innerHTML += `
                         <h4>氨基酸组成:</h4>
-                        <div class="aa-composition" style="max-height: 200px; overflow-y: auto; margin: 10px 0; padding: 10px; border: 1px solid #eee;">
+                        <div class="aa-composition">
                             ${Object.entries(result.amino_acid_composition).map(([aa, data]) => 
                                 `<div>${aa}: ${data.count} (${data.percent}%)</div>`).join('')}
                         </div>
@@ -380,7 +599,7 @@ const sequenceTools = {
                     }
                 }
 
-                    // 半衰期
+                // 半衰期
                 if (result.half_life) {
                     resultBox.innerHTML += `
                         <h4>估计半衰期:</h4>
@@ -431,6 +650,10 @@ function getToolName(tool) {
     switch(tool) {
         case 'protparam':
             return '分子量计算 (BioPython)';
+        case 'sequence_annotation':
+            return '序列注释分析 (BioPython)';
+        case 'translate':
+            return '序列翻译 (BioPython)';
         case 'signalp':
             return '信号肽预测 (SignalP)';
         case 'vaxijen':
@@ -438,7 +661,7 @@ function getToolName(tool) {
         case 'toxinpred':
             return '毒性预测 (ToxinPred)';
         case 'physchemparam':
-            return '物理化学参数分析';
+            return '物理化学参数分析 (ProtParam)';
         default:
             return tool;
     }
@@ -628,6 +851,18 @@ function initPage() {
         
         const tool = activeCard.dataset.tool;
         
+        // ToxinPred工具的特殊验证
+        if (tool === 'toxinpred') {
+            if (sequence.length < 5) {
+                utils.showToast('ToxinPred要求序列长度至少为5个氨基酸');
+                return;
+            }
+            if (sequence.length > 50) {
+                utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列');
+                return;
+            }
+        }
+        
         try {
             utils.showLoading('正在分析中...');
             const result = await sequenceTools.analyzeSequence(tool, sequence);
@@ -641,6 +876,18 @@ function initPage() {
         } catch (error) {
             utils.hideLoading();
             utils.showToast(`分析失败: ${error.message}`);
+        }
+
+        // ToxinPred工具的特殊验证
+        if (tool === 'toxinpred') {
+            if (sequence.length < 5) {
+                utils.showToast('ToxinPred要求序列长度至少为5个氨基酸');
+                return;
+            }
+            if (sequence.length > 50) {
+                utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列');
+                return;
+            }
         }
     });
 }

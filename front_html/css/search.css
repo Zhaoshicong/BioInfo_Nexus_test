@@ -604,4 +604,142 @@ body {
     border-radius: 5px;
     margin: 10px 0;
     border-left: 3px solid #e74c3c;
+}
+
+/* 序列注释工具的样式 */
+.secondary-structure { 
+    margin: 10px 0; 
+}
+
+.structure-item { 
+    display: flex; 
+    align-items: center; 
+    margin: 5px 0; 
+}
+
+.structure-item span { 
+    min-width: 150px; 
+}
+
+.progress-bar { 
+    flex: 1; 
+    height: 20px; 
+    background: #f0f0f0; 
+    margin: 0 10px; 
+    border-radius: 10px; 
+    overflow: hidden; 
+}
+
+.progress { 
+    height: 100%; 
+    background: #4CAF50; 
+}
+
+.domains-container, .tm-regions-container { 
+    margin: 10px 0; 
+    max-height: 200px; 
+    overflow-y: auto; 
+}
+
+.domain-item, .tm-region-item { 
+    margin: 10px 0; 
+    padding: 10px; 
+    border: 1px solid #eee; 
+    border-radius: 5px; 
+}
+
+/* 序列翻译工具的样式 */
+.translation-result { 
+    margin: 15px 0; 
+}
+
+.sequence-display { 
+    background: #f8f9fa; 
+    padding: 15px; 
+    border-radius: 5px; 
+    font-family: monospace; 
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.translation-controls { 
+    margin-top: 20px; 
+    border-top: 1px solid #eee; 
+    padding-top: 15px; 
+}
+
+.control-group { 
+    margin: 10px 0; 
+}
+
+.table-select { 
+    padding: 5px; 
+    min-width: 300px; 
+}
+
+.sequence-type { 
+    margin: 15px 0; 
+}
+
+.sequence-type label { 
+    margin-right: 15px; 
+}
+
+.retranslate-btn {
+    padding: 8px 15px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.retranslate-btn:hover { 
+    background: #2980b9; 
+}
+
+/* PhysChemParameter 工具样式 */
+.info-box {
+    background-color: #f8f9fa; 
+    padding: 10px; 
+    border-radius: 5px; 
+    margin-top: 10px;
+}
+
+/* 氨基酸组成样式 */
+.aa-composition {
+    max-height: 200px; 
+    overflow-y: auto; 
+    margin: 10px 0; 
+    padding: 10px; 
+    border: 1px solid #eee;
+}
+
+/* 处理长序列文本的样式 */
+.result-box p {
+    word-wrap: break-word;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+/* 序列显示的通用样式 */
+.sequence-text {
+    font-family: monospace;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    word-wrap: break-word;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 100%;
+    border: 1px solid #e0e0e0;
 } 

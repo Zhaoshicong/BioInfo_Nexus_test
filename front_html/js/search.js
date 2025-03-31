@@ -75,7 +75,45 @@ const sequenceTools = {
                     utils.updateLoadingText("正在获取分析结果...");
                 }
             }
+
+            // 处理限制性内切酶分析
+            if (tool === 'analyze_restriction') {
+                // 检查输入中是否包含空格，用于分割序列和酶名
+                const inputParts = sequence.trim().split(/\s+/);
+                
+                // 如果只有序列没有酶名
+                if (inputParts.length <= 1) {
+                    utils.hideLoading();
+                    utils.showToast("请在序列后用空格分隔输入限制酶名称，例如：ATGC EcoRI BamHI");
+                    return null;
+                }
+                
+                // 提取序列和酶名
+                const seqPart = inputParts[0];
+                const enzymesPart = inputParts.slice(1).join(' ');
+                
+                // 发送请求，包含提取的序列和酶名称
+                const response = await fetch(`/api/${tool}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...utils.getAuthHeader()
+                    },
+                    body: JSON.stringify({ 
+                        sequence: seqPart,
+                        enzymes: enzymesPart
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `请求失败: ${response.status}`);
+                }
+                
+                return await response.json();
+            }
             
+            // 其他工具的常规处理
             const response = await fetch(`/api/${tool}`, {
                 method: 'POST',
                 headers: {
@@ -263,9 +301,8 @@ const sequenceTools = {
             case 'translate':
                 // 基本翻译结果
                 resultBox.innerHTML = `
-                    <h4>原始序列:</h4>
+                    <h4>序列:</h4>
                     <div class="sequence-text">${result.original_sequence}</div>
-                    <h4>翻译结果:</h4>
                     <div class="translation-result">
                         <p><strong>翻译后蛋白质序列:</strong></p>
                         <div class="sequence-text">${result.translated_sequence}</div>
@@ -372,9 +409,184 @@ const sequenceTools = {
                         }
                     }, 100);
                 }
-                
-                // 不再需要添加CSS样式，已移至search.css
                 break;
+                
+            case 'find_cutting_enzymes':
+                resultBox.innerHTML = `
+                    <h4>序列:</h4>
+                    <div class="sequence-text">${result.sequence}</div>
+                    <h4>序列长度: ${result.sequence_length} bp</h4>
+                    <h4>找到 ${result.cutting_enzymes.length} 种可以切割此序列的酶:</h4>
+                    <div class="enzyme-scroll-box">`;
+                
+                if (result.cutting_enzymes.length > 0) {
+                    // 添加标题行
+                    resultBox.querySelector('.enzyme-scroll-box').innerHTML += `
+                        <div class="enzyme-header">
+                            <span class="enzyme-name-col">酶名</span>
+                            <span class="arrow-col">→</span>
+                            <span class="count-col">切割次数</span>
+                            <span class="pos-col">切割位置 (0-based, 最多显示10个)</span>
+                        </div>
+                    `;
+                    
+                    // 使用紧凑的文本格式展示结果
+                    result.cutting_enzymes.forEach(enzymeData => {
+                        const positions = enzymeData.cut_positions.slice(0, 10).join(', '); // 只显示前10个位点
+                        const morePositions = enzymeData.cut_positions.length > 10 ? '...' : '';
+                        resultBox.querySelector('.enzyme-scroll-box').innerHTML += `
+                            <div class="enzyme-line">
+                                <span class="enzyme-name-col"><span class="enzyme-name">${enzymeData.name}</span></span>
+                                <span class="arrow-col">→</span>
+                                <span class="count-col">${enzymeData.site_count}</span>
+                                <span class="pos-col">[${positions}${morePositions}]</span>
+                            </div>
+                        `;
+                    });
+                    
+                    resultBox.innerHTML += `
+                        <p class="small-tip">点击酶名可复制用于限制性内切酶分析</p>
+                    `;
+                    
+                    // 添加点击复制功能
+                    setTimeout(() => {
+                        const enzymeNames = document.querySelectorAll('.enzyme-name');
+                        enzymeNames.forEach(name => {
+                            name.addEventListener('click', function() {
+                                // 创建一个临时输入框
+                                const tempInput = document.createElement('input');
+                                tempInput.value = this.textContent;
+                                document.body.appendChild(tempInput);
+                                tempInput.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(tempInput);
+                                
+                                // 显示复制成功提示
+                                utils.showToast(`已复制: ${this.textContent}`);
+                            });
+                        });
+                    }, 100);
+                } else {
+                    resultBox.querySelector('.enzyme-scroll-box').innerHTML += '<p>没有找到任何可以切割该序列的标准限制酶。</p>';
+                }
+                break;
+                
+            case 'analyze_restriction':
+                // 显示限制性内切酶分析结果
+                resultBox.innerHTML = `
+                    <h4>序列:</h4>
+                    <div class="sequence-text">${result.sequence}</div>
+                    <h4>序列长度:</h4>
+                    <p>${result.sequence_length} bp</p>
+                    <h4>使用的有效酶:</h4>
+                    <p>${result.enzymes_used.join(', ') || '无'}</p>
+                `;
+                
+                // 显示模糊匹配结果
+                if (result.fuzzy_matched && Object.keys(result.fuzzy_matched).length > 0) {
+                    let fuzzyMatchHtml = '<h4>模糊匹配结果:</h4><div class="fuzzy-match">';
+                    for (const [query, match] of Object.entries(result.fuzzy_matched)) {
+                        fuzzyMatchHtml += `<p>'${query}' <span class="match-arrow">→</span> '${match}'</p>`;
+                    }
+                    fuzzyMatchHtml += '</div>';
+                    resultBox.innerHTML += fuzzyMatchHtml;
+                }
+                
+                if (result.invalid_enzymes_skipped && result.invalid_enzymes_skipped.length > 0) {
+                    resultBox.innerHTML += `
+                        <div class="warning-message">
+                            <p>跳过的无效酶: ${result.invalid_enzymes_skipped.join(', ')}</p>
+                        </div>
+                    `;
+                }
+                
+                // 各酶切割详情
+                resultBox.innerHTML += '<h4>各酶切割详情 (0-based):</h4>';
+                if (Object.keys(result.analysis).length > 0) {
+                    let enzymeDetails = '<div class="enzyme-details">';
+                    for (const enzyme in result.analysis) {
+                        const data = result.analysis[enzyme];
+                        const positions = data.cut_positions.length > 0 ? data.cut_positions.join(', ') : '无';
+                        enzymeDetails += `
+                            <div class="enzyme-detail-item">
+                                <strong>${enzyme}</strong>: 
+                                切割次数: ${data.site_count}, 
+                                位置: [${positions}]
+                            </div>
+                        `;
+                    }
+                    enzymeDetails += '</div>';
+                    resultBox.innerHTML += enzymeDetails;
+                } else {
+                    resultBox.innerHTML += '<p>未找到指定酶的切割位点。</p>';
+                }
+                
+                // 酶切片段总结
+                const summary = result.summary;
+                resultBox.innerHTML += `
+                    <h4>酶切片段总结 (0-based):</h4>
+                    <p>总切割位点数: ${summary.total_cuts}</p>
+                `;
+                
+                if (summary.cut_sites_all.length > 0) {
+                    resultBox.innerHTML += `<p>所有切割位点: [${summary.cut_sites_all.join(', ')}]</p>`;
+                }
+                
+                resultBox.innerHTML += `<p>片段数量: ${summary.fragment_count}</p>`;
+                
+                if (summary.fragments.length > 0) {
+                    // 使用滚动窗口样式显示片段列表
+                    let fragmentsBox = `
+                        <div class="enzyme-scroll-box">
+                            <div class="enzyme-header">
+                                <span class="enzyme-name-col">片段编号</span>
+                                <span class="arrow-col">→</span>
+                                <span class="count-col">位置</span>
+                                <span class="pos-col">长度</span>
+                            </div>
+                    `;
+                    
+                    // 显示所有片段
+                    summary.fragments.forEach((frag, index) => {
+                        fragmentsBox += `
+                            <div class="enzyme-line">
+                                <span class="enzyme-name-col">片段 ${index + 1}</span>
+                                <span class="arrow-col">→</span>
+                                <span class="count-col">${frag.start}-${frag.end}</span>
+                                <span class="pos-col">${frag.length} bp</span>
+                            </div>
+                        `;
+                    });
+                    
+                    fragmentsBox += `</div>`;
+                    resultBox.innerHTML += fragmentsBox;
+                }
+                break;
+
+                case 'analyze_nucleic_acid':
+                    // 显示核酸物理化学性质分析结果
+                    resultBox.innerHTML = `
+                        <h4>序列:</h4>
+                        <div class="sequence-text">${result.sequence}</div>
+                        <p>序列类型: ${result.is_rna ? "RNA" : "DNA"}</p>
+                        
+                        <h4>GC含量:</h4>
+                        <p>${result.overall_gc}%</p>
+                        
+                        <h4>熔解温度 (Tm) 估算:</h4>
+                        <div class="property-section">
+                            <p>基于GC含量 (简单方法): ${result.tm_gc_simple}°C</p>
+                            <p>最近邻模型 (标准条件*): ${result.tm_nn_standard}°C</p>
+                            <p class="small-note">*标准条件近似为: 50mM Na+, 0mM K+, 0mM Mg++</p>
+                        </div>
+                        
+                        <h4>浮力密度估算:</h4>
+                        <div class="property-section">
+                            <p>在CsCl梯度中 (Schildkraut公式): ${result.estimated_density_cscl} g/cm³</p>
+                            <p class="small-note">这个估算主要适用于双链DNA，基于GC含量和Schildkraut公式。</p>
+                        </div>
+                    `;
+                    break;
                 
             case 'signalp':
                 if (result.success) {
@@ -592,8 +804,7 @@ const sequenceTools = {
                         `;
                     }
                     if (result.extinction_coefficients.reduced) {
-                        resultBox.innerHTML += `
-                            <p>还原状态: ${result.extinction_coefficients.reduced.coefficient} M⁻¹cm⁻¹ 
+                        resultBox.innerHTML += `                            <p>还原状态: ${result.extinction_coefficients.reduced.coefficient} M⁻¹cm⁻¹ 
                             (Abs 0.1% = ${result.extinction_coefficients.reduced.abs_01})</p>
                         `;
                     }
@@ -654,6 +865,12 @@ function getToolName(tool) {
             return '序列注释分析 (BioPython)';
         case 'translate':
             return '序列翻译 (BioPython)';
+        case 'find_cutting_enzymes':
+            return '酶谱分析 (BioPython)';
+        case 'analyze_restriction':
+            return '限制性内切酶分析 (BioPython)';
+        case 'analyze_nucleic_acid':
+            return 'GC含量计算等性质 (BioPython)';
         case 'signalp':
             return '信号肽预测 (SignalP)';
         case 'vaxijen':
@@ -830,6 +1047,25 @@ function initPage() {
         card.addEventListener('click', function() {
             toolCards.forEach(c => c.classList.remove('active'));
             this.classList.add('active');
+            
+            // 检查是否选择了特殊工具
+            const tool = this.dataset.tool;
+            if (tool === 'analyze_restriction') {
+                // 显示限制性内切酶分析的输入格式提示
+                sequenceInput.setAttribute('placeholder', '请输入: [DNA序列] [酶名1] [酶名2]... 例如: ATGCGAATTC EcoRI BamHI (酶名区分大小写!)');
+                utils.showToast('请在序列后用空格分隔输入限制酶名称，支持模糊匹配，如输入Eco可匹配EcoRI等');
+            } else if (tool === 'find_cutting_enzymes') {
+                // 显示查找切割酶的输入格式提示
+                sequenceInput.setAttribute('placeholder', '请输入DNA序列，将查找所有可切割该序列的限制酶');
+                utils.showToast('输入DNA序列，将查找所有可切割该序列的限制酶');
+            } else if (tool === 'analyze_nucleic_acid') {
+                // 显示核酸物理化学性质分析的提示
+                sequenceInput.setAttribute('placeholder', '请输入DNA或RNA序列，用于分析GC含量等物理化学特性');
+                utils.showToast('输入核酸序列，可计算GC含量、熔解温度、浮力密度等特性');
+            } else {
+                // 恢复默认提示
+                sequenceInput.setAttribute('placeholder', '请输入氨基酸序列...');
+            }
         });
     });
     
@@ -839,7 +1075,7 @@ function initPage() {
         const sequence = sequenceInput.value.trim().toUpperCase();
         
         if (!sequence) {
-            utils.showToast('请输入氨基酸序列');
+            utils.showToast('请输入序列');
             return;
         }
         
@@ -851,13 +1087,18 @@ function initPage() {
         
         const tool = activeCard.dataset.tool;
         
+        // 确定当前工具类型
+        const isDnaTool = tool === 'find_cutting_enzymes' || tool === 'analyze_restriction' || tool === 'translate' || tool === 'analyze_nucleic_acid';
+        const isProteinTool = !isDnaTool; // 所有非DNA工具都视为蛋白质工具
+        
         // ToxinPred工具的特殊验证
         if (tool === 'toxinpred') {
-            if (sequence.length < 5) {
+            const seqInput = sequence.split(/\s+/)[0]; // 使用第一个空格前的内容作为序列
+            if (seqInput.length < 5) {
                 utils.showToast('ToxinPred要求序列长度至少为5个氨基酸');
                 return;
             }
-            if (sequence.length > 50) {
+            if (seqInput.length > 50) {
                 utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列');
                 return;
             }
@@ -876,18 +1117,6 @@ function initPage() {
         } catch (error) {
             utils.hideLoading();
             utils.showToast(`分析失败: ${error.message}`);
-        }
-
-        // ToxinPred工具的特殊验证
-        if (tool === 'toxinpred') {
-            if (sequence.length < 5) {
-                utils.showToast('ToxinPred要求序列长度至少为5个氨基酸');
-                return;
-            }
-            if (sequence.length > 50) {
-                utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列');
-                return;
-            }
         }
     });
 }

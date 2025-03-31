@@ -119,6 +119,10 @@
    - 定期查看服务器资源使用情况
    - 必要时升级配置
 
+4. **压力测试**
+   - 在每台测试机器上运行（调整-n和-c参数）
+   ab -n 总数 -c 并发数 -p 1.json -T "application/json" -k http://124.71.60.7/api/Bio_tools
+
 ## 注意事项
 
  ps aux | grep gunicorn

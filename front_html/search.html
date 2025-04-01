@@ -33,7 +33,7 @@
 
                 <div class="input-section">
                     <div class="input-group">
-                        <textarea class="sequence-input" placeholder="请输入氨基酸序列..."></textarea>
+                        <textarea class="sequence-input" placeholder="请输入序列..."></textarea>
                         <div class="char-counter">0 个氨基酸 <span style="margin-left: 10px; font-size: 12px; color: #666;">* 序列将自动转换为大写字母</span></div>
                     </div>
 
@@ -45,7 +45,7 @@
                                 </div>
                                 <div class="tool-info">
                                     <h4>分子量计算</h4>
-                                    <p>使用BioPython计算分子量和氨基酸组成</p>
+                                    <p>使用BioPython计算分子量和序列组成</p>
                                 </div>
                             </div>
 
@@ -146,10 +146,13 @@
                         </button>
                     </div>
                 </div>
-                
-                <!-- 管理工具区域已移除 -->
             </div>
         </div>
+    </div>
+
+    <!-- 固定的toast元素应该放在这里，作为body的直接子元素 -->
+    <div id="fixed-toast" class="fixed-toast">
+        <div class="toast-content"></div>
     </div>
 
     <script src="js/particles-config.js"></script>

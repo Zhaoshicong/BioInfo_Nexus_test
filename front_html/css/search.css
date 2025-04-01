@@ -553,7 +553,7 @@ body {
 /* 提示框 */
 .toast {
     position: fixed;
-    bottom: 30px;
+    top: 30px;
     left: 50%;
     transform: translateX(-50%) translateY(100px);
     background: rgba(44, 62, 80, 0.9);
@@ -561,13 +561,16 @@ body {
     padding: 12px 25px;
     border-radius: 30px;
     font-size: 16px;
+    font-weight: normal;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    z-index: 9999;
+    z-index: 99999;
     opacity: 0;
-    transition: transform 0.3s ease, opacity 0.3s ease;
+    transition: all 0.3s ease;
     max-width: 80%;
     text-align: center;
     pointer-events: none;
+    display: block;
+    visibility: visible;
 }
 
 .toast.show {
@@ -934,4 +937,32 @@ body {
     color: #03a9f4;
     font-weight: bold;
     margin: 0 5px;
+}
+
+/* 固定的toast提示框 */
+.fixed-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background-color: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 18px 35px;
+    border-radius: 12px;
+    font-size: 20 px;
+    font-weight: normal;
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.35);
+    z-index: 99999;
+    max-width: 85%;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    pointer-events: none;
+}
+
+.fixed-toast.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    visibility: visible;
 } 

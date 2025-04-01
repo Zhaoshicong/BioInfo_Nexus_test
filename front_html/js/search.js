@@ -1,14 +1,22 @@
 // 工具函数
 const utils = {
     showToast(message) {
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.classList.add('show'), 100);
+        // 控制台打印消息（用于调试）
+        console.log("显示Toast消息:", message);
+        
+        // 使用固定的toast元素
+        const toast = document.getElementById('fixed-toast');
+        const toastContent = toast.querySelector('.toast-content');
+        
+        // 设置消息内容
+        toastContent.textContent = message;
+        
+        // 显示toast
+        toast.classList.add('show');
+        
+        // 3秒后隐藏
         setTimeout(() => {
             toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
         }, 3000);
     },
 
@@ -154,7 +162,7 @@ const sequenceTools = {
         }
     },
 
-    displayResults(tool, result) {
+    displayResults(tool, result, detectedType) {
         // 创建结果容器（如果不存在）
         let resultsContainer = document.querySelector('.results-container');
         if (!resultsContainer) {
@@ -195,6 +203,7 @@ const sequenceTools = {
                 resultBox.innerHTML = `
                     <h4>序列:</h4>
                     <div class="sequence-text">${result.sequence}</div>
+                    <p>序列类型: ${result.sequence_type}</p>
                     <p>分子量: ${result.molecular_weight} Da</p>
                     <p>氨基酸组成:</p>
                     ${aaTable}
@@ -884,6 +893,36 @@ function getToolName(tool) {
     }
 }
 
+// 统一的序列类型检测函数
+function getSequenceType(seq) {
+    if (!seq) return 'unknown';
+    const seqUpper = seq.toUpperCase().replace(/\s+/g, ''); // 移除空格并转大写
+    if (!seqUpper) return 'unknown';
+
+    // 检查是否只包含 DNA 碱基
+    if (/^[ATGC]+$/.test(seqUpper)) {
+        return 'dna';
+    }
+    // 检查是否只包含 RNA 碱基
+    if (/^[AUGC]+$/.test(seqUpper)) {
+        return 'rna';
+    }
+    // 检查是否包含蛋白质特有字符，并且不是纯 DNA/RNA
+    if (/[EFHIKLMNPQRSVWY]/i.test(seqUpper)) {
+        // 进一步检查是否混有非氨基酸字符 (除了允许的ATGCU)
+        if (/[^ACDEFGHIKLMNPQRSTVWYUTGC]/i.test(seqUpper)) {
+            return 'unknown'; // 包含非法字符
+        }
+        return 'protein';
+    }
+    // 如果只包含ATGCU，但不是纯DNA或纯RNA（例如混用T和U），则认为是未知
+    if (/^[ATGCU]+$/.test(seqUpper)) {
+         return 'unknown'; // 可能是混合或需要后端判断
+    }
+    // 包含其他无法识别的字符
+    return 'unknown';
+}
+
 // 默认粒子配置
 const defaultParticleConfig = {
     particles: {
@@ -1052,19 +1091,16 @@ function initPage() {
             const tool = this.dataset.tool;
             if (tool === 'analyze_restriction') {
                 // 显示限制性内切酶分析的输入格式提示
-                sequenceInput.setAttribute('placeholder', '请输入: [DNA序列] [酶名1] [酶名2]... 例如: ATGCGAATTC EcoRI BamHI (酶名区分大小写!)');
-                utils.showToast('请在序列后用空格分隔输入限制酶名称，支持模糊匹配，如输入Eco可匹配EcoRI等');
+                sequenceInput.setAttribute('placeholder', '请输入: [DNA序列] [酶名1] [酶名2]... 例如: ATGCGAATTC EcoRI BamHI');
             } else if (tool === 'find_cutting_enzymes') {
                 // 显示查找切割酶的输入格式提示
                 sequenceInput.setAttribute('placeholder', '请输入DNA序列，将查找所有可切割该序列的限制酶');
-                utils.showToast('输入DNA序列，将查找所有可切割该序列的限制酶');
             } else if (tool === 'analyze_nucleic_acid') {
                 // 显示核酸物理化学性质分析的提示
                 sequenceInput.setAttribute('placeholder', '请输入DNA或RNA序列，用于分析GC含量等物理化学特性');
-                utils.showToast('输入核酸序列，可计算GC含量、熔解温度、浮力密度等特性');
             } else {
                 // 恢复默认提示
-                sequenceInput.setAttribute('placeholder', '请输入氨基酸序列...');
+                sequenceInput.setAttribute('placeholder', '请输入序列...');
             }
         });
     });
@@ -1086,6 +1122,23 @@ function initPage() {
         }
         
         const tool = activeCard.dataset.tool;
+
+        // --- 使用新的 getSequenceType 函数检测类型并存储 ---
+        const detectedType = getSequenceType(sequence);
+        console.log("前端检测到的序列类型:", detectedType);
+        // -----------------------------------------------
+
+        // --- 使用检测到的类型进行前端验证 ---
+        if (tool === 'analyze_nucleic_acid') {
+            // 使用存储的 detectedType 进行判断
+            if (detectedType === 'protein') { 
+                utils.showToast('核酸特性分析工具无法处理蛋白质序列，请输入DNA或RNA。');
+                return; 
+            } else if (detectedType === 'unknown') {
+                utils.showToast('序列包含无法识别的字符，无法进行核酸分析。');
+                return;
+            }
+        }
         
         // 确定当前工具类型
         const isDnaTool = tool === 'find_cutting_enzymes' || tool === 'analyze_restriction' || tool === 'translate' || tool === 'analyze_nucleic_acid';
@@ -1103,12 +1156,13 @@ function initPage() {
                 return;
             }
         }
-        
+      
         try {
             utils.showLoading('正在分析中...');
             const result = await sequenceTools.analyzeSequence(tool, sequence);
             utils.hideLoading();
-            sequenceTools.displayResults(tool, result);
+            // 调用 displayResults 时传递正确的 detectedType 变量
+            sequenceTools.displayResults(tool, result, detectedType);
             
             // 添加结果后重新初始化粒子系统
             setTimeout(function() {

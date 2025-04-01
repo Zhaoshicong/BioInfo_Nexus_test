@@ -101,11 +101,34 @@ def admin_login_page():
 def admin_panel_page():
     return app.send_static_file('admin.html')
 
-def validate_sequence(sequence):
-    """验证氨基酸序列的有效性"""
-    valid_aa = set('ACDEFGHIKLMNPQRSTVWY')
+def validate_sequence(sequence, seq_type=None):
+    """验证序列的有效性，支持蛋白质、DNA和RNA序列"""
     sequence = sequence.upper().replace(' ', '')
-    return all(aa in valid_aa for aa in sequence)
+    
+    # 有效字符集
+    valid_aa = set('ACDEFGHIKLMNPQRSTVWY')
+    valid_dna = set('ATGC')
+    valid_rna = set('AUGC')
+    
+    # 尝试自动检测序列类型
+    if not seq_type:
+        if all(base in valid_dna for base in sequence):
+            return True  # 有效的DNA序列
+        elif all(base in valid_rna for base in sequence):
+            return True  # 有效的RNA序列
+        else:
+            return all(aa in valid_aa for aa in sequence)  # 检查是否为有效的蛋白质序列
+    
+    # 如果指定了序列类型
+    if seq_type.lower() == 'protein':
+        return all(aa in valid_aa for aa in sequence)
+    elif seq_type.lower() == 'dna':
+        return all(base in valid_dna for base in sequence)
+    elif seq_type.lower() == 'rna':
+        return all(base in valid_rna for base in sequence)
+    else:
+        # 未知序列类型，使用自动检测
+        return validate_sequence(sequence)
 
 def error_handler(func):
     """错误处理装饰器"""
@@ -295,6 +318,7 @@ def analyze_protparam():
     return jsonify({
         'molecular_weight': result['molecular_weight'],
         'sequence': result['sequence'],
+        'sequence_type': result['sequence_type'],
         'amino_acid_composition': result['amino_acid_composition'],
         'timestamp': datetime.now().isoformat()
     })

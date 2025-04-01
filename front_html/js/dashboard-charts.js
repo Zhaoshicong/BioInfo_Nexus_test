@@ -219,7 +219,8 @@ function initUserGrowthChart() {
             },
             scales: {
                 y: {
-                    beginAtZero: false,
+                    beginAtZero: true,
+                    min: 0,
                     title: {
                         display: false
                     },

@@ -152,28 +152,26 @@ def get_user_growth():
                 ).fetchone()[0]
                 churn_users.append(int(churn_count))  # 确保是整数
             
-            # 计算累计用户数
+            # 计算累计用户数 - 使用方法二：时间点快照
             total_users = []
-            # 获取当前年份
-            current_year = datetime.now().year
-            # 获取第一个月之前的用户总数作为基数
-            if labels:  # 确保labels不为空
-                first_month_date = datetime(current_year, 1, 1)  # 使用当年1月1日作为基准
-                running_total = conn.execute(
-                    'SELECT COUNT(*) FROM users WHERE date(created_at) < ?', 
-                    (first_month_date.strftime('%Y-%m-%d'),)
-                ).fetchone()[0]
-                
-                for i in range(len(new_users)):
-                    # 累加新增用户，减去流失用户
-                    running_total += new_users[i] - churn_users[i]
-                    total_users.append(max(0, int(running_total)))  # 确保不会出现负数且为整数
-            else:
-                # 如果没有数据点，返回空列表
-                total_users = []
-                
-
-                
+            if labels: # 确保有日期标签
+                for i in range(len(labels)):
+                    # 获取当前循环对应的日期对象 (注意：labels 格式是 '%m-%d')
+                    # 需要结合年份来构建完整的日期
+                    current_date_str = f"{today.year}-{labels[i]}"
+                    try:
+                        # 确定该时间点（当天结束时）
+                        end_of_day_dt = datetime.strptime(current_date_str, '%Y-%m-%d')
+                        # 查询截止到该日期（包含当天）的用户总数
+                        snapshot_total = conn.execute(
+                            'SELECT COUNT(*) FROM users WHERE date(created_at) <= ?',
+                            (end_of_day_dt.strftime('%Y-%m-%d'),)
+                        ).fetchone()[0]
+                        total_users.append(int(snapshot_total)) # 添加该时间点的总数
+                    except ValueError:
+                        # 如果日期解析失败（理论上不应发生），添加0或上一个值
+                        total_users.append(total_users[-1] if total_users else 0)
+            
         else:  # year
             # 获取当前自然年的1月到12月数据（按月统计）
             current_year = datetime.now().year
@@ -230,25 +228,31 @@ def get_user_growth():
                 ).fetchone()[0]
                 churn_users.append(int(churn_count))  # 确保是整数
             
-            # 计算累计用户数
+            # 计算累计用户数 - 使用方法二：时间点快照
             total_users = []
-            # 获取当前年份
-            current_year = datetime.now().year
-            # 获取第一个月之前的用户总数作为基数
-            if labels:  # 确保labels不为空
-                first_month_date = datetime(current_year, 1, 1)  # 使用当年1月1日作为基准
-                running_total = conn.execute(
-                    'SELECT COUNT(*) FROM users WHERE date(created_at) < ?', 
-                    (first_month_date.strftime('%Y-%m-%d'),)
-                ).fetchone()[0]
-                
-                for i in range(len(new_users)):
-                    # 累加新增用户，减去流失用户
-                    running_total += new_users[i] - churn_users[i]
-                    total_users.append(max(0, int(running_total)))  # 确保不会出现负数且为整数
-            else:
-                # 如果没有数据点，返回空列表
-                total_users = []
+            if labels: # 确保有月份标签
+                for i in range(len(labels)):
+                    # 获取当前循环对应的月份 (数字)
+                    month = i + 1 
+                    # 确定该时间点（当月最后一天结束时）
+                    if month == 12:
+                        end_of_month_dt = datetime(current_year, 12, 31) 
+                    else:
+                        # 下个月的第一天再减一天
+                        end_of_month_dt = datetime(current_year, month + 1, 1) - timedelta(days=1)
+                    
+                    # 如果是当前月份，并且还没到月底，用当前日期作为结束点
+                    if month == current_month and datetime.now().date() < end_of_month_dt.date():
+                         end_of_period_dt = datetime.now()
+                    else:
+                         end_of_period_dt = end_of_month_dt
+                    
+                    # 查询截止到该时间点（包含当天）的用户总数
+                    snapshot_total = conn.execute(
+                        'SELECT COUNT(*) FROM users WHERE created_at <= ?',
+                        (end_of_period_dt.strftime('%Y-%m-%d %H:%M:%S'),) # 使用完整时间戳更精确
+                    ).fetchone()[0]
+                    total_users.append(int(snapshot_total)) # 添加该时间点的总数
         
         conn.close()
         

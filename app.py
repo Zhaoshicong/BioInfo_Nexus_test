@@ -294,8 +294,9 @@ def get_current_user():
     
 @app.route('/api/protparam', methods=['POST'])
 @error_handler
-@rate_limit
-def analyze_protparam():
+#@rate_limit
+@token_required
+def analyze_protparam(current_user):
     """分析蛋白质分子量"""
     data = request.get_json()
     sequence = data.get('sequence', '').strip()
@@ -325,7 +326,7 @@ def analyze_protparam():
 
 @app.route('/api/sequence_annotation', methods=['POST'])
 @error_handler
-@rate_limit
+#@rate_limit
 @token_required
 def analyze_sequence_annotation(current_user):
     """分析蛋白质序列的功能注释和特征预测"""
@@ -357,7 +358,7 @@ def analyze_sequence_annotation(current_user):
     
 @app.route('/api/translate', methods=['POST'])
 @error_handler
-@rate_limit
+#@rate_limit
 @token_required
 def analyze_translate(current_user):
     """翻译DNA/RNA序列为蛋白质序列"""
@@ -397,8 +398,9 @@ def analyze_translate(current_user):
     
 @app.route('/api/find_cutting_enzymes', methods=['POST'])
 @error_handler
-# @token_required # 如果需要登录才能使用，取消注释此行
-def handle_find_cutting_enzymes():
+#@rate_limit
+@token_required
+def handle_find_cutting_enzymes(current_user):
     """处理查找所有切割酶的请求"""
     data = request.get_json()
     if not data:
@@ -420,8 +422,9 @@ def handle_find_cutting_enzymes():
 
 @app.route('/api/analyze_restriction', methods=['POST'])
 @error_handler
-# @token_required # 如果需要登录才能使用，取消注释此行
-def handle_analyze_restriction():
+#@rate_limit
+@token_required
+def handle_analyze_restriction(current_user):
     """处理限制性内切酶分析请求"""
     data = request.get_json()
     if not data:
@@ -451,7 +454,7 @@ def handle_analyze_restriction():
 
 @app.route('/api/analyze_nucleic_acid', methods=['POST'])
 @error_handler
-@rate_limit
+#@rate_limit
 @token_required
 def analyze_nucleic_acid(current_user):
     """分析核酸序列的物理化学特性，包括GC含量、熔解温度和浮力密度"""
@@ -489,8 +492,9 @@ def analyze_nucleic_acid(current_user):
 
 @app.route('/api/signalp', methods=['POST'])
 @error_handler
-@rate_limit
-def analyze_signalp():
+#@rate_limit
+@token_required
+def analyze_signalp(current_user):
     data = request.get_json()
     sequence = data.get('sequence', '').strip()
     
@@ -595,8 +599,9 @@ def analyze_signalp():
 
 @app.route('/api/vaxijen', methods=['POST'])
 @error_handler
-@rate_limit
-def analyze_vaxijen():
+#@rate_limit
+@token_required
+def analyze_vaxijen(current_user):
     data = request.get_json()
     sequence = data.get('sequence', '').strip()
     
@@ -630,8 +635,9 @@ def analyze_vaxijen():
 
 @app.route('/api/toxinpred', methods=['POST'])
 @error_handler
-@rate_limit
-def analyze_toxinpred():
+#@rate_limit
+@token_required
+def analyze_toxinpred(current_user):
     """分析肽的毒性"""
     data = request.get_json()
     sequence = data.get('sequence', '').strip()
@@ -705,7 +711,7 @@ def analyze_toxinpred():
 
 @app.route('/api/physchemparam', methods=['POST'])
 @error_handler
-@rate_limit
+#@rate_limit
 @token_required
 def analyze_physchemparam(current_user):
     """分析蛋白质物理化学参数"""

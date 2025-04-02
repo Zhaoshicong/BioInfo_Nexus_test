@@ -37,11 +37,11 @@ def sequence_annotation(sequence):
         aromaticity = analysis.aromaticity()
         instability_index = analysis.instability_index()
         isoelectric_point = analysis.isoelectric_point()
-        gravy = analysis.gravy()
+        gravy = analysis.gravy() 
         
         # 氨基酸组成分析
         aa_count = analysis.count_amino_acids()
-        aa_percent = analysis.get_amino_acids_percent()
+        aa_percent = analysis.amino_acids_percent
         
         # 二级结构预测
         secondary_structure = analysis.secondary_structure_fraction()

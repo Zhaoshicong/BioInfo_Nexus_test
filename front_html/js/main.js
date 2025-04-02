@@ -331,14 +331,14 @@ function setupPasswordToggles() {
             // 切换密码可见性
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                // 使用FontAwesome切换图标
-                iconElement.classList.remove('fa-eye');
-                iconElement.classList.add('fa-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                // 使用FontAwesome切换图标
+                // 使用FontAwesome切换图标（从闭眼变成睁眼）
                 iconElement.classList.remove('fa-eye-slash');
                 iconElement.classList.add('fa-eye');
+            } else {
+                passwordInput.type = 'password';
+                // 使用FontAwesome切换图标（从睁眼变成闭眼）
+                iconElement.classList.remove('fa-eye');
+                iconElement.classList.add('fa-eye-slash');
             }
         });
     });

@@ -73,7 +73,9 @@ BioInfo Nexus集成了以下生物信息学工具：
 
 ## 许可证
 
-本项目采用 MIT 许可证 - 详情请参阅 [LICENSE](LICENSE) 文件。
+本项目采用MIT许可证。详情请查看[LICENSE](LICENSE)文件。
+
+项目中使用的第三方库受其各自许可证的保护，详情请查看[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)文件。
 
 ## 联系方式
 

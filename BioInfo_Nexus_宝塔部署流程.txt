@@ -122,6 +122,7 @@
 4. **压力测试**
    - 在每台测试机器上运行（调整-n和-c参数）
    ab -n 总数 -c 并发数 -p 1.json -T "application/json" -k http://124.71.60.7/api/Bio_tools
+   注意事项 if len(requests.get(ip, [])) >= 10:被装饰器限制了请求
 
 ## 注意事项
 

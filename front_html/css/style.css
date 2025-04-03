@@ -100,7 +100,7 @@ body {
     width: 100%;
 }
 
-/* 联系我们链接的悬停提示样式 */
+/* 联系我们链接悬停提示样式 */
 .contact-link {
     position: relative;
 }
@@ -122,8 +122,6 @@ body {
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
-    pointer-events: none;
-    cursor: pointer;
 }
 
 .email-tooltip::before {
@@ -135,33 +133,6 @@ body {
     border-width: 0 6px 6px 6px;
     border-style: solid;
     border-color: transparent transparent rgba(26, 79, 122, 0.95) transparent;
-}
-
-.email-tooltip.show {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-}
-
-.copy-hint {
-    position: absolute;
-    bottom: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    animation: fadeInOut 2s ease;
-}
-
-@keyframes fadeInOut {
-    0% { opacity: 0; }
-    20% { opacity: 1; }
-    80% { opacity: 1; }
-    100% { opacity: 0; }
 }
 
 .contact-link:hover .email-tooltip {

@@ -58,29 +58,9 @@ function setupFeatureTooltips() {
     const emailTooltip = document.querySelector('.email-tooltip');
     
     if (contactLink && emailTooltip) {
-        // 点击联系我们链接时
+        // 移除点击事件，仅保留悬停显示功能
         contactLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            emailTooltip.classList.toggle('show');
-            e.stopPropagation();
-        });
-        
-        // 点击邮箱提示框时复制邮箱地址
-        emailTooltip.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const email = this.textContent.trim();
-            navigator.clipboard.writeText(email).then(() => {
-                // 创建一个临时提示
-                const copyHint = document.createElement('div');
-                copyHint.className = 'copy-hint';
-                copyHint.textContent = '已复制到剪贴板';
-                this.appendChild(copyHint);
-                
-                // 2秒后移除提示
-                setTimeout(() => {
-                    copyHint.remove();
-                }, 2000);
-            });
+            e.preventDefault(); // 阻止默认行为，避免页面跳转
         });
         
         // 点击页面其他地方时隐藏邮箱提示框

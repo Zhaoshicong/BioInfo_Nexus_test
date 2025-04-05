@@ -9,6 +9,7 @@ from Bio_tools.Translate import translate_sequence, get_available_tables
 from Bio_tools.RestrictionAnalysis import analyze_restriction 
 from Bio_tools.FindCuttingEnzymes import find_all_cutting_enzymes
 from Bio_tools.GCContent import analyze_nucleic_acid_properties
+from Bio_tools.CodonAnalyzer import analyze_sequence_codons
 import base64
 import os
 import time 
@@ -396,6 +397,109 @@ def analyze_translate(current_user):
         logger.error(f"序列翻译错误: {str(e)}")
         return jsonify({'error': f'翻译过程发生错误: {str(e)}'}), 500
     
+@app.route('/api/analyze_codons', methods=['POST', 'GET'])
+@error_handler
+#@rate_limit
+@token_required
+def analyze_codons(current_user):
+    """密码子分析API接口
+    
+    GET方法: 获取可用的宿主物种列表
+    POST方法: 分析DNA/RNA序列的密码子使用情况，或通过action=list_hosts获取宿主列表
+    """
+    # 记录请求
+    logger.info(f"用户 {current_user.username} 请求密码子分析API")
+    
+    # 处理获取可用宿主列表请求
+    if request.method == 'GET' or (request.method == 'POST' and request.get_json().get('action') == 'list_hosts'):
+        try:
+            # 确定数据目录的路径
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            data_dir = os.path.join(script_dir, "Bio_tools", "data", "codon_tables")
+            
+            # 检查目录是否存在
+            if not os.path.exists(data_dir):
+                return jsonify({
+                    'error': '找不到宿主数据目录',
+                    'message': f'目录 {data_dir} 不存在'
+                }), 500
+            
+            # 直接扫描目录中的所有JSON文件，提取物种ID
+            available_hosts = []
+            for filename in os.listdir(data_dir):
+                if filename.endswith('.json') and filename != "species_map.json":
+                    # 提取物种ID（文件名不含扩展名）
+                    host_id = os.path.splitext(filename)[0]
+                    
+                    # 直接使用物种ID作为名称
+                    available_hosts.append({
+                        'host_id': host_id,
+                        'genetic_code_id': 1,  # 使用标准密码表
+                        'name': f'物种ID: {host_id}'
+                    })
+            
+            # 按照host_id排序，方便用户查找
+            available_hosts.sort(key=lambda x: x['host_id'])
+            
+            return jsonify({
+                'success': True,
+                'available_hosts': available_hosts
+            })
+        
+        except Exception as e:
+            logger.error(f"获取可用宿主列表错误: {str(e)}")
+            return jsonify({'error': f'获取宿主列表时发生错误: {str(e)}'}), 500
+    
+    # 处理密码子分析请求
+    if request.method == 'POST':
+        data = request.get_json()
+        
+        # 如果没有指定action或action为analyze，则执行分析
+        if data.get('action', 'analyze') == 'analyze':
+            sequence = data.get('sequence')
+            host_id = data.get('host_id')  # 宿主物种的ID
+            rarity_threshold = data.get('rarity_threshold', 0.05)  # 稀有密码子阈值，默认为0.05
+            
+            # 输入验证
+            if not sequence:
+                return jsonify({'error': '序列不能为空'}), 400
+            
+            if not host_id:
+                return jsonify({'error': '宿主ID不能为空'}), 400
+                
+            # 使用默认遗传密码表ID
+            genetic_code_id = 1  # 标准遗传密码表
+            
+            # 确保参数类型正确
+            try:
+                rarity_threshold = float(rarity_threshold)
+            except (ValueError, TypeError):
+                return jsonify({'error': '稀有密码子阈值必须为浮点数'}), 400
+            
+            # 记录请求
+            logger.info(f"用户 {current_user.username} 请求密码子分析，序列长度: {len(sequence)}，宿主ID: {host_id}，使用密码表ID: {genetic_code_id}")
+            
+            # 调用CodonAnalyzer模块
+            try:
+                result = analyze_sequence_codons(sequence, host_id, genetic_code_id, rarity_threshold)
+                
+                # 检查分析结果状态
+                if result.get('status') == 'error':
+                    return jsonify({'error': result.get('message', '分析过程中发生错误')}), 500
+                
+                # 添加成功标志
+                result['success'] = True
+                result['sequence'] = sequence
+                
+                return jsonify(result)
+                
+            except Exception as e:
+                logger.error(f"密码子分析错误: {str(e)}")
+                return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+    
+    # 如果代码执行到这里，说明请求不符合任何处理条件
+    return jsonify({'error': '不支持的请求格式或操作'}), 400
+    
 @app.route('/api/find_cutting_enzymes', methods=['POST'])
 @error_handler
 #@rate_limit
@@ -754,7 +858,6 @@ def analyze_physchemparam(current_user):
     except Exception as e:
         logger.error(f"PhysChemParameter分析错误: {str(e)}")
         return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
-
 
 if __name__ == '__main__':
     # 确保临时文件目录存在

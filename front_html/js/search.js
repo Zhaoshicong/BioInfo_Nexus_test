@@ -120,6 +120,51 @@ const sequenceTools = {
                 
                 return await response.json();
             }
+
+            // 处理密码子使用分析
+            if (tool === 'analyze_codons') {
+                // 检查输入中是否包含空格，用于分割序列和宿主ID
+                const inputParts = sequence.trim().split(/\s+/);
+                
+                // 如果只有序列没有宿主ID
+                if (inputParts.length <= 1) {
+                    utils.hideLoading();
+                    utils.showToast("请在序列后用空格分隔输入宿主ID，例如：ATGC 9606");
+                    return null;
+                }
+                
+                // 提取序列和宿主ID 
+                const seqPart = inputParts[0];
+                const hostIdPart = inputParts[inputParts.length - 1]; // 使用最后一个部分作为宿主ID
+                
+                // 验证宿主ID（确保是有效的数字ID）
+                const hostId = hostIdPart.trim();
+                if (!/^\d+$/.test(hostId)) {
+                    utils.hideLoading();
+                    utils.showToast("宿主ID必须是纯数字，例如人类的ID为9606");
+                    return null;
+                }
+                
+                // 发送请求，包含提取的序列和宿主ID
+                const response = await fetch(`/api/${tool}`, {
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...utils.getAuthHeader()
+                    },
+                    body: JSON.stringify({ 
+                        sequence: seqPart,
+                        host_id: hostId
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `请求失败: ${response.status}`);
+                }
+                
+                return await response.json();
+            }
             
             // 其他工具的常规处理
             const response = await fetch(`/api/${tool}`, {
@@ -419,6 +464,64 @@ const sequenceTools = {
                     }, 100);
                 }
                 break;
+        
+                case 'analyze_codons':
+                    // 确保我们有分析结果
+                    const analysis = result.analysis || {};
+                    const rscuValues = analysis.rscu_values || {};
+                    const rareCodons = analysis.rare_codons_found || [];
+                    const caiValue = analysis.cai_value || "未计算";
+                    
+                    // 显示密码子分析结果
+                    resultBox.innerHTML = `
+                        <h4>序列:</h4>
+                        <div class="sequence-text">${result.sequence || result.input_sequence_preview || "未提供序列"}</div>
+                        <h4>宿主物种:</h4>
+                        <p>宿主ID: ${result.host_id || "未知"}</p>
+                        <h4>密码子适应性指数 (CAI):</h4>
+                        <p>${typeof caiValue === 'number' ? caiValue.toFixed(2) : caiValue}</p>
+                        <p class="small-note">CAI值越接近1.0，表示密码子使用与宿主偏好越一致</p>
+                        
+                        <h4>稀有密码子:</h4>
+                        ${rareCodons && rareCodons.length > 0 ? `
+                        <div class="codon-table">
+                            <div class="codon-header">
+                                <div>密码子</div>
+                                <div>位置</div>
+                                <div>宿主频率</div>
+                            </div>
+                            <div class="table-body">
+                            ${rareCodons.map(codon => `
+                                <div class="codon-row">
+                                    <div>${codon.codon}</div>
+                                    <div>${codon.position_1_based || '-'}</div>
+                                    <div>${typeof codon.host_frequency === 'number' ? codon.host_frequency.toFixed(3) : codon.host_frequency || '-'}</div>
+                                </div>
+                            `).join('')}
+                            </div>
+                        </div>
+                        ` : '<p>未发现稀有密码子</p>'}
+                        
+                        <h4>RSCU值:</h4>
+                        ${Object.keys(rscuValues).length > 0 ? `
+                        <div class="rscu-table">
+                            <div class="codon-header">
+                                <div>密码子</div>
+                                <div>RSCU</div>
+                            </div>
+                            <div class="table-body">
+                            ${Object.entries(rscuValues).map(([codon, rscu]) => `
+                                <div class="codon-row">
+                                    <div>${codon}</div>
+                                    <div>${typeof rscu === 'number' ? rscu.toFixed(2) : rscu}</div>
+                                </div>
+                            `).join('')}
+                            </div>
+                        </div>
+                        <p class="small-note">RSCU (相对同义密码子使用) 反映每个密码子的使用偏好。值=1表示无偏好，>1表示偏好，<1表示不偏好</p>
+                        ` : '<p>未计算RSCU值</p>'}
+                    `;
+                    break;
                 
             case 'find_cutting_enzymes':
                 resultBox.innerHTML = `
@@ -847,7 +950,7 @@ const sequenceTools = {
                         <p>蛋白质分类为: ${result.stability_classification || '未知'}</p>
                         <p>脂肪族指数: ${result.aliphatic_index.toFixed(2)}</p>
                         <p>疏水性平均值 (GRAVY): ${result.gravy.toFixed(3)}</p>
-                        <p>GRAVY 指数 (Grand Average of Hydropathicity) 的含义：
+                        <p class="small-note">GRAVY 指数 (Grand Average of Hydropathicity) 的含义：
 GRAVY 指数是蛋白质疏水性的量化指标，通过计算蛋白质序列中所有氨基酸疏水性值的平均值得出。每个氨基酸都有一个预先定义的疏水性值（通常基于 Kyte-Doolittle 疏水性尺度）。
 关于正负值的说明:GRAVY 值为负数，表示该蛋白质整体上是亲水性的 (hydrophilic)。 这意味着该蛋白的氨基酸组成中,亲水性氨基酸(例如;精氨酸、赖氨酸、谷氨酸、天冬氨酸等0的比例相对较高。反之,为正数,则呈现疏水性(hydrophobic)特征。
 关于数值大小的说明: 数值的绝对值越接近于 0,表示该蛋白的疏水性或亲水性不强,可能兼具一定的亲水性和疏水性。相反,绝对值越大,则表示该蛋白的疏水性或亲水性越强。</p>
@@ -874,6 +977,8 @@ function getToolName(tool) {
             return '序列注释分析 (BioPython)';
         case 'translate':
             return '序列翻译 (BioPython)';
+        case 'analyze_codons':
+            return '密码子使用分析 (BioPython))';
         case 'find_cutting_enzymes':
             return '酶谱分析 (BioPython)';
         case 'analyze_restriction':
@@ -1098,6 +1203,9 @@ function initPage() {
             } else if (tool === 'analyze_nucleic_acid') {
                 // 显示核酸物理化学性质分析的提示
                 sequenceInput.setAttribute('placeholder', '请输入DNA或RNA序列，用于分析GC含量等物理化学特性');
+            } else if (tool === 'analyze_codons') {
+                // 显示密码子分析的输入格式提示
+                sequenceInput.setAttribute('placeholder', '请输入: [DNA序列] [宿主ID] 例如: ATGCGAATTC 9606 (人类ID为9606，大肠杆菌为83333)');
             } else {
                 // 恢复默认提示
                 sequenceInput.setAttribute('placeholder', '请输入序列...');
@@ -1139,9 +1247,27 @@ function initPage() {
                 return;
             }
         }
+
+        // 序列注释工具的特殊验证
+        if (tool === 'sequence_annotation') {
+            const detectedType = getSequenceType(sequence);
+            if (detectedType !== 'protein') {
+                utils.showToast('DNA或RNA序列无法进行序列注释，请输入蛋白质。');
+                return;
+            }
+        }
+
+        // 翻译工具的特殊验证
+        if (tool === 'translate') {
+            const detectedType = getSequenceType(sequence);
+            if (detectedType === 'protein') {
+                utils.showToast('蛋白质序列无法进行翻译，请输入DNA或RNA。');
+                return;
+            }
+        }
         
         // 确定当前工具类型
-        const isDnaTool = tool === 'find_cutting_enzymes' || tool === 'analyze_restriction' || tool === 'translate' || tool === 'analyze_nucleic_acid';
+        const isDnaTool = tool === 'find_cutting_enzymes' || tool === 'analyze_restriction' || tool === 'analyze_nucleic_acid';
         const isProteinTool = !isDnaTool; // 所有非DNA工具都视为蛋白质工具
         
         // ToxinPred工具的特殊验证

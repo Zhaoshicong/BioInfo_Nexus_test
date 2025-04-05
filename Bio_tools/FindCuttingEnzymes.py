@@ -142,3 +142,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#需要和PyMOL结合使用，至少需要服务器端4G内存 暂时关闭

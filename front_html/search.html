@@ -18,6 +18,7 @@
         <div class="nav-container">
             <a href="#" class="nav-logo">BioInfo Nexus</a>
             <div class="nav-links">
+                <a href="bioknowledge.html">生物知识库</a>
                 <a href="#" class="contact-link">联系我们
                     <span class="email-tooltip">bioinfo.nexus@example.com</span>
                 </a>
@@ -38,122 +39,137 @@
                     </div>
 
                     <div class="analysis-tools">
-                        <div class="tool-cards">
-                            <div class="tool-card" data-tool="protparam">
-                                <div class="tool-icon">
-                                    <i class="fas fa-balance-scale"></i>
-                                </div>
-                                <div class="tool-info">
-                                    <h4>分子量计算</h4>
-                                    <p>使用BioPython计算分子量和序列组成</p>
-                                </div>
-                            </div>
-
-                            <div class="tool-card" data-tool="sequence_annotation">
-                                <div class="tool-icon">
-                                    <i class="fas fa-pencil-alt"></i>
-                                </div>
-                                <div class="tool-info">
-                                    <h4>蛋白质序列注释分析</h4>
-                                    <p>使用BioPython分析物化性质和结构预测</p>
-                                </div>
-                            </div>
-
-                            <div class="tool-card" data-tool="translate">
-                                <div class="tool-icon">
-                                    <i class="fas fa-dna"></i>
-                                </div>
-                                <div class="tool-info">
-                                    <h4>序列翻译</h4>
-                                    <p>使用BioPython将D/RNA译为蛋白质序列</p>
-                                </div>
+                        <div class="tools-sidebar">
+                            <div class="tool-search">
+                                <input type="text" placeholder="搜索工具..." class="tool-search-input">
+                                <i class="fas fa-search search-icon"></i>
                             </div>
                             
-                            <div class="tool-card" data-tool="analyze_codons">
-                                <div class="tool-icon">
-                                    <i class="fas fa-table"></i>
-                                </div>
-                                <div class="tool-info">
-                                    <h4>密码子使用分析</h4>
-                                    <p>使用BioPython优化密码子使用</p>
-                                </div>
+                            <div class="tool-categories">
+                                <h3>工具分类</h3>
+                                <ul class="category-list">
+                                    <li class="category-item active" data-category="all">全部工具</li>
+                                    <li class="category-item" data-category="sequence">序列分析</li>
+                                    <li class="category-item" data-category="protein">蛋白质分析</li>
+                                    <li class="category-item" data-category="nucleic">核酸分析</li>
+                                    <li class="category-item" data-category="prediction">预测工具</li>
+                                </ul>
                             </div>
-                            
-                            <div class="tool-card" data-tool="find_cutting_enzymes">
-                                <div class="tool-icon">
-                                    <i class="fas fa-microscope"></i>
+                        </div>
+                        
+                        <div class="tool-cards-container">
+                            <div class="tool-cards">
+                                <div class="tool-card" data-tool="protparam" data-category="protein sequence">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-balance-scale"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>分子量计算</h4>
+                                        <p>使用BioPython计算分子量和序列组成</p>
+                                    </div>
                                 </div>
-                                <div class="tool-info">
-                                    <h4>酶谱分析</h4>
-                                    <p>使用BioPython查找切割序列的所有酶</p>
-                                </div>
-                            </div>
 
-                            <div class="tool-card" data-tool="analyze_restriction">
-                                <div class="tool-icon">
-                                    <i class="fas fa-cut"></i>
+                                <div class="tool-card" data-tool="sequence_annotation" data-category="protein sequence">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-pencil-alt"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>蛋白质序列注释分析</h4>
+                                        <p>使用BioPython分析物化性质和结构预测</p>
+                                    </div>
                                 </div>
-                                <div class="tool-info">
-                                    <h4>限制性内切酶分析</h4>
-                                    <p>使用BioPython分析指定酶切位点和片段</p>
-                                </div>
-                            </div>
 
-                            <div class="tool-card" data-tool="analyze_nucleic_acid">
-                                <div class="tool-icon">
-                                    <i class="fas fa-calculator"></i>
+                                <div class="tool-card" data-tool="translate" data-category="nucleic sequence">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-dna"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>序列翻译</h4>
+                                        <p>使用BioPython将D/RNA译为蛋白质序列</p>
+                                    </div>
                                 </div>
-                                <div class="tool-info">
-                                    <h4>GC含量计算等性质</h4>
-                                    <p>使用BioPython计算GC含量等相关性质</p>
+                                
+                                <div class="tool-card" data-tool="analyze_codons" data-category="nucleic sequence">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-table"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>密码子使用分析</h4>
+                                        <p>使用BioPython优化密码子使用</p>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div class="tool-card" data-tool="signalp">
-                                <div class="tool-icon">
-                                    <i class="fas fa-signal"></i>
+                                
+                                <div class="tool-card" data-tool="find_cutting_enzymes" data-category="nucleic">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-microscope"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>酶谱分析</h4>
+                                        <p>使用BioPython查找切割序列的所有酶</p>
+                                    </div>
                                 </div>
-                                <div class="tool-info">
-                                    <h4>信号肽预测</h4>
-                                    <p>使用SignalP预测信号肽位点</p>
-                                </div>
-                            </div>
 
-                            <div class="tool-card" data-tool="vaxijen">
-                                <div class="tool-icon">
-                                    <i class="fas fa-shield-alt"></i>
+                                <div class="tool-card" data-tool="analyze_restriction" data-category="nucleic">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-cut"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>限制性内切酶分析</h4>
+                                        <p>使用BioPython分析指定酶切位点和片段</p>
+                                    </div>
                                 </div>
-                                <div class="tool-info">
-                                    <h4>抗原性预测(细菌)</h4>
-                                    <p>使用VaxiJen预测蛋白质抗原性</p>
+
+                                <div class="tool-card" data-tool="analyze_nucleic_acid" data-category="nucleic">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-calculator"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>GC含量计算等性质</h4>
+                                        <p>使用BioPython计算GC含量等相关性质</p>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div class="tool-card" data-tool="toxinpred">
-                                <div class="tool-icon">
-                                    <i class="fas fa-skull-crossbones"></i>
+                                
+                                <div class="tool-card" data-tool="signalp" data-category="prediction protein">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-signal"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>信号肽预测</h4>
+                                        <p>使用SignalP预测信号肽位点</p>
+                                    </div>
                                 </div>
-                                <div class="tool-info">
-                                    <h4>毒性预测(细菌)</h4>
-                                    <p>使用ToxinPred预测肽的毒性(5-50个序列)</p>
+
+                                <div class="tool-card" data-tool="vaxijen" data-category="prediction protein">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-shield-alt"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>抗原性预测(细菌)</h4>
+                                        <p>使用VaxiJen预测蛋白质抗原性</p>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div class="tool-card" data-tool="physchemparam">
-                                <div class="tool-icon">
-                                    <i class="fas fa-vial"></i>
+                                
+                                <div class="tool-card" data-tool="toxinpred" data-category="prediction protein">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-skull-crossbones"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>毒性预测(细菌)</h4>
+                                        <p>使用ToxinPred预测肽的毒性(5-50个序列)</p>
+                                    </div>
                                 </div>
-                                <div class="tool-info">
-                                    <h4>物理化学参数</h4>
-                                    <p>使用ProtParam分析蛋白质的理化参数</p>
+                                
+                                <div class="tool-card" data-tool="physchemparam" data-category="protein">
+                                    <div class="tool-icon">
+                                        <i class="fas fa-vial"></i>
+                                    </div>
+                                    <div class="tool-info">
+                                        <h4>物理化学参数</h4>
+                                        <p>使用ProtParam分析蛋白质的理化参数</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-
-                        <button class="analyze-btn">
-                            <i class="fas fa-play"></i>
-                            开始分析
-                        </button>
                     </div>
                 </div>
             </div>
@@ -163,6 +179,16 @@
     <!-- 固定的toast元素应该放在这里，作为body的直接子元素 -->
     <div id="fixed-toast" class="fixed-toast">
         <div class="toast-content"></div>
+    </div>
+
+    <!-- 固定的操作栏 -->
+    <div class="action-bar">
+        <div class="tool-selection">
+            已选择: <span>请选择工具</span>
+        </div>
+        <button class="analyze-btn">
+            <i class="fas fa-play"></i> 开始分析
+        </button>
     </div>
 
     <script src="js/particles-config.js"></script>

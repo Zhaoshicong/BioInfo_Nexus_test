@@ -92,6 +92,11 @@ def serve_temp_file(filename):
 def serve_upload_file(filename):
     return send_from_directory('uploads', filename)
 
+# 添加Bio_tools数据文件服务路由
+@app.route('/Bio_tools/data/<path:filename>')
+def serve_biotools_data(filename):
+    return send_from_directory('Bio_tools/data', filename)
+
 # 添加管理员登录页面路由
 @app.route('/admin-login')
 def admin_login_page():

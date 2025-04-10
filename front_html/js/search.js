@@ -135,15 +135,7 @@ const sequenceTools = {
                 
                 // 提取序列和宿主ID 
                 const seqPart = inputParts[0];
-                const hostIdPart = inputParts[inputParts.length - 1]; // 使用最后一个部分作为宿主ID
-                
-                // 验证宿主ID（确保是有效的数字ID）
-                const hostId = hostIdPart.trim();
-                if (!/^\d+$/.test(hostId)) {
-                    utils.hideLoading();
-                    utils.showToast("宿主ID必须是纯数字，例如人类的ID为9606");
-                    return null;
-                }
+                const hostIdPart = inputParts.slice(1).join(' ');
                 
                 // 发送请求，包含提取的序列和宿主ID
                 const response = await fetch(`/api/${tool}`, {
@@ -154,7 +146,7 @@ const sequenceTools = {
                     },
                     body: JSON.stringify({ 
                         sequence: seqPart,
-                        host_id: hostId
+                        host_id: hostIdPart
                     })
                 });
                 
@@ -1126,7 +1118,7 @@ function reloadParticles() {
     }
 }
 
-// 页面加载时执行
+// 在页面加载时初始化
 document.addEventListener('DOMContentLoaded', async function() {
     // 检查登录状态
     const token = localStorage.getItem('token');
@@ -1142,6 +1134,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // 初始化页面
     initPage();
+    
+    // 设置工具搜索和分类功能
+    setupToolsFiltering();
     
     // 保存粒子配置以便重新初始化
     if (window.pJSDom && window.pJSDom[0] && window.pJSDom[0].pJS) {
@@ -1161,11 +1156,191 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // 初始化页面
 function initPage() {
-    // 获取DOM元素
+    // 获取页面元素
     const sequenceInput = document.querySelector('.sequence-input');
-    const charCounter = document.querySelector('.char-counter');
     const toolCards = document.querySelectorAll('.tool-card');
-    const analyzeBtn = document.querySelector('.analyze-btn');
+    // const analyzeBtn = document.querySelector('.tool-cards-container .analyze-btn'); // Old button, likely unused
+    
+    // 获取操作栏元素
+    const actionBar = document.querySelector('.action-bar');
+    if (!actionBar) { 
+        console.error("Action bar element not found!");
+        return; 
+    }
+    const toolSelection = actionBar.querySelector('.tool-selection span');
+    const actionAnalyzeBtn = actionBar.querySelector('.analyze-btn');
+    
+    // 设置粒子背景
+    setupParticles();
+    
+    // 设置文本输入和计数器
+    setupSequenceInput(sequenceInput);
+    
+    // 设置工具过滤功能
+    setupToolsFiltering();
+    
+    // 工具卡片点击事件更新
+    toolCards.forEach(card => {
+        card.addEventListener('click', function() {
+            toolCards.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            
+            // 更新操作栏显示的工具名称
+            const toolName = this.querySelector('h4').textContent;
+            toolSelection.textContent = toolName;
+            
+            // 检查是否选择了特殊工具，更新输入框 placeholder
+            const tool = this.dataset.tool;
+            if (tool === 'analyze_restriction') {
+                // 显示限制性内切酶分析的输入格式提示
+                sequenceInput.setAttribute('placeholder', '请输入: [DNA序列] [酶名1] [酶名2]... 例如: ATGCGAATTC EcoRI BamHI');
+            } else if (tool === 'find_cutting_enzymes') {
+                // 显示查找切割酶的输入格式提示
+                sequenceInput.setAttribute('placeholder', '请输入DNA序列，将查找所有可切割该序列的限制酶');
+            } else if (tool === 'analyze_nucleic_acid') {
+                // 显示核酸物理化学性质分析的提示
+                sequenceInput.setAttribute('placeholder', '请输入DNA或RNA序列，用于分析GC含量等物理化学特性');
+            } else if (tool === 'analyze_codons') {
+                sequenceInput.placeholder = '请输入DNA序列和宿主物种ID（如：ATGC 9606）';
+            } else {
+                sequenceInput.placeholder = '请输入序列...';
+            }
+        });
+    });
+    
+    // 设置操作栏的分析按钮点击事件
+    if (actionAnalyzeBtn) { 
+        actionAnalyzeBtn.addEventListener('click', async function() {
+            const sequence = sequenceInput.value.trim().toUpperCase();
+            
+            if (!sequence) {
+                utils.showToast('请输入序列');
+                return;
+            }
+            
+            const activeCard = document.querySelector('.tool-card.active');
+            if (!activeCard) {
+                utils.showToast('请选择分析工具');
+                return;
+            }
+            
+            const tool = activeCard.dataset.tool;
+            const detectedType = getSequenceType(sequence);
+            
+            // Frontend Validation 
+            if (tool === 'analyze_nucleic_acid') {
+                if (detectedType === 'protein') { utils.showToast('核酸特性分析工具无法处理蛋白质序列，请输入DNA或RNA。'); return; } 
+                else if (detectedType === 'unknown') { utils.showToast('序列包含无法识别的字符，无法进行核酸分析。'); return; }
+            }
+            if (tool === 'find_cutting_enzymes' && detectedType !== 'dna') { utils.showToast('限制酶分析工具仅支持DNA序列'); return; }
+            if (tool === 'sequence_annotation' && detectedType !== 'protein') { utils.showToast('DNA或RNA序列无法进行序列注释，请输入蛋白质。'); return; }
+            if (tool === 'translate' && detectedType === 'protein') { utils.showToast('蛋白质序列无法进行翻译，请输入DNA或RNA。'); return; }
+            if (tool === 'toxinpred') {
+                const seqInput = sequence.split(/\s+/)[0];
+                if (seqInput.length < 5) { utils.showToast('ToxinPred要求序列长度至少为5个氨基酸'); return; }
+                if (seqInput.length > 50) { utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列'); return; }
+            }
+            
+            this.classList.add('loading'); 
+            
+            try {
+                utils.showLoading('正在分析...');
+                
+                // --- Modify analyzeSequence call for analyze_codons ---
+                let result;
+                if (tool === 'analyze_codons') {
+                    // 提取序列和宿主ID (允许非数字)
+                    const inputParts = sequence.trim().split(/\s+/);
+                    if (inputParts.length <= 1) {
+                        utils.hideLoading();
+                        this.classList.remove('loading');
+                        utils.showToast("请在序列后用空格分隔输入宿主ID (例如：ATGC 9606 或 ATGC 3645.chloroplast)");
+                        return;
+                    }
+                    const seqPart = inputParts[0];
+                    const hostIdPart = inputParts.slice(1).join(' '); // 获取序列后的所有部分作为ID
+                    
+                    // 直接将提取的 hostIdPart (可能是 3645.chloroplast) 传给后端
+                    result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${hostIdPart}`); // 保持原始格式发送
+                } else {
+                    // 其他工具的常规处理
+                    result = await sequenceTools.analyzeSequence(tool, sequence);
+                }
+                // --- End modification ---
+                
+                utils.hideLoading();
+                
+                if (result) {
+                    sequenceTools.displayResults(tool, result, detectedType);
+                    checkResults(); 
+                    // 重载粒子系统
+                    setTimeout(reloadParticles, 300); 
+                }
+            } catch (error) {
+                utils.hideLoading();
+                utils.showToast(error.message || `分析失败: ${tool}`);
+                console.error('分析错误:', error);
+            } finally {
+                this.classList.remove('loading'); 
+            }
+        });
+    }
+    
+    // 智能隐藏操作栏的逻辑
+    let lastScrollPosition = window.scrollY;
+    let isScrollingDown = false;
+    
+    window.addEventListener('scroll', function() {
+        const currentScroll = window.scrollY;
+        isScrollingDown = currentScroll > lastScrollPosition + 10; 
+        const isScrollingUp = currentScroll < lastScrollPosition - 10; 
+
+        if (isScrollingDown || isScrollingUp) {
+            lastScrollPosition = currentScroll <= 0 ? 0 : currentScroll; 
+        }
+        
+        const isNearBottom = (window.innerHeight + currentScroll) >= document.body.offsetHeight - 100;
+        const isNearTop = currentScroll < 100;
+        
+        if (isScrollingDown && !isNearBottom && !isNearTop) {
+            actionBar.classList.add('hide');
+        } else if (isScrollingUp || isNearBottom || isNearTop) { 
+            actionBar.classList.remove('hide');
+        }
+    });
+
+    // 鼠标靠近底部时显示
+    window.addEventListener('mousemove', function(e) {
+        if (window.innerHeight - e.clientY < 100) {
+            actionBar.classList.remove('hide');
+        }
+    });
+    
+    // 初始化检查
+    checkResults(); 
+    
+}
+
+// 检查是否有结果
+function checkResults() {
+    const resultsContainer = document.querySelector('.results-container');
+    if (resultsContainer && resultsContainer.children.length > 0) { 
+        document.body.classList.add('has-results');
+    } else {
+        document.body.classList.remove('has-results');
+    }
+}
+
+// 设置粒子背景系统
+function setupParticles() {
+    if (window.particlesJS) {
+        particlesJS("particles-js", defaultParticleConfig); // Use default config
+    }
+}
+
+// 设置文本输入和计数器
+function setupSequenceInput(sequenceInput) {
+    const charCounter = document.querySelector('.char-counter');
     
     // 更新字符计数并将输入转换为大写
     sequenceInput.addEventListener('input', function() {
@@ -1184,120 +1359,6 @@ function initPage() {
         const count = sequence.length;
         // 只更新计数部分，保留提示信息
         charCounter.innerHTML = `${count} 个氨基酸 <span style="margin-left: 10px; font-size: 12px; color: #666;">* 序列将自动转换为大写字母</span>`;
-    });
-    
-    // 工具卡片点击事件
-    toolCards.forEach(card => {
-        card.addEventListener('click', function() {
-            toolCards.forEach(c => c.classList.remove('active'));
-            this.classList.add('active');
-            
-            // 检查是否选择了特殊工具
-            const tool = this.dataset.tool;
-            if (tool === 'analyze_restriction') {
-                // 显示限制性内切酶分析的输入格式提示
-                sequenceInput.setAttribute('placeholder', '请输入: [DNA序列] [酶名1] [酶名2]... 例如: ATGCGAATTC EcoRI BamHI');
-            } else if (tool === 'find_cutting_enzymes') {
-                // 显示查找切割酶的输入格式提示
-                sequenceInput.setAttribute('placeholder', '请输入DNA序列，将查找所有可切割该序列的限制酶');
-            } else if (tool === 'analyze_nucleic_acid') {
-                // 显示核酸物理化学性质分析的提示
-                sequenceInput.setAttribute('placeholder', '请输入DNA或RNA序列，用于分析GC含量等物理化学特性');
-            } else if (tool === 'analyze_codons') {
-                // 显示密码子分析的输入格式提示
-                sequenceInput.setAttribute('placeholder', '请输入: [DNA序列] [宿主ID] 例如: ATGCGAATTC 9606 (人类ID为9606，大肠杆菌为83333)');
-            } else {
-                // 恢复默认提示
-                sequenceInput.setAttribute('placeholder', '请输入序列...');
-            }
-        });
-    });
-    
-    // 分析按钮点击事件
-    analyzeBtn.addEventListener('click', async function() {
-        // 获取序列并确保转换为大写
-        const sequence = sequenceInput.value.trim().toUpperCase();
-        
-        if (!sequence) {
-            utils.showToast('请输入序列');
-            return;
-        }
-        
-        const activeCard = document.querySelector('.tool-card.active');
-        if (!activeCard) {
-            utils.showToast('请选择分析工具');
-            return;
-        }
-        
-        const tool = activeCard.dataset.tool;
-
-        // --- 使用新的 getSequenceType 函数检测类型并存储 ---
-        const detectedType = getSequenceType(sequence);
-        console.log("前端检测到的序列类型:", detectedType);
-        // -----------------------------------------------
-
-        // --- 使用检测到的类型进行前端验证 ---
-        if (tool === 'analyze_nucleic_acid') {
-            // 使用存储的 detectedType 进行判断
-            if (detectedType === 'protein') { 
-                utils.showToast('核酸特性分析工具无法处理蛋白质序列，请输入DNA或RNA。');
-                return; 
-            } else if (detectedType === 'unknown') {
-                utils.showToast('序列包含无法识别的字符，无法进行核酸分析。');
-                return;
-            }
-        }
-
-        // 序列注释工具的特殊验证
-        if (tool === 'sequence_annotation') {
-            const detectedType = getSequenceType(sequence);
-            if (detectedType !== 'protein') {
-                utils.showToast('DNA或RNA序列无法进行序列注释，请输入蛋白质。');
-                return;
-            }
-        }
-
-        // 翻译工具的特殊验证
-        if (tool === 'translate') {
-            const detectedType = getSequenceType(sequence);
-            if (detectedType === 'protein') {
-                utils.showToast('蛋白质序列无法进行翻译，请输入DNA或RNA。');
-                return;
-            }
-        }
-        
-        // 确定当前工具类型
-        const isDnaTool = tool === 'find_cutting_enzymes' || tool === 'analyze_restriction' || tool === 'analyze_nucleic_acid';
-        const isProteinTool = !isDnaTool; // 所有非DNA工具都视为蛋白质工具
-        
-        // ToxinPred工具的特殊验证
-        if (tool === 'toxinpred') {
-            const seqInput = sequence.split(/\s+/)[0]; // 使用第一个空格前的内容作为序列
-            if (seqInput.length < 5) {
-                utils.showToast('ToxinPred要求序列长度至少为5个氨基酸');
-                return;
-            }
-            if (seqInput.length > 50) {
-                utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列');
-                return;
-            }
-        }
-      
-        try {
-            utils.showLoading('正在分析中...');
-            const result = await sequenceTools.analyzeSequence(tool, sequence);
-            utils.hideLoading();
-            // 调用 displayResults 时传递正确的 detectedType 变量
-            sequenceTools.displayResults(tool, result, detectedType);
-            
-            // 添加结果后重新初始化粒子系统
-            setTimeout(function() {
-                reloadParticles();
-            }, 300);
-        } catch (error) {
-            utils.hideLoading();
-            utils.showToast(`分析失败: ${error.message}`);
-        }
     });
 }
 
@@ -1421,4 +1482,80 @@ if (contactLink && emailTooltip) {
     document.addEventListener('click', function() {
         emailTooltip.classList.remove('show');
     });
+}
+
+// 搜索工具功能
+function setupToolsFiltering() {
+    const searchInput = document.querySelector('.tool-search-input');
+    const categoryItems = document.querySelectorAll('.category-item');
+    const toolCards = document.querySelectorAll('.tool-card');
+    
+    // 搜索功能
+    searchInput.addEventListener('input', function() {
+        // 确保任何加载指示器都被隐藏
+        utils.hideLoading();
+        filterTools();
+    });
+    
+    // 分类功能
+    categoryItems.forEach(item => {
+        item.addEventListener('click', function() {
+            // 移除其他分类的active状态
+            categoryItems.forEach(cat => cat.classList.remove('active'));
+            // 为当前分类添加active状态
+            this.classList.add('active');
+            // 确保任何加载指示器都被隐藏
+            utils.hideLoading();
+            filterTools();
+        });
+    });
+    
+    // 过滤工具
+    function filterTools() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const activeCategory = document.querySelector('.category-item.active').dataset.category;
+        let visibleCardCount = 0;
+        
+        // 首先移除现有的"无结果"提示(如果有)
+        const existingNoResult = document.querySelector('.no-result-message');
+        if (existingNoResult) {
+            existingNoResult.remove();
+        }
+        
+        toolCards.forEach(card => {
+            // 获取工具名称和描述
+            const toolName = card.querySelector('h4').innerText.toLowerCase();
+            const toolDesc = card.querySelector('p').innerText.toLowerCase();
+            const categories = card.dataset.category ? card.dataset.category.split(' ') : [];
+            
+            // 检查搜索词是否匹配
+            const matchesSearch = searchTerm === '' || 
+                                 toolName.includes(searchTerm) || 
+                                 toolDesc.includes(searchTerm);
+            
+            // 检查分类是否匹配
+            const matchesCategory = activeCategory === 'all' || 
+                                   categories.includes(activeCategory);
+            
+            // 显示或隐藏工具卡片
+            if (matchesSearch && matchesCategory) {
+                card.style.display = 'flex';
+                visibleCardCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        // 检查是否有可见的卡片，如果没有，显示提示信息
+        if (visibleCardCount === 0) {
+            const toolCardsContainer = document.querySelector('.tool-cards');
+            const noResultMessage = document.createElement('div');
+            noResultMessage.className = 'no-result-message';
+            noResultMessage.textContent = '暂时还没有这个工具';
+            toolCardsContainer.appendChild(noResultMessage);
+        }
+        
+        // 确保在过滤完成后隐藏任何加载指示器
+        setTimeout(() => utils.hideLoading(), 100);
+    }
 }

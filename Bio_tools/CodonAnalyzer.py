@@ -11,32 +11,74 @@ import json
 import re
 from math import log, exp
 from Bio.Data import CodonTable # 需要 biopython
+import glob # Needed for file searching, although os.listdir is also fine
 
 # --- 内部辅助函数 ---
 
 def _load_host_frequencies(host_id, genetic_code_id, data_dir):
-    """从本地JSON文件加载指定宿主的密码子频率"""
-    filename = f"{host_id}.json"  # 修改文件名格式：不再使用 host_id_genetic_code_id.json
-    filepath = os.path.join(data_dir, filename)
+    """
+    从本地JSON文件加载指定宿主的密码子频率。
+    优先查找精确的 [ID].json，如果找不到，则查找 [ID].*.json。
+    """
+    # 1. 尝试精确匹配: [ID].json
+    numeric_filename = f"{host_id}.json"
+    numeric_filepath = os.path.join(data_dir, numeric_filename)
 
-    if not os.path.exists(filepath):
-        print(f"错误: 数据库里没有找到宿主 {host_id} 的密码子频率数据。")
-        return None
+    if os.path.exists(numeric_filepath):
+        # print(f"找到精确匹配文件: {numeric_filename}") # 调试信息
+        filepath_to_load = numeric_filepath
+        filename_loaded = numeric_filename
+    else:
+        # 2. 精确匹配未找到，尝试查找替代文件: [ID].*.json
+        print(f"警告: 未找到精确文件 {numeric_filename}，尝试查找替代文件如 {host_id}.*.json ...")
+        filepath_to_load = None
+        filename_loaded = None
+        try:
+            # 查找所有以 "[ID]." 开头并以 ".json" 结尾的文件
+            pattern = f"{host_id}.*.json"
+            # 使用 os.listdir 和 startswith/endswith
+            found_alternatives = []
+            for f in os.listdir(data_dir):
+                if f.startswith(f"{host_id}.") and f.endswith(".json"):
+                     found_alternatives.append(f)
 
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            frequencies = json.load(f)
-        # 基本验证，确保是字典并且非空
-        if isinstance(frequencies, dict) and frequencies:
-             # 可选：再次确保所有密码子存在（如果下载脚本可能失败）
-             _ensure_all_codons_have_values(frequencies, genetic_code_id)
-             return frequencies
-        else:
-             print(f"错误: 频率文件 {filepath} 格式无效或为空。")
-             return None
-    except (json.JSONDecodeError, IOError, TypeError) as e:
-        print(f"错误: 读取频率文件 {filepath} 失败: {e}")
-        return None
+            # # 或者使用 glob (更简洁)
+            # search_pattern = os.path.join(data_dir, f"{host_id}.*.json")
+            # found_alternatives = [os.path.basename(p) for p in glob.glob(search_pattern)]
+
+            if found_alternatives:
+                # 找到了一个或多个替代文件，选择第一个
+                filename_loaded = found_alternatives[0]
+                filepath_to_load = os.path.join(data_dir, filename_loaded)
+                print(f"找到并使用替代文件: {filename_loaded}")
+            else:
+                # 替代文件也未找到
+                 print(f"错误: 在目录 {data_dir} 中也未找到任何以 {host_id}. 开头的 .json 文件。")
+                 return None # 明确返回 None
+
+        except OSError as e:
+             print(f"错误: 搜索替代文件时访问目录 {data_dir} 出错: {e}")
+             return None # 目录访问错误
+
+    # 3. 如果找到了要加载的文件 (精确或替代)
+    if filepath_to_load:
+        try:
+            with open(filepath_to_load, 'r', encoding='utf-8') as f:
+                frequencies = json.load(f)
+            # 基本验证
+            if isinstance(frequencies, dict) and frequencies:
+                _ensure_all_codons_have_values(frequencies, genetic_code_id)
+                return frequencies
+            else:
+                print(f"错误: 文件 {filename_loaded} 格式无效或为空。")
+                return None
+        except (json.JSONDecodeError, IOError, TypeError) as e:
+            print(f"错误: 读取文件 {filename_loaded} 失败: {e}")
+            return None
+    else:
+         # 这部分理论上不应该执行到，因为上面已经处理了找不到文件的情况
+         print(f"错误: 未能确定要为宿主 {host_id} 加载的文件。")
+         return None
 
 def _ensure_all_codons_have_values(frequencies, genetic_code_id):
     """(内部辅助) 确保频率字典包含所有相关密码子"""

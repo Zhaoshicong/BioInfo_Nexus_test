@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生物知识库 - BioInfo Nexus</title>
+    <link rel="icon" href="img_data/favicon.png" type="image/x-icon">
+    <link rel="shortcut icon" href="img_data/favicon.png" type="image/x-icon">
+    <link href="css/icon-font.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.staticfile.org/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/bioknowledge.css">
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="js/bioknowledge.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">BioInfo Nexus</a>
+            <div class="nav-links">
+                <a href="index.html">首页</a>
+                <a href="search.html">序列分析</a>
+                <a href="#" class="contact-link">联系我们
+                    <span class="email-tooltip">bioinfo.nexus@example.com</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div id="particles-js"></div>
+        <div class="bioknowledge-container">
+            <!-- 左侧知识列表 -->
+            <div class="knowledge-sidebar">
+                <h3>生物知识分类</h3>
+                <ul class="knowledge-list">
+                    <li data-category="species-codon">
+                        <span class="category-name">物种密码子使用</span>
+                        <span class="item-count">35799个条目</span>
+                    </li>
+                    <li data-category="molecular-biology">
+                        <span class="category-name">分子生物学</span>
+                        <span class="item-count">12个条目</span>
+                    </li>
+                    <li data-category="genetics">
+                        <span class="category-name">遗传学</span>
+                        <span class="item-count">8个条目</span>
+                    </li>
+                    <li data-category="biochemistry">
+                        <span class="category-name">生物化学</span>
+                        <span class="item-count">15个条目</span>
+                    </li>
+                    <li data-category="cell-biology">
+                        <span class="category-name">细胞生物学</span>
+                        <span class="item-count">10个条目</span>
+                    </li>
+                    <li data-category="microbiology">
+                        <span class="category-name">微生物学</span>
+                        <span class="item-count">7个条目</span>
+                    </li>
+                    <li data-category="immunology">
+                        <span class="category-name">免疫学</span>
+                        <span class="item-count">9个条目</span>
+                    </li>
+                    <li data-category="bioinformatics">
+                        <span class="category-name">生物信息学</span>
+                        <span class="item-count">11个条目</span>
+                    </li>
+                    <li data-category="biotechnology">
+                        <span class="category-name">生物技术</span>
+                        <span class="item-count">14个条目</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- 右侧内容区域 -->
+            <div class="knowledge-content">
+                <h2>分子生物学</h2>
+                <p class="description">分子生物学是研究生物大分子（如DNA、RNA和蛋白质）的结构、功能和相互作用的学科，它解释了生命的基本过程如何在分子水平上运作。</p>
+                
+                <div class="knowledge-item">
+                    <h3>DNA复制</h3>
+                    <p>DNA复制是细胞分裂前DNA分子产生两个相同副本的过程。这个过程由多种酶和蛋白质协同完成，包括DNA聚合酶、解旋酶和引物酶等。复制过程遵循半保留复制模式，即每条新DNA链都包含一条原始链和一条新合成链。</p>
+                    <div class="meta">
+                        <span>更新时间: 2023-10-15</span>
+                        <span>参考文献: 5</span>
+                    </div>
+                </div>
+                
+                <div class="knowledge-item">
+                    <h3>转录</h3>
+                    <p>转录是DNA序列被复制成RNA的过程，是基因表达的第一步。在真核生物中，转录发生在细胞核内，由RNA聚合酶催化。转录产物（前体mRNA）经过加帽、剪接和加尾等加工过程后，形成成熟的mRNA，然后被运输到细胞质中进行翻译。</p>
+                    <div class="meta">
+                        <span>更新时间: 2023-09-28</span>
+                        <span>参考文献: 3</span>
+                    </div>
+                </div>
+                
+                <div class="knowledge-item">
+                    <h3>翻译</h3>
+                    <p>翻译是mRNA上的遗传信息被用于合成蛋白质的过程。这个过程发生在核糖体上，涉及tRNA和多种蛋白质因子。mRNA上的每三个核苷酸（密码子）对应一个特定的氨基酸，通过tRNA的介导，氨基酸按照mRNA上密码子的顺序被连接起来，形成多肽链。</p>
+                    <div class="meta">
+                        <span>更新时间: 2023-11-05</span>
+                        <span>参考文献: 4</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/particles-config.js"></script>
+</body>
+</html>

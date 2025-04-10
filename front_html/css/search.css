@@ -1422,3 +1422,63 @@ body {
 .has-results .action-bar {
     bottom: 30px;
 }
+
+/* FASTA转换相关样式 */
+.sequences-container {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #eaeaea;
+    border-radius: 5px;
+    padding: 10px;
+    margin-top: 10px;
+    background-color: #fafafa;
+}
+
+.sequence-entry {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px dashed #ddd;
+}
+
+.sequence-entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.sequence-entry h5 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.copy-btn {
+    margin-top: 10px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.copy-btn:hover {
+    background-color: #2980b9;
+}
+
+.sequence-text {
+    font-family: 'Courier New', monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #e0e0e0;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+    max-height: 300px;
+    overflow-y: auto;
+}

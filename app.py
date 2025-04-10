@@ -10,6 +10,7 @@ from Bio_tools.RestrictionAnalysis import analyze_restriction
 from Bio_tools.FindCuttingEnzymes import find_all_cutting_enzymes
 from Bio_tools.GCContent import analyze_nucleic_acid_properties
 from Bio_tools.CodonAnalyzer import analyze_sequence_codons
+from Bio_tools.Transform import transform_fasta
 import base64
 import os
 import time 
@@ -298,6 +299,45 @@ def get_current_user():
         logger.error(f"解码令牌时出错: {str(e)}")
         return None
     
+@app.route('/api/transform', methods=['POST'])
+@error_handler
+#@rate_limit
+@token_required
+def transform_api(current_user):
+    """通用序列格式转换API
+    
+    当前支持的转换类型:
+    - FASTA格式转换为纯序列
+    """
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': '请求体不能为空'}), 400
+    
+    # 记录请求
+    logger.info(f"用户 {current_user.username} 请求序列格式转换")
+    
+    # 提取序列和选项
+    sequence_data = data.get('sequence')
+    options = {
+        'format_output': data.get('format_output', True),
+        'return_all': data.get('return_all', False)
+    }
+    
+    # 验证序列数据
+    if not sequence_data:
+         return jsonify({'error': '未提供序列数据'}), 400
+
+    # 调用transform_fasta主函数处理请求，传递整个 data 字典
+    result = transform_fasta(data)
+    
+    # 如果处理失败，返回错误信息
+    if not result.get('success', False):
+        return jsonify({'error': result.get('error', '未知错误')}), 400
+    
+    # 返回处理结果
+    return jsonify(result)
+
 @app.route('/api/protparam', methods=['POST'])
 @error_handler
 #@rate_limit

@@ -158,6 +158,42 @@ const sequenceTools = {
                 return await response.json();
             }
             
+            // 处理FASTA格式转换
+            if (tool === 'transform') {
+                // 识别是否是FASTA格式
+                const isFasta = sequence.trim().startsWith('>');
+                
+                if (!isFasta) {
+                    utils.hideLoading();
+                    utils.showToast("输入不是FASTA格式，请确保序列以'>'开头");
+                    return null;
+                }
+                
+                // 是否返回所有序列（检查序列中是否包含多个'>'行）
+                const hasManySequences = (sequence.match(/^>/gm) || []).length > 1;
+                
+                // 发送FASTA转换请求
+                const response = await fetch('/api/transform', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...utils.getAuthHeader()
+                    },
+                    body: JSON.stringify({
+                        sequence: sequence,
+                        return_all: hasManySequences, // 根据序列数量决定是否返回所有序列
+                        format_output: true
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `请求失败: ${response.status}`);
+                }
+                
+                return await response.json();
+            }
+            
             // 其他工具的常规处理
             const response = await fetch(`/api/${tool}`, {
                 method: 'POST',
@@ -224,6 +260,61 @@ const sequenceTools = {
         const resultBox = toolResult.querySelector('.result-content');
         
         switch(tool) {
+            case 'transform':
+                //将FASTA形式转换成纯序列
+                if (result.sequences && Object.keys(result.sequences).length > 0) {
+                    // 多序列情况
+                    const sequenceEntries = Object.entries(result.sequences).map(([id, seq]) => `
+                        <div class="sequence-entry">
+                            <h5><i class="fas fa-file-alt"></i> 序列ID: ${id}</h5>
+                            <div class="sequence-text">${seq}</div>
+                            <button class="copy-btn" data-sequence="${seq.replace(/\n/g, '')}">
+                                <i class="fas fa-copy"></i> 复制序列
+                            </button>
+                        </div>
+                    `).join('');
+                    
+                    resultBox.innerHTML = `
+                        <h4>转换结果 (共${result.count}个序列):</h4>
+                        <div class="sequences-container">
+                            ${sequenceEntries}
+                        </div>
+                    `;
+                    
+                    // 添加复制功能
+                    setTimeout(() => {
+                        document.querySelectorAll('.copy-btn').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                const sequence = this.getAttribute('data-sequence');
+                                navigator.clipboard.writeText(sequence).then(() => {
+                                    utils.showToast('序列已复制到剪贴板');
+                                });
+                            });
+                        });
+                    }, 100);
+                } else {
+                    // 单序列情况
+                    resultBox.innerHTML = `
+                        <h4>转换结果:</h4>
+                        <div class="sequence-text">${result.sequence}</div>
+                        <p>序列长度: ${result.length} 个字符</p>
+                        <button class="copy-btn" data-sequence="${result.sequence.replace(/\n/g, '')}">
+                            <i class="fas fa-copy"></i> 复制序列
+                        </button>
+                    `;
+                    
+                    // 添加复制功能
+                    setTimeout(() => {
+                        document.querySelector('.copy-btn').addEventListener('click', function() {
+                            const sequence = this.getAttribute('data-sequence');
+                            navigator.clipboard.writeText(sequence).then(() => {
+                                utils.showToast('序列已复制到剪贴板');
+                            });
+                        });
+                    }, 100);
+                }
+                break;
+                
             case 'protparam':
                 // 将氨基酸组成转换为紧凑表格形式
                 let aaTable = '<table class="aa-composition"><tr>';
@@ -963,6 +1054,8 @@ GRAVY 指数是蛋白质疏水性的量化指标，通过计算蛋白质序列�
 // 获取工具名称
 function getToolName(tool) {
     switch(tool) {
+        case 'transform':
+            return 'FASTA格式转换 (BioPython)';
         case 'protparam':
             return '分子量计算 (BioPython)';
         case 'sequence_annotation':
@@ -1201,7 +1294,9 @@ function initPage() {
                 // 显示核酸物理化学性质分析的提示
                 sequenceInput.setAttribute('placeholder', '请输入DNA或RNA序列，用于分析GC含量等物理化学特性');
             } else if (tool === 'analyze_codons') {
-                sequenceInput.placeholder = '请输入DNA序列和宿主物种ID（如：ATGC 9606）';
+                sequenceInput.placeholder = '请输入DNA序列和宿主物种ID（如：ATGC 9606）[ID请前往生物知识库查询]';
+            } else if (tool === 'transform') {
+                sequenceInput.placeholder = '请输入FASTA形式'
             } else {
                 sequenceInput.placeholder = '请输入序列...';
             }

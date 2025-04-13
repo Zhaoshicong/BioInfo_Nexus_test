@@ -176,6 +176,21 @@
     </div>
     
     <script>
+        // Helper function to decode JWT payload (basic, no signature verification)
+        function decodeJwtPayload(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error("Error decoding JWT payload:", e);
+                return null;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const loginForm = document.getElementById('login-form');
             
@@ -186,11 +201,11 @@
         });
         
         function login() {
-            const email = document.getElementById('email').value;
+            const identifier = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             
-            if (!email || !password) {
-                showAlert('请填写邮箱和密码', 'danger');
+            if (!identifier || !password) {
+                showAlert('请填写邮箱/用户名和密码', 'danger');
                 return;
             }
             
@@ -202,37 +217,45 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    email: email,
+                    username: identifier,
                     password: password
                 })
             })
             .then(response => {
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        throw new Error('邮箱或密码错误');
-                    } else {
-                        throw new Error('登录时发生错误');
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        throw new Error(data.message || `登录失败 (状态码: ${response.status})`);
                     }
-                }
-                return response.json();
+                    return data;
+                });
             })
             .then(data => {
-                // 保存token和用户信息
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify({
-                    id: data.user_id,
-                    username: data.username,
-                    email: data.email,
-                    role: data.role
-                }));
-                
-                // 检查是否为管理员
-                if (data.role === 'admin') {
-                    // 跳转到管理后台
-                    window.location.href = 'admin-panel';
+                if (data.token) {
+                    // --- 新增：打印完整登录响应数据 ---
+                    console.log("完整登录响应数据:", data);
+                    
+                    // 检查用户是否是管理员 - 根据返回的role字段判断
+                    if (data.role === 'admin') {
+                        console.log("管理员登录成功，准备跳转...");
+                        
+                        // 保存令牌和用户信息
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('admin_user', JSON.stringify({
+                            username: data.username,
+                            public_id: data.public_id,
+                            role: data.role
+                        }));
+                        
+                        // 跳转到管理面板
+                        console.log("跳转到管理面板...");
+                        window.location.href = '/admin.html';
+                    } else {
+                        hideLoading();
+                        showAlert('您没有管理员权限', 'danger');
+                    }
                 } else {
-                    showAlert('您不是管理员，无法访问管理后台', 'danger');
                     hideLoading();
+                    showAlert('登录失败：未收到有效令牌', 'danger');
                 }
             })
             .catch(error => {

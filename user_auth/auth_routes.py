@@ -543,9 +543,15 @@ def login():
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)
         }
         
+        # 获取 SECRET_KEY 并确保它是字符串类型
+        secret_key = current_app.config.get('JWT_SECRET_KEY') or current_app.config.get('SECRET_KEY', 'dev_key_please_change')
+        if not isinstance(secret_key, str):
+            secret_key = str(secret_key)  # 转换为字符串
+        
+        # 使用字符串密钥签名
         token = jwt.encode(
             token_payload,
-            current_app.config['SECRET_KEY'],
+            secret_key,
             algorithm='HS256'
         )
         

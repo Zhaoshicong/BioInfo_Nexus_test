@@ -1,3 +1,13 @@
+# 在导入之前强制设置环境变量
+import os
+os.environ['DB_TYPE'] = 'mysql'
+os.environ['MYSQL_HOST'] = 'localhost'
+os.environ['MYSQL_USER'] = 'root'
+os.environ['MYSQL_PASSWORD'] = '123456'
+os.environ['MYSQL_DB'] = 'bioinfo_nexus'
+os.environ['MYSQL_PORT'] = '3306'
+os.environ['SECRET_KEY'] = 'your_secret_key_for_jwt_encoding_make_it_secure'
+
 from flask import Flask, request, jsonify, send_from_directory, redirect
 from Bio_tools.ProtParam import get_molecular_weight
 from Bio_tools.SignalP import submit_sequence, extract_and_parse_results
@@ -24,12 +34,18 @@ from PIL import Image, ImageDraw, ImageFont
 import re  # 添加正则表达式模块
 from flask_mail import Mail  # 导入Flask-Mail
 from dotenv import load_dotenv  # 导入dotenv
-from flask_jwt_extended import JWTManager  # 导入JWT扩展
+from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity  # 导入JWT扩展
 from user_auth.user_system import db, init_user_system
 from flask_migrate import Migrate
 
 # 加载环境变量
+print("\n" + "="*50)
+print("app.py: 开始加载环境变量...")
 load_dotenv()
+print(f"app.py: 环境变量 DB_TYPE = {os.environ.get('DB_TYPE')}")
+print(f"app.py: 环境变量 MYSQL_HOST = {os.environ.get('MYSQL_HOST')}")
+print(f"app.py: 环境变量 MYSQL_DB = {os.environ.get('MYSQL_DB')}")
+print("="*50 + "\n")
 
 # 导入用户系统
 from user_auth.user_system import init_user_system, token_required, User, db
@@ -49,11 +65,29 @@ app = Flask(__name__, static_folder='front_html', static_url_path='')
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}})  # 明确指定允许的方法
 
 # 配置JWT
-app.config['JWT_SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_please_change_in_production')
+app_secret_key = os.environ.get('SECRET_KEY', 'dev_key_please_change_in_production')
+
+# 确保密钥是字符串
+if not isinstance(app_secret_key, str):
+    app_secret_key = str(app_secret_key)
+
+# 设置密钥
+app.config['SECRET_KEY'] = app_secret_key
+app.config['JWT_SECRET_KEY'] = app_secret_key
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
+app.config['JWT_IDENTITY_CLAIM'] = 'sub'  # 确保身份声明与MySQL中的ID字段匹配
+app.config['JWT_ERROR_MESSAGE_KEY'] = 'message'  # 自定义错误消息字段
+app.config['JWT_BLACKLIST_ENABLED'] = True  # 启用黑名单（如果您使用黑名单）
+app.config['JWT_BLACKLIST_TOKEN_CHECKS'] = ['access']  # 只检查访问令牌
+
+# 打印JWT配置信息
+print("=" * 50)
+print(f"JWT配置: SECRET_KEY 类型={type(app.config['SECRET_KEY'])}, JWT_SECRET_KEY 类型={type(app.config['JWT_SECRET_KEY'])}")
+print(f"密钥一致性检查: SECRET_KEY == JWT_SECRET_KEY: {app.config['SECRET_KEY'] == app.config['JWT_SECRET_KEY']}")
+print("=" * 50)
 
 # 初始化JWT
 jwt = JWTManager(app)
@@ -289,12 +323,20 @@ def get_current_user():
     token = auth_header.split(' ')[1]
     
     try:
-        from flask_jwt_extended import decode_token
+        # 使用与auth_routes.py相同的密钥获取逻辑
+        secret_key = app.config.get('JWT_SECRET_KEY') or app.config.get('SECRET_KEY', 'dev_key_please_change')
+        if not isinstance(secret_key, str):
+            secret_key = str(secret_key)  # 转换为字符串
+            
+        # 解码令牌
+        data = jwt.decode(token, secret_key, algorithms=['HS256'])
+        user_id = data.get('public_id')
         
-        # 使用flask_jwt_extended解码令牌
-        decoded_token = decode_token(token)
-        user_id = decoded_token['sub']
-        return User.query.filter_by(id=user_id).first()
+        if not user_id:
+            logger.error("解码令牌时出错: 令牌中没有public_id")
+            return None
+            
+        return User.query.filter_by(public_id=user_id).first()
     except Exception as e:
         logger.error(f"解码令牌时出错: {str(e)}")
         return None
@@ -903,6 +945,31 @@ def analyze_physchemparam(current_user):
     except Exception as e:
         logger.error(f"PhysChemParameter分析错误: {str(e)}")
         return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+
+# 添加JWT错误处理
+@jwt.unauthorized_loader
+def unauthorized_callback(callback):
+    logging.error(f"JWT未授权: {callback}")
+    return jsonify({
+        'message': '缺少有效的认证令牌',
+        'error': 'authorization_required'
+    }), 401
+
+@jwt.invalid_token_loader
+def invalid_token_callback(callback):
+    logging.error(f"JWT无效令牌: {callback}")
+    return jsonify({
+        'message': '认证令牌无效',
+        'error': 'invalid_token'
+    }), 401
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    logging.error(f"JWT令牌过期: {jwt_payload}")
+    return jsonify({
+        'message': '认证令牌已过期',
+        'error': 'token_expired'
+    }), 401
 
 if __name__ == '__main__':
     # 确保临时文件目录存在

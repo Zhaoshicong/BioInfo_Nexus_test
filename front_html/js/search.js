@@ -49,12 +49,17 @@ const utils = {
     // 获取认证头
     getAuthHeader() {
         const token = localStorage.getItem('token');
+        console.log('utils.getAuthHeader: token =', token);
         return token ? { 'Authorization': `Bearer ${token}` } : {};
     },
     
     // 检查是否已登录
     isLoggedIn() {
-        return !!localStorage.getItem('token');
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        const isLogged = Boolean(token && userStr);
+        console.log('utils.isLoggedIn:', isLogged);
+        return isLogged;
     }
 };
 
@@ -1460,42 +1465,81 @@ function setupSequenceInput(sequenceInput) {
 // 检查用户登录状态
 async function checkLoginStatus() {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+        console.log('search.js: 未找到令牌，未登录状态');
+        return;
+    }
+    
+    console.log('search.js: 找到令牌，尝试验证...');
+    console.log('search.js: 令牌值:', token);
     
     try {
         // 获取用户信息
+        console.log('search.js: 发起验证请求 /api/auth/me');
         const response = await fetch('/api/auth/me', {
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
         });
         
+        console.log('search.js: 验证请求响应状态:', response.status);
+        
         if (!response.ok) {
             if (response.status === 401) {
+                console.error('search.js: 令牌验证失败(401)，清除本地存储');
                 // 令牌无效，清除本地存储
                 localStorage.removeItem('token');
-                localStorage.removeItem('username');
-                localStorage.removeItem('isAdmin');
-                localStorage.removeItem('loginTime');
+                localStorage.removeItem('user');
+                console.log('search.js: 令牌已清除，准备跳转到登录页面');
                 window.location.href = 'index.html';
             }
             return;
         }
         
+        console.log('search.js: 令牌验证成功，获取用户数据');
         const user = await response.json();
+        console.log('search.js: 用户数据:', user);
         
         // 更新UI显示已登录状态
         updateUIForLoggedIn(user);
     } catch (error) {
-        console.error('检查登录状态出错:', error);
+        console.error('search.js: 检查登录状态出错:', error);
     }
 }
 
 // 更新UI显示已登录状态
 function updateUIForLoggedIn(user) {
+    console.log('search.js: 更新UI为已登录状态');
+    
+    // 如果没有直接从API获取用户，尝试从localStorage获取
+    if (!user) {
+        try {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                user = JSON.parse(userStr);
+                console.log('search.js: 从localStorage获取用户信息:', user);
+            } else {
+                console.error('search.js: localStorage中没有用户信息');
+                return;
+            }
+        } catch (e) {
+            console.error('search.js: 解析localStorage中的用户信息失败:', e);
+            return;
+        }
+    }
+    
+    // 确保用户对象有基本字段
+    if (!user || !user.username) {
+        console.error('search.js: 无法获取有效的用户信息');
+        return;
+    }
+    
     // 更新导航栏
     const navLinks = document.querySelector('.nav-links');
     if (navLinks) {
+        console.log('search.js: 更新导航栏显示用户信息');
+        
         // 添加用户菜单
         if (!navLinks.querySelector('.user-menu')) {
             const userMenu = document.createElement('div');
@@ -1513,7 +1557,7 @@ function updateUIForLoggedIn(user) {
                         </div>
                     </div>
                     <div class="dropdown-divider"></div>
-                    ${user.is_admin ? '<a href="admin.html"><i class="fas fa-cog"></i> 管理控制台</a>' : ''}
+                    ${user.role === 'admin' ? '<a href="admin.html"><i class="fas fa-cog"></i> 管理控制台</a>' : ''}
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> 注销</a>
                 </div>
             `;
@@ -1530,11 +1574,16 @@ function updateUIForLoggedIn(user) {
 
 // 注销用户
 async function logoutUser() {
+    console.log('准备注销用户');
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+        console.log('未找到令牌，无需注销');
+        return;
+    }
     
     try {
         // 调用注销API
+        console.log('发送注销请求');
         await fetch('/api/auth/logout', {
             method: 'POST',
             headers: {
@@ -1542,16 +1591,17 @@ async function logoutUser() {
                 'Content-Type': 'application/json'
             }
         });
+        console.log('注销请求已发送');
     } catch (error) {
         console.error('注销出错:', error);
     } finally {
         // 清除本地存储
+        console.log('清除本地存储的用户凭据');
         localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        localStorage.removeItem('isAdmin');
-        localStorage.removeItem('loginTime');
+        localStorage.removeItem('user');
         
         // 跳转到首页
+        console.log('准备跳转到首页');
         window.location.href = 'index.html';
     }
 }

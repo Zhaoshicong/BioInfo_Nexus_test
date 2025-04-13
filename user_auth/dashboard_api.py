@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-import sqlite3
+# import sqlite3  # 移除 sqlite3 导入
 from datetime import datetime, timedelta
 import psutil
 import os
@@ -7,15 +7,16 @@ import logging
 from functools import wraps
 import jwt
 from flask import current_app, request
+from .user_system import db, User  # 添加 SQLAlchemy 导入
 
 # 创建蓝图
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
-# 数据库连接函数
-def get_db_connection():
-    conn = sqlite3.connect('instance/bioinfo_nexus.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+# 数据库连接函数 - 已不再需要
+# def get_db_connection():
+#    conn = sqlite3.connect('instance/bioinfo_nexus.db')
+#    conn.row_factory = sqlite3.Row
+#    return conn
 
 # 管理员权限检查装饰器
 def admin_required(f):
@@ -29,20 +30,22 @@ def admin_required(f):
         token = auth_header.split(' ')[1]
         
         try:
+            # 解码令牌 - 使用与auth_routes.py相同的密钥获取逻辑
+            # 获取密钥，确保与登录时使用的相同
+            secret_key = current_app.config.get('JWT_SECRET_KEY') or current_app.config.get('SECRET_KEY', 'dev_key_please_change')
+            if not isinstance(secret_key, str):
+                secret_key = str(secret_key)  # 转换为字符串
+            
             # 解码令牌
-            data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-            # 查询用户
-            conn = get_db_connection()
+            data = jwt.decode(token, secret_key, algorithms=['HS256'])
             
-            # 尝试使用users表查询
-            user = conn.execute('SELECT * FROM users WHERE public_id = ?', (data['public_id'],)).fetchone()
-            
-            conn.close()
+            # 使用 SQLAlchemy 查询用户
+            user = User.query.filter_by(public_id=data['public_id']).first()
             
             if not user:
                 return jsonify({"message": "用户未找到"}), 404
                 
-            if not user['is_admin']:
+            if not user.is_admin:
                 return jsonify({"message": "需要管理员权限"}), 403
                 
             return f(*args, **kwargs)
@@ -93,7 +96,7 @@ def get_resource_usage():
 def get_user_growth():
     try:
         time_range = request.args.get('range', 'year')  # 默认为年度数据
-        conn = get_db_connection()
+        # conn = get_db_connection()
                 
         if time_range == 'month':
             # 获取当前自然月的数据
@@ -128,17 +131,11 @@ def get_user_growth():
                 # 构建完整日期字符串用于查询
                 current_year = datetime.now().year
                 full_date = f"{current_year}-{date}"
-                new_count = conn.execute(
-                    'SELECT COUNT(*) FROM users WHERE date(created_at) = ?', 
-                    (full_date,)
-                ).fetchone()[0]
+                new_count = User.query.filter(User.created_at.like(f"{current_year}-{date}")).count()
                 new_users.append(int(new_count))  # 确保是整数
                 
                 # 活跃用户
-                active_count = conn.execute(
-                    'SELECT COUNT(*) FROM users WHERE date(last_login) = ?', 
-                    (full_date,)
-                ).fetchone()[0]
+                active_count = User.query.filter(User.last_login.like(f"{current_year}-{date}")).count()
                 active_users.append(int(active_count))  # 确保是整数
                 
                 # 流失用户
@@ -146,10 +143,7 @@ def get_user_growth():
                 current_year = datetime.now().year
                 full_date = f"{current_year}-{date}"
                 churn_date = (datetime.strptime(full_date, '%Y-%m-%d') - timedelta(days=30)).strftime('%Y-%m-%d')
-                churn_count = conn.execute(
-                    'SELECT COUNT(*) FROM users WHERE date(last_login) <= ? AND is_active = 1', 
-                    (churn_date,)
-                ).fetchone()[0]
+                churn_count = User.query.filter(User.last_login <= churn_date, User.is_active == 1).count()
                 churn_users.append(int(churn_count))  # 确保是整数
             
             # 计算累计用户数 - 使用方法二：时间点快照
@@ -163,10 +157,7 @@ def get_user_growth():
                         # 确定该时间点（当天结束时）
                         end_of_day_dt = datetime.strptime(current_date_str, '%Y-%m-%d')
                         # 查询截止到该日期（包含当天）的用户总数
-                        snapshot_total = conn.execute(
-                            'SELECT COUNT(*) FROM users WHERE date(created_at) <= ?',
-                            (end_of_day_dt.strftime('%Y-%m-%d'),)
-                        ).fetchone()[0]
+                        snapshot_total = User.query.filter(User.created_at <= end_of_day_dt.strftime('%Y-%m-%d')).count()
                         total_users.append(int(snapshot_total)) # 添加该时间点的总数
                     except ValueError:
                         # 如果日期解析失败（理论上不应发生），添加0或上一个值
@@ -201,17 +192,11 @@ def get_user_growth():
                 labels.append(month_label)
                 
                 # 新增用户 - 整个月的统计
-                new_count = conn.execute(
-                    'SELECT COUNT(*) FROM users WHERE date(created_at) >= ? AND date(created_at) <= ?', 
-                    (first_day.strftime('%Y-%m-%d'), last_day.strftime('%Y-%m-%d'))
-                ).fetchone()[0]
+                new_count = User.query.filter(User.created_at >= first_day.strftime('%Y-%m-%d'), User.created_at <= last_day.strftime('%Y-%m-%d')).count()
                 new_users.append(int(new_count))  # 确保是整数
                 
                 # 活跃用户 - 整个月的统计
-                active_count = conn.execute(
-                    'SELECT COUNT(*) FROM users WHERE date(last_login) >= ? AND date(last_login) <= ?', 
-                    (first_day.strftime('%Y-%m-%d'), last_day.strftime('%Y-%m-%d'))
-                ).fetchone()[0]
+                active_count = User.query.filter(User.last_login >= first_day.strftime('%Y-%m-%d'), User.last_login <= last_day.strftime('%Y-%m-%d')).count()
                 active_users.append(int(active_count))  # 确保是整数
                 
                 # 流失用户 - 使用上个月的最后一天作为基准日期
@@ -222,10 +207,7 @@ def get_user_growth():
                     # 上个月的最后一天
                     churn_date = (first_day - timedelta(days=1)).strftime('%Y-%m-%d')
                 
-                churn_count = conn.execute(
-                    'SELECT COUNT(*) FROM users WHERE date(last_login) <= ? AND is_active = 1', 
-                    (churn_date,)
-                ).fetchone()[0]
+                churn_count = User.query.filter(User.last_login <= churn_date, User.is_active == 1).count()
                 churn_users.append(int(churn_count))  # 确保是整数
             
             # 计算累计用户数 - 使用方法二：时间点快照
@@ -248,13 +230,10 @@ def get_user_growth():
                          end_of_period_dt = end_of_month_dt
                     
                     # 查询截止到该时间点（包含当天）的用户总数
-                    snapshot_total = conn.execute(
-                        'SELECT COUNT(*) FROM users WHERE created_at <= ?',
-                        (end_of_period_dt.strftime('%Y-%m-%d %H:%M:%S'),) # 使用完整时间戳更精确
-                    ).fetchone()[0]
+                    snapshot_total = User.query.filter(User.created_at <= end_of_period_dt.strftime('%Y-%m-%d %H:%M:%S')).count()
                     total_users.append(int(snapshot_total)) # 添加该时间点的总数
         
-        conn.close()
+        # conn.close()
         
         return jsonify({
             'labels': labels,

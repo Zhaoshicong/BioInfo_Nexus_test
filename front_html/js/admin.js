@@ -6,10 +6,35 @@ let currentUserInfo = null; // 存储当前登录用户信息
 
 // DOM 加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("管理面板页面加载中...");
+    console.log("检查令牌:", token ? "已找到" : "未找到");
+    
     // 检查是否已登录
     if (!token) {
+        console.log("未找到令牌，重定向到登录页...");
         window.location.href = 'admin-login.html';
         return;
+    }
+    
+    // 尝试获取管理员用户信息
+    try {
+        const adminUserStr = localStorage.getItem('admin_user');
+        if (adminUserStr) {
+            const adminUser = JSON.parse(adminUserStr);
+            console.log("从localStorage获取的管理员信息:", adminUser);
+            
+            // 如果不是管理员，重定向回登录页
+            if (adminUser.role !== 'admin') {
+                console.log("非管理员用户，重定向到登录页...");
+                window.location.href = 'admin-login.html';
+                return;
+            }
+            
+            // 设置当前用户信息
+            currentUserInfo = adminUser;
+        }
+    } catch (e) {
+        console.error("解析管理员信息出错:", e);
     }
     
     // 获取当前用户信息

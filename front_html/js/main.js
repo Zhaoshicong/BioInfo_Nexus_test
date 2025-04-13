@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     // 删除lucide初始化调用，已经使用FontAwesome替代
     
+    // 添加全局请求拦截器，为所有请求添加认证头
+    setupFetchInterceptor();
+    
     // 检查登录状态
     checkLoginStatus();
     
@@ -14,6 +17,84 @@ document.addEventListener('DOMContentLoaded', function() {
     // 检查URL参数，如果有重置密码的token，则显示重置密码模态框
     checkResetPasswordToken();
 });
+
+// 设置 fetch 请求拦截器，为所有 API 请求自动添加 Authorization 头
+function setupFetchInterceptor() {
+    // 保存原始的 fetch 函数
+    const originalFetch = window.fetch;
+    
+    // 重写 fetch 函数
+    window.fetch = function(url, options = {}) {
+        // 获取存储的令牌 - 每次请求时都重新获取，确保使用最新的
+        const token = localStorage.getItem('token');
+        
+        // 调试输出请求信息
+        console.log(`发起请求: ${url}`, options);
+        
+        // 如果是 API 请求且有令牌，则添加 Authorization 头
+        if (token && (url.includes('/api/') || url.startsWith('/api/'))) {
+            // 创建新的 options 对象，避免修改原始对象
+            const newOptions = { ...options };
+            
+            // 确保 headers 存在
+            newOptions.headers = newOptions.headers || {};
+            
+            // 如果 headers 是 Headers 对象，转换为普通对象
+            if (newOptions.headers instanceof Headers) {
+                const headersObj = {};
+                for (const [key, value] of newOptions.headers.entries()) {
+                    headersObj[key] = value;
+                }
+                newOptions.headers = headersObj;
+            }
+            
+            // 添加 Authorization 头
+            newOptions.headers['Authorization'] = `Bearer ${token}`;
+            
+            console.log(`已为请求 ${url} 添加认证头`);
+            console.log('完整请求选项:', newOptions);
+            
+            // 使用新的 options 调用原始 fetch
+            return originalFetch(url, newOptions)
+                .then(response => {
+                    // 记录响应状态
+                    console.log(`请求 ${url} 响应状态:`, response.status);
+                    
+                    // 检查是否是认证错误
+                    if (response.status === 401) {
+                        console.warn(`${url} 返回 401 未授权`);
+                        
+                        // 如果是刷新用户信息的请求失败，不要清除令牌
+                        // 可能是服务器临时问题
+                        if (!url.includes('/api/auth/me')) {
+                            console.error('认证失败，清除本地令牌');
+                            localStorage.removeItem('token');
+                            localStorage.removeItem('user');
+                            
+                            // 如果不是登录页面，可以重定向到登录页
+                            const isLoginPage = window.location.pathname === '/' || 
+                                              window.location.pathname === '/index.html';
+                            if (!isLoginPage) {
+                                console.log('重定向到登录页面');
+                                window.location.href = '/';
+                            }
+                        }
+                    }
+                    
+                    return response;
+                })
+                .catch(error => {
+                    console.error(`请求 ${url} 出错:`, error);
+                    throw error; // 继续抛出错误，不中断错误流
+                });
+        }
+        
+        // 对于其他请求，使用原始参数
+        return originalFetch(url, options);
+    };
+    
+    console.log('Fetch 拦截器已设置，所有 API 请求将自动附加认证令牌');
+}
 
 // 设置特性提示框功能
 function setupFeatureTooltips() {
@@ -348,22 +429,36 @@ function validateLogin(event) {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('登录响应数据:', data);
+        console.log('登录响应数据类型:', typeof data);
+        console.log('登录响应数据结构:', JSON.stringify(data, null, 2));
+        
         if (data.token) {
             // 登录成功
+            console.log('登录成功，获取到令牌:', data.token);
+            
             loginBtn.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
             loginBtn.innerHTML = '登录成功 <span style="margin-left: 5px">✓</span>';
             
             // 保存token和用户信息
             localStorage.setItem('token', data.token);
+            console.log('令牌已保存到localStorage:', localStorage.getItem('token'));
+            
             localStorage.setItem('user', JSON.stringify({
-                username: email,
-                public_id: data.public_id
+                username: data.username,  // 使用响应中的用户名
+                public_id: data.public_id,
+                user_id: data.user_id,
+                email: data.email,
+                role: data.role
             }));
+            
+            console.log('用户信息已保存到 localStorage');
             
             // 跳转到主页
             setTimeout(() => {
                 document.querySelector('.content-wrapper').style.opacity = '0';
                 setTimeout(() => {
+                    console.log('正在跳转到 search.html');
                     window.location.href = 'search.html';
                 }, 500);
             }, 800);
@@ -374,6 +469,7 @@ function validateLogin(event) {
             loginBtn.disabled = false;
         } else {
             // 登录失败
+            console.error('登录失败:', data.message || '未知错误');
             showAuthError(loginBtn, '登录', data.message || '邮箱或密码错误！');
         }
     })
@@ -618,27 +714,61 @@ function showAuthError(button, type, message, shouldResetButton = true) {
 
 // 检查登录状态
 function checkLoginStatus() {
+    console.log('正在检查登录状态...');
     const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
     
-    if (token && user) {
+    if (token) {
+        console.log('找到令牌:', token);
+        
+        // 验证令牌格式
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+            console.error('令牌格式无效:', token);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            return;
+        }
+        
         try {
             // 验证token是否过期
             const tokenData = JSON.parse(atob(token.split('.')[1]));
+            console.log('令牌数据:', tokenData);
+            
             const expirationTime = tokenData.exp * 1000; // 转换为毫秒
+            console.log('过期时间:', new Date(expirationTime).toLocaleString());
+            console.log('当前时间:', new Date().toLocaleString());
+            
+            // 检查当前页面是否是登录页
+            const isLoginPage = window.location.pathname === '/' || 
+                               window.location.pathname === '/index.html' ||
+                               window.location.pathname === '/BioInfo_Nexus_test/' ||
+                               window.location.pathname === '/BioInfo_Nexus_test/index.html';
+            
+            console.log('当前是否为登录页:', isLoginPage);
             
             if (Date.now() < expirationTime) {
-                // token有效，直接跳转到主页
-                window.location.href = 'search.html';
+                // token有效
+                console.log('令牌有效，检查是否需要跳转');
+                
+                if (isLoginPage) {
+                    console.log('当前在登录页面，跳转到主页');
+                    window.location.href = 'search.html';
+                } else {
+                    console.log('当前不在登录页面，不需要跳转');
+                }
                 return;
+            } else {
+                console.error('令牌已过期:', new Date(expirationTime).toLocaleString());
             }
         } catch (e) {
-            console.error('Token验证错误:', e);
+            console.error('令牌验证错误:', e);
         }
         
         // token无效或过期，清除本地存储
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+    } else {
+        console.log('未找到令牌');
     }
 }
 

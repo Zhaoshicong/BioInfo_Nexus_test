@@ -444,15 +444,19 @@ function validateLogin(event) {
             localStorage.setItem('token', data.token);
             console.log('令牌已保存到localStorage:', localStorage.getItem('token'));
             
+            // 确保role字段存在
+            const role = data.role || (data.is_admin ? 'admin' : 'user');
+            console.log('用户角色:', role);
+            
             localStorage.setItem('user', JSON.stringify({
                 username: data.username,  // 使用响应中的用户名
                 public_id: data.public_id,
                 user_id: data.user_id,
                 email: data.email,
-                role: data.role
+                role: role   // 确保包含role字段
             }));
             
-            console.log('用户信息已保存到 localStorage');
+            console.log('用户信息已保存到 localStorage:', JSON.parse(localStorage.getItem('user')));
             
             // 跳转到主页
             setTimeout(() => {

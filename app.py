@@ -1,13 +1,18 @@
-# 在导入之前强制设置环境变量
+# 导入必要的环境变量加载模块
 import os
-os.environ['DB_TYPE'] = 'mysql'
-os.environ['MYSQL_HOST'] = 'localhost'
-os.environ['MYSQL_USER'] = 'root'
-os.environ['MYSQL_PASSWORD'] = '123456'
-os.environ['MYSQL_DB'] = 'bioinfo_nexus'
-os.environ['MYSQL_PORT'] = '3306'
-os.environ['SECRET_KEY'] = 'your_secret_key_for_jwt_encoding_make_it_secure'
+from dotenv import load_dotenv
 
+# 加载环境变量，必须在任何其他导入前执行
+print("==================================================")
+print("app.py: 开始加载环境变量...")
+load_dotenv()
+print(f"app.py: 环境变量 DB_TYPE = {os.environ.get('DB_TYPE')}")
+print(f"app.py: 环境变量 MYSQL_HOST = {os.environ.get('MYSQL_HOST')}")
+print(f"app.py: 环境变量 MYSQL_DB = {os.environ.get('MYSQL_DB')}")
+print(f"app.py: 环境变量 SECRET_KEY 已设置 = {bool(os.environ.get('SECRET_KEY'))}")
+print("==================================================")
+
+# 以下是其他模块的导入
 from flask import Flask, request, jsonify, send_from_directory, redirect
 from Bio_tools.ProtParam import get_molecular_weight
 from Bio_tools.SignalP import submit_sequence, extract_and_parse_results
@@ -33,19 +38,9 @@ from bs4 import BeautifulSoup
 from PIL import Image, ImageDraw, ImageFont
 import re  # 添加正则表达式模块
 from flask_mail import Mail  # 导入Flask-Mail
-from dotenv import load_dotenv  # 导入dotenv
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity  # 导入JWT扩展
 from user_auth.user_system import db, init_user_system
 from flask_migrate import Migrate
-
-# 加载环境变量
-print("\n" + "="*50)
-print("app.py: 开始加载环境变量...")
-load_dotenv()
-print(f"app.py: 环境变量 DB_TYPE = {os.environ.get('DB_TYPE')}")
-print(f"app.py: 环境变量 MYSQL_HOST = {os.environ.get('MYSQL_HOST')}")
-print(f"app.py: 环境变量 MYSQL_DB = {os.environ.get('MYSQL_DB')}")
-print("="*50 + "\n")
 
 # 导入用户系统
 from user_auth.user_system import init_user_system, token_required, User, db

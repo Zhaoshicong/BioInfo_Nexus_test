@@ -12,12 +12,6 @@ from .user_system import db, User  # 添加 SQLAlchemy 导入
 # 创建蓝图
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
-# 数据库连接函数 - 已不再需要
-# def get_db_connection():
-#    conn = sqlite3.connect('instance/bioinfo_nexus.db')
-#    conn.row_factory = sqlite3.Row
-#    return conn
-
 # 管理员权限检查装饰器
 def admin_required(f):
     @wraps(f)

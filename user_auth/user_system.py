@@ -60,18 +60,6 @@ class TokenBlacklist(db.Model):
 
 # 初始化用户系统
 def init_user_system(app):
-    # 打印调试信息
-    print("\n" + "="*50)
-    print("正在初始化数据库连接...")
-    
-    # 强制设置环境变量进行测试
-    os.environ['DB_TYPE'] = 'mysql'
-    os.environ['MYSQL_HOST'] = 'localhost'
-    os.environ['MYSQL_USER'] = 'root'
-    os.environ['MYSQL_PASSWORD'] = '123456'
-    os.environ['MYSQL_DB'] = 'bioinfo_nexus'
-    os.environ['MYSQL_PORT'] = '3306'
-    
     # 尝试直接检查环境变量是否已加载
     db_type = os.environ.get('DB_TYPE')
     print(f"从环境变量读取 DB_TYPE: {db_type}")
@@ -149,14 +137,14 @@ def init_user_system(app):
                 admin = User(
                     public_id=str(uuid.uuid4()),
                     username='admin',
-                    email='admin@example.com',
-                    password=generate_password_hash('Admin123'),
+                    email='admin@bioinfonexus.com',
+                    password=generate_password_hash('Admin20040625'),
                     is_active=True,
                     is_admin=True
                 )
                 db.session.add(admin)
                 db.session.commit()
-                print("已创建默认管理员账户 (用户名: admin, 密码: Admin123)")
+                print("已创建默认管理员账户 (用户名: admin, 密码: Admin20040625)")
             else:
                 print(f"发现 {admin_count} 个管理员账户，无需创建默认账户")
         except Exception as e:

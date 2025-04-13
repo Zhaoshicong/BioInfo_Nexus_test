@@ -1464,26 +1464,20 @@ function setupSequenceInput(sequenceInput) {
 
 // 检查用户登录状态
 async function checkLoginStatus() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        console.log('search.js: 未找到令牌，未登录状态');
-        return;
-    }
-    
-    console.log('search.js: 找到令牌，尝试验证...');
-    console.log('search.js: 令牌值:', token);
-    
     try {
-        // 获取用户信息
-        console.log('search.js: 发起验证请求 /api/auth/me');
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.log('search.js: 未找到令牌，用户未登录');
+            return;
+        }
+        
+        console.log('search.js: 令牌验证中，令牌存在');
+        // 验证令牌并获取用户信息
         const response = await fetch('/api/auth/me', {
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${token}`
             }
         });
-        
-        console.log('search.js: 验证请求响应状态:', response.status);
         
         if (!response.ok) {
             if (response.status === 401) {
@@ -1500,6 +1494,9 @@ async function checkLoginStatus() {
         console.log('search.js: 令牌验证成功，获取用户数据');
         const user = await response.json();
         console.log('search.js: 用户数据:', user);
+        console.log('search.js: 用户数据类型:', typeof user);
+        console.log('search.js: 用户角色:', user.role);
+        console.log('search.js: 是否管理员:', user.is_admin);
         
         // 更新UI显示已登录状态
         updateUIForLoggedIn(user);
@@ -1511,6 +1508,7 @@ async function checkLoginStatus() {
 // 更新UI显示已登录状态
 function updateUIForLoggedIn(user) {
     console.log('search.js: 更新UI为已登录状态');
+    console.log('search.js: 传入的用户数据:', JSON.stringify(user));
     
     // 如果没有直接从API获取用户，尝试从localStorage获取
     if (!user) {
@@ -1535,6 +1533,15 @@ function updateUIForLoggedIn(user) {
         return;
     }
     
+    // 兼容处理 role 字段
+    if (!user.role && user.is_admin === true) {
+        console.log('search.js: 用户对象中没有role字段，但is_admin为true，设置role为admin');
+        user.role = 'admin';
+    }
+    
+    console.log('search.js: 处理后的用户数据:', JSON.stringify(user));
+    console.log('search.js: 用户角色是否为admin:', user.role === 'admin');
+    
     // 更新导航栏
     const navLinks = document.querySelector('.nav-links');
     if (navLinks) {
@@ -1544,6 +1551,12 @@ function updateUIForLoggedIn(user) {
         if (!navLinks.querySelector('.user-menu')) {
             const userMenu = document.createElement('div');
             userMenu.className = 'user-menu';
+            
+            // 检查用户角色
+            console.log('search.js: 用户角色:', user.role);
+            
+            // 创建下拉菜单的HTML
+            // 注意：在生成HTML时不添加管理员链接，我们将在后面单独处理
             userMenu.innerHTML = `
                 <span class="username">${user.username}</span>
                 <div class="dropdown-menu">
@@ -1557,7 +1570,6 @@ function updateUIForLoggedIn(user) {
                         </div>
                     </div>
                     <div class="dropdown-divider"></div>
-                    ${user.role === 'admin' ? '<a href="admin.html"><i class="fas fa-cog"></i> 管理控制台</a>' : ''}
                     <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> 注销</a>
                 </div>
             `;
@@ -1568,6 +1580,22 @@ function updateUIForLoggedIn(user) {
                 e.preventDefault();
                 await logoutUser();
             });
+
+            // 检查并单独添加管理员链接
+            const dropdownMenu = userMenu.querySelector('.dropdown-menu');
+            if (user.role === 'admin') {
+                console.log('search.js: 检测到管理员用户，添加管理员链接');
+                // 检查管理员链接是否已存在
+                const existingAdminLink = dropdownMenu.querySelector('a[href="admin.html"]');
+                if (!existingAdminLink) {
+                    const adminLink = document.createElement('a');
+                    adminLink.href = "admin.html";
+                    adminLink.innerHTML = '<i class="fas fa-cog"></i> 管理控制台';
+                    // 将管理员链接添加到退出按钮之前
+                    dropdownMenu.insertBefore(adminLink, dropdownMenu.querySelector('#logoutBtn'));
+                    console.log('search.js: 管理员控制台链接已添加到菜单');
+                }
+            }
         }
     }
 }

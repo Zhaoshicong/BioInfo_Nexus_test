@@ -8,7 +8,7 @@ let timeRangeSelector = 'year'; // 默认显示年度数据
 // 初始化图表
 document.addEventListener('DOMContentLoaded', function() {
     // 如果在控制面板页面，初始化图表
-    if (document.getElementById('resource-usage-chart') && 
+    if (document.getElementById('resource-usage-chart') &&
         document.getElementById('user-growth-chart')) {
         initCharts();
     }
@@ -18,10 +18,10 @@ document.addEventListener('DOMContentLoaded', function() {
 function initCharts() {
     initResourceUsageChart();
     initUserGrowthChart();
-    
+
     // 设置时间范围选择器事件
     setupTimeRangeSelector();
-    
+
     // 每2.5分钟刷新一次图表数据
     setInterval(refreshChartData, 150000);
 }
@@ -41,7 +41,7 @@ function setupTimeRangeSelector() {
 // 初始化系统资源使用图表
 function initResourceUsageChart() {
     const ctx = document.getElementById('resource-usage-chart').getContext('2d');
-    
+
     resourceUsageChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -144,12 +144,12 @@ function initResourceUsageChart() {
 // 初始化用户增长图表
 function initUserGrowthChart() {
     const ctx = document.getElementById('user-growth-chart').getContext('2d');
-    
+
     // 创建渐变背景
     const gradient = ctx.createLinearGradient(0, 0, 0, 400);
     gradient.addColorStop(0, 'rgba(54, 162, 235, 0.4)');
     gradient.addColorStop(1, 'rgba(54, 162, 235, 0.01)');
-    
+
     userGrowthChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -180,7 +180,7 @@ function initUserGrowthChart() {
             plugins: {
                 title: {
                     display: true,
-                    text: '用户增长趋势',
+                    text: '用户总数趋势',
                     font: {
                         size: 20,
                         weight: 'bold'
@@ -264,7 +264,7 @@ function initUserGrowthChart() {
             }
         }
     });
-    
+
     // 初始化后立即更新图表数据
     updateUserGrowthChart();
 }
@@ -277,7 +277,7 @@ function refreshChartData() {
         console.error('未找到认证令牌');
         return;
     }
-    
+
     // 获取系统资源使用数据
     fetch('/api/dashboard/resource-usage', {
         headers: {
@@ -312,7 +312,7 @@ function refreshChartData() {
         ];
         resourceUsageChart.update();
     });
-    
+
     // 更新用户增长图表
     updateUserGrowthChart();
 }
@@ -333,13 +333,13 @@ function updateUserGrowthChart() {
         console.error('未找到认证令牌');
         return;
     }
-    
+
     // 显示加载状态
     const userGrowthChartElement = document.getElementById('user-growth-chart');
     if (userGrowthChartElement) {
         userGrowthChartElement.style.opacity = '0.6';
     }
-    
+
     // 从API获取用户增长数据
     fetch(`/api/dashboard/user-growth?range=${timeRangeSelector}`, {
         headers: {
@@ -357,25 +357,25 @@ function updateUserGrowthChart() {
         userGrowthChart.data.labels = data.labels || [];
         // 使用总用户数量数据
         userGrowthChart.data.datasets[0].data = data.total_users || [];
-        
+
         // 恢复正常显示
         if (userGrowthChartElement) {
             userGrowthChartElement.style.opacity = '1';
         }
-        
+
         // 更新图表
         userGrowthChart.update();
     })
     .catch(error => {
         console.error('获取用户增长数据出错:', error);
-        
+
         // 出错时使用模拟数据
         let labels = [];
         let activeUsers = [];
-        
+
         // 根据时间范围选择器生成对应的数据
         let dataPointCount = 12; // 默认数据点数量
-        
+
         switch(timeRangeSelector) {
             case 'month':
                 labels = Array.from({length: 30}, (_, i) => `${i+1}日`);
@@ -388,12 +388,12 @@ function updateUserGrowthChart() {
                 dataPointCount = 12;
                 break;
         }
-        
+
         // 使用平滑曲线生成器生成更美观的数据
         if (window.smoothCurveGenerator) {
             // 根据不同的时间范围设置不同的数据范围
             let minValue, maxValue;
-            
+
             switch(timeRangeSelector) {
                 case 'week':
                     minValue = 30;
@@ -413,24 +413,24 @@ function updateUserGrowthChart() {
                     maxValue = 150;
                     break;
             }
-            
+
             activeUsers = window.smoothCurveGenerator.generateSmoothCurveData(dataPointCount, minValue, maxValue);
         } else {
             // 如果平滑曲线生成器不可用，则使用普通随机数据
             activeUsers = generateRandomData(dataPointCount, 30, 150);
         }
-        
+
         // 更新图表数据
         userGrowthChart.data.labels = labels;
         userGrowthChart.data.datasets[0].data = activeUsers;
-        
+
         // 更新图表
         userGrowthChart.update();
     });
-    
+
 
 }
-    
+
 
 
 

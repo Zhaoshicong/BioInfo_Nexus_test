@@ -539,6 +539,7 @@ def login():
     if check_password_hash(user.password, data['password']):
         # 生成JWT令牌
         token_payload = {
+            'sub': str(user.id),  # 添加sub字段为用户ID字符串
             'public_id': user.public_id,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)
         }

@@ -103,6 +103,13 @@ function loadDashboardData() {
         return response.json();
     })
     .then(data => {
+        // 添加调试日志
+        console.log('API返回的统计数据:', data);
+        
+        // 检查数据内容
+        console.log('用户总数:', data.user_count, typeof data.user_count);
+        console.log('管理员数量:', data.admin_count, typeof data.admin_count);
+        
         document.getElementById('total-users').textContent = data.user_count || '0';
         document.getElementById('admin-count').textContent = data.admin_count || '0';
         document.getElementById('active-today').textContent = data.active_today || '0';
@@ -125,6 +132,9 @@ function loadDashboardData() {
         return response.json();
     })
     .then(users => {
+        // 添加调试日志
+        console.log('API返回的用户列表:', users);
+        
         // 所有用户
         renderUsersList(users);
         hideLoading();

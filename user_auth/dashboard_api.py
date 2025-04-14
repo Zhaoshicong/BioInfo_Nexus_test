@@ -1,63 +1,92 @@
 from flask import Blueprint, jsonify
-# import sqlite3  # 移除 sqlite3 导入
+import pymysql
 from datetime import datetime, timedelta
-import psutil
-import os
 import logging
 from functools import wraps
-import jwt
 from flask import current_app, request
-from .user_system import db, User  # 添加 SQLAlchemy 导入
+from flask_jwt_extended import jwt_required, get_jwt_identity
+import calendar
+import os
+from dotenv import load_dotenv
+from user_auth.user_system import User, db
+
+# 加载环境变量
+load_dotenv()
+
+# 尝试导入psutil库，如果不存在，则记录错误
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+    logging.error("未安装psutil库，系统资源监控功能将不可用。请使用pip install psutil安装。")
 
 # 创建蓝图
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
-# 管理员权限检查装饰器
+# 数据库连接函数
+def get_db_connection():
+    # 从环境变量获取数据库配置
+    db_host = os.environ.get('MYSQL_HOST', 'localhost')
+    db_user = os.environ.get('MYSQL_USER', 'root') 
+    db_password = os.environ.get('MYSQL_PASSWORD', '123456')
+    db_name = os.environ.get('MYSQL_DB', 'bioinfo_nexus')
+    db_port = int(os.environ.get('MYSQL_PORT', 3306))
+    
+    # 创建MySQL连接
+    conn = pymysql.connect(
+        host=db_host,
+        user=db_user,
+        password=db_password,
+        database=db_name,
+        port=db_port,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    return conn
+
+# 新的管理员权限检查装饰器，配合flask_jwt_extended使用
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        # 从请求头获取令牌
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({"message": "缺少认证令牌"}), 401
-        
-        token = auth_header.split(' ')[1]
-        
         try:
-            # 解码令牌 - 使用与auth_routes.py相同的密钥获取逻辑
-            # 获取密钥，确保与登录时使用的相同
-            secret_key = current_app.config.get('JWT_SECRET_KEY') or current_app.config.get('SECRET_KEY', 'dev_key_please_change')
-            if not isinstance(secret_key, str):
-                secret_key = str(secret_key)  # 转换为字符串
+            # 获取当前用户ID (注意此函数必须在jwt_required装饰器之后使用)
+            user_id = get_jwt_identity()
             
-            # 解码令牌
-            data = jwt.decode(token, secret_key, algorithms=['HS256'])
+            if not user_id:
+                logging.error("JWT身份验证失败: 无法获取用户ID")
+                return jsonify({"message": "身份验证失败"}), 401
             
-            # 使用 SQLAlchemy 查询用户
-            user = User.query.filter_by(public_id=data['public_id']).first()
+            # 查询用户
+            user = User.query.get(user_id)
             
             if not user:
+                logging.error(f"管理员权限验证失败: 用户ID {user_id} 不存在")
                 return jsonify({"message": "用户未找到"}), 404
                 
             if not user.is_admin:
+                logging.error(f"管理员权限验证失败: 用户 {user.username} (ID: {user_id}) 不是管理员")
                 return jsonify({"message": "需要管理员权限"}), 403
                 
             return f(*args, **kwargs)
             
-        except jwt.ExpiredSignatureError:
-            return jsonify({"message": "令牌已过期"}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({"message": "无效的令牌"}), 401
         except Exception as e:
-            return jsonify({"message": f"认证错误: {str(e)}"}), 401
+            logging.error(f"管理员权限验证错误: {str(e)}")
+            return jsonify({"message": "身份验证失败"}), 401
             
     return decorated
 
 # 获取系统资源使用情况
 @dashboard_bp.route('/resource-usage', methods=['GET'])
+@jwt_required()
 @admin_required
 def get_resource_usage():
     try:
+        # 检查psutil是否可用
+        if not HAS_PSUTIL:
+            logging.error("系统资源监控功能不可用: psutil库未安装")
+            return jsonify({"error": "未安装psutil库，系统资源监控功能不可用"}), 500
+            
         # 获取CPU使用率
         cpu_percent = psutil.cpu_percent(interval=1)
         
@@ -66,14 +95,21 @@ def get_resource_usage():
         memory_percent = memory.percent
         
         # 获取磁盘使用率
-        disk = psutil.disk_usage('/')
-        disk_percent = disk.percent
+        try:
+            disk = psutil.disk_usage('/')
+            disk_percent = disk.percent
+        except Exception as disk_error:
+            logging.warning(f"获取磁盘使用率失败: {str(disk_error)}，使用默认值")
+            disk_percent = 0
         
         # 获取网络使用率（这里使用一个估算值，实际应根据网络带宽计算）
-        # 由于网络使用率需要监控一段时间的流量，这里使用一个模拟值
-        # 在实际应用中，可以通过监控网络接口的字节发送/接收量来计算
-        network_percent = min(psutil.net_io_counters().bytes_sent % 100, 100)
+        try:
+            network_percent = min(psutil.net_io_counters().bytes_sent % 100, 100)
+        except Exception as net_error:
+            logging.warning(f"获取网络使用率失败: {str(net_error)}，使用默认值")
+            network_percent = 0
         
+        logging.info("系统资源使用情况获取成功")
         return jsonify({
             'cpu': round(cpu_percent, 2),
             'memory': round(memory_percent, 2),
@@ -82,160 +118,102 @@ def get_resource_usage():
         })
     except Exception as e:
         logging.error(f"获取系统资源使用情况失败: {str(e)}")
-        return jsonify({"error": f"获取系统资源使用情况失败: {str(e)}"}), 500
+        return jsonify({"error": "获取系统资源使用情况失败，请检查服务器日志"}), 500
 
 # 获取用户增长数据
 @dashboard_bp.route('/user-growth', methods=['GET'])
+@jwt_required()
 @admin_required
 def get_user_growth():
+    """获取用户增长趋势数据"""
     try:
-        time_range = request.args.get('range', 'year')  # 默认为年度数据
-        # conn = get_db_connection()
-                
-        if time_range == 'month':
-            # 获取当前自然月的数据
-            today = datetime.now().date()
-            # 计算本月的第一天
-            start_of_month = today.replace(day=1)
-            # 计算下个月的第一天
-            if start_of_month.month == 12:
-                next_month = datetime(start_of_month.year + 1, 1, 1).date()
-            else:
-                next_month = datetime(start_of_month.year, start_of_month.month + 1, 1).date()
-            # 计算本月的最后一天
-            end_of_month = next_month - timedelta(days=1)
-            
-            labels = []
-            new_users = []
-            active_users = []
-            churn_users = []
-            
-            # 生成本月每一天的日期（只显示到当前日期）
-            days_in_month = (end_of_month - start_of_month).days + 1
-            for i in range(days_in_month):
-                current_date = start_of_month + timedelta(days=i)
-                # 检查是否超过当前日期
-                if current_date > today:
-                    break
-                    
-                date = current_date.strftime('%m-%d')  # 移除年份显示，只保留月和日
-                labels.append(date)
-                
-                # 新增用户
-                # 构建完整日期字符串用于查询
-                current_year = datetime.now().year
-                full_date = f"{current_year}-{date}"
-                new_count = User.query.filter(User.created_at.like(f"{current_year}-{date}")).count()
-                new_users.append(int(new_count))  # 确保是整数
-                
-                # 活跃用户
-                active_count = User.query.filter(User.last_login.like(f"{current_year}-{date}")).count()
-                active_users.append(int(active_count))  # 确保是整数
-                
-                # 流失用户
-                # 构建完整日期字符串用于计算
-                current_year = datetime.now().year
-                full_date = f"{current_year}-{date}"
-                churn_date = (datetime.strptime(full_date, '%Y-%m-%d') - timedelta(days=30)).strftime('%Y-%m-%d')
-                churn_count = User.query.filter(User.last_login <= churn_date, User.is_active == 1).count()
-                churn_users.append(int(churn_count))  # 确保是整数
-            
-            # 计算累计用户数 - 使用方法二：时间点快照
-            total_users = []
-            if labels: # 确保有日期标签
-                for i in range(len(labels)):
-                    # 获取当前循环对应的日期对象 (注意：labels 格式是 '%m-%d')
-                    # 需要结合年份来构建完整的日期
-                    current_date_str = f"{today.year}-{labels[i]}"
-                    try:
-                        # 确定该时间点（当天结束时）
-                        end_of_day_dt = datetime.strptime(current_date_str, '%Y-%m-%d')
-                        # 查询截止到该日期（包含当天）的用户总数
-                        snapshot_total = User.query.filter(User.created_at <= end_of_day_dt.strftime('%Y-%m-%d')).count()
-                        total_users.append(int(snapshot_total)) # 添加该时间点的总数
-                    except ValueError:
-                        # 如果日期解析失败（理论上不应发生），添加0或上一个值
-                        total_users.append(total_users[-1] if total_users else 0)
-            
-        else:  # year
-            # 获取当前自然年的1月到12月数据（按月统计）
-            current_year = datetime.now().year
-            current_month = datetime.now().month  # 获取当前月份
-            labels = []
-            new_users = []
-            active_users = []
-            churn_users = []
-            
-            # 只处理到当前月份的数据
-            for month in range(1, current_month + 1):
-                # 计算月份的第一天和最后一天
-                first_day = datetime(current_year, month, 1)
-                
-                # 计算月份的最后一天
-                if month == 12:
-                    last_day = datetime(current_year + 1, 1, 1) - timedelta(days=1)
-                else:
-                    last_day = datetime(current_year, month + 1, 1) - timedelta(days=1)
-                
-                # 如果是当前月份，只统计到当前日期
-                if month == datetime.now().month:
-                    last_day = datetime.now().date()
-                
-                # 使用中文月份名称作为标签，不添加年份
-                month_label = f"{month}月"
-                labels.append(month_label)
-                
-                # 新增用户 - 整个月的统计
-                new_count = User.query.filter(User.created_at >= first_day.strftime('%Y-%m-%d'), User.created_at <= last_day.strftime('%Y-%m-%d')).count()
-                new_users.append(int(new_count))  # 确保是整数
-                
-                # 活跃用户 - 整个月的统计
-                active_count = User.query.filter(User.last_login >= first_day.strftime('%Y-%m-%d'), User.last_login <= last_day.strftime('%Y-%m-%d')).count()
-                active_users.append(int(active_count))  # 确保是整数
-                
-                # 流失用户 - 使用上个月的最后一天作为基准日期
-                # 对于1月，需要使用上一年的12月31日
-                if month == 1:
-                    churn_date = datetime(current_year - 1, 12, 31).strftime('%Y-%m-%d')
-                else:
-                    # 上个月的最后一天
-                    churn_date = (first_day - timedelta(days=1)).strftime('%Y-%m-%d')
-                
-                churn_count = User.query.filter(User.last_login <= churn_date, User.is_active == 1).count()
-                churn_users.append(int(churn_count))  # 确保是整数
-            
-            # 计算累计用户数 - 使用方法二：时间点快照
-            total_users = []
-            if labels: # 确保有月份标签
-                for i in range(len(labels)):
-                    # 获取当前循环对应的月份 (数字)
-                    month = i + 1 
-                    # 确定该时间点（当月最后一天结束时）
-                    if month == 12:
-                        end_of_month_dt = datetime(current_year, 12, 31) 
-                    else:
-                        # 下个月的第一天再减一天
-                        end_of_month_dt = datetime(current_year, month + 1, 1) - timedelta(days=1)
-                    
-                    # 如果是当前月份，并且还没到月底，用当前日期作为结束点
-                    if month == current_month and datetime.now().date() < end_of_month_dt.date():
-                         end_of_period_dt = datetime.now()
-                    else:
-                         end_of_period_dt = end_of_month_dt
-                    
-                    # 查询截止到该时间点（包含当天）的用户总数
-                    snapshot_total = User.query.filter(User.created_at <= end_of_period_dt.strftime('%Y-%m-%d %H:%M:%S')).count()
-                    total_users.append(int(snapshot_total)) # 添加该时间点的总数
+        range_param = request.args.get('range', 'month')  # 默认月视图
         
-        # conn.close()
+        # 获取当前日期
+        today = datetime.now().date()
         
-        return jsonify({
-            'labels': labels,
-            'new_users': new_users,
-            'total_users': total_users,
-            'active_users': active_users,
-            'churn_users': churn_users
-        })
+        if range_param == 'year':
+            # 年度视图 - 按月统计
+            result = {}
+            for month in range(1, 13):
+                # 获取当月开始和结束日期
+                year = today.year
+                start_date = datetime(year, month, 1)
+                
+                # 获取当月最后一天
+                last_day = calendar.monthrange(year, month)[1]
+                end_date = datetime(year, month, last_day, 23, 59, 59)
+                
+                # 如果是未来月份，跳过
+                if start_date > datetime.now():
+                    result[month] = 0
+                    continue
+                    
+                # 查询当月注册用户数
+                count = User.query.filter(
+                    User.created_at >= start_date,
+                    User.created_at <= end_date
+                ).count()
+                
+                # 存储结果
+                result[month] = count
+                
+            months = [
+                '一月', '二月', '三月', '四月', '五月', '六月', 
+                '七月', '八月', '九月', '十月', '十一月', '十二月'
+            ]
+            
+            return jsonify({
+                'labels': months,
+                'data': list(result.values()),
+                'total': sum(result.values())
+            })
+            
+        elif range_param == 'month':
+            # 月度视图 - 按日统计
+            # 获取当月第一天
+            first_day = today.replace(day=1)
+            
+            # 获取当月最后一天
+            next_month = today.replace(day=28) + timedelta(days=4)
+            last_day = next_month - timedelta(days=next_month.day)
+            
+            result = {}
+            for day in range(1, last_day.day + 1):
+                # 设置当天的日期范围
+                current_date = today.replace(day=day)
+                start_date = datetime.combine(current_date, datetime.min.time())
+                end_date = datetime.combine(current_date, datetime.max.time())
+                
+                # 如果是未来日期，跳过
+                if start_date > datetime.now():
+                    result[day] = 0
+                    continue
+                    
+                # 查询当天注册用户数
+                count = User.query.filter(
+                    User.created_at >= start_date,
+                    User.created_at <= end_date
+                ).count()
+                
+                # 存储结果
+                result[day] = count
+                
+            return jsonify({
+                'labels': list(result.keys()),
+                'data': list(result.values()),
+                'total': sum(result.values())
+            })
+        
+        # 默认返回错误
+        logging.error(f"无效的时间范围参数: {range_param}")
+        return jsonify({'error': '无效的时间范围参数', 'valid_ranges': ['year', 'month']}), 400
+    except ValueError as ve:
+        logging.error(f"用户增长数据值错误: {str(ve)}")
+        return jsonify({"error": "数据处理过程中出现错误"}), 422
+    except TypeError as te:
+        logging.error(f"用户增长数据类型错误: {str(te)}")
+        return jsonify({"error": "数据类型错误"}), 422
     except Exception as e:
         logging.error(f"获取用户增长数据失败: {str(e)}")
-        return jsonify({"error": f"获取用户增长数据失败: {str(e)}"}), 500
+        return jsonify({"error": "获取用户增长数据失败，请检查服务器日志"}), 500

@@ -211,6 +211,16 @@ const authAPI = {
 
 // 页面加载时检查登录状态
 document.addEventListener('DOMContentLoaded', async function() {
+    // 导入共享UI模块
+    let userUI;
+    try {
+        userUI = await import('../utils/user-ui.js');
+        // 添加会员状态样式
+        userUI.addMembershipStyles();
+    } catch(error) {
+        console.error('无法加载用户UI共享模块:', error);
+    }
+    
     // 检查是否已登录
     if (authUtils.isLoggedIn()) {
         // 检查令牌是否过期
@@ -222,7 +232,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             // 获取用户信息
             const user = await authAPI.getCurrentUser();
             if (user) {
-                updateUIForLoggedIn(user);
+                updateUIForLoggedIn(user, userUI);
             } else {
                 updateUIForLoggedOut();
             }
@@ -246,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 // 更新UI
                 const user = await authAPI.getCurrentUser();
-                updateUIForLoggedIn(user);
+                updateUIForLoggedIn(user, userUI);
                 
                 // 跳转到搜索页面
                 window.location.href = '/search.html';
@@ -310,7 +320,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 // 更新UI显示已登录状态
-function updateUIForLoggedIn(user) {
+function updateUIForLoggedIn(user, userUI) {
     // 更新导航栏
     const navLinks = document.querySelector('.nav-links');
     if (navLinks) {
@@ -318,22 +328,9 @@ function updateUIForLoggedIn(user) {
         const loginLink = navLinks.querySelector('.login-link');
         if (loginLink) loginLink.remove();
         
-        // 添加用户菜单
-        if (!navLinks.querySelector('.user-menu')) {
-            const userMenu = document.createElement('div');
-            userMenu.className = 'user-menu';
-            userMenu.innerHTML = `
-                <span class="username">${user.username}</span>
-                <div class="dropdown-menu">
-                    <a href="/profile.html">个人资料</a>
-                    ${user.is_admin ? '<a href="/admin.html">管理控制台</a>' : ''}
-                    <a href="#" id="logoutBtn">注销</a>
-                </div>
-            `;
-            navLinks.appendChild(userMenu);
-            
-            // 绑定注销按钮事件
-            userMenu.querySelector('#logoutBtn').addEventListener('click', async function() {
+        // 使用共享函数创建用户菜单
+        if (userUI) {
+            const userMenu = userUI.createUserMenu(navLinks, user, async function() {
                 try {
                     await authAPI.logout();
                     updateUIForLoggedOut();
@@ -342,6 +339,9 @@ function updateUIForLoggedIn(user) {
                     console.error('注销失败:', error);
                 }
             });
+            
+            // 更新会员状态
+            userUI.updateMembershipStatus(userMenu, user);
         }
     }
     

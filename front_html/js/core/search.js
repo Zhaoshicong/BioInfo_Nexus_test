@@ -1227,11 +1227,34 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
+    // 导入共享UI模块
+    let userUI;
+    try {
+        userUI = await import('../utils/user-ui.js');
+        // 添加会员状态样式
+        userUI.addMembershipStyles();
+    } catch(error) {
+        console.error('无法加载用户UI共享模块:', error);
+    }
+    
     // 检查登录状态并更新UI
-    await checkLoginStatus();
+    await checkLoginStatus(userUI);
     
     // 初始化页面
     initPage();
+    
+    try {
+        // 导入多工具模块
+        const multiToolModule = await import('./multiTool.js');
+        const multiTool = multiToolModule.default;
+        
+        // 初始化多工具功能(处理会员多选功能)
+        await multiTool.init();
+    } catch (error) {
+        console.error('无法加载多工具模块:', error);
+        // 如果多工具模块加载失败，回退到默认的单选功能
+        initPage();
+    }
     
     // 设置工具搜索和分类功能
     setupToolsFiltering();
@@ -1463,7 +1486,7 @@ function setupSequenceInput(sequenceInput) {
 }
 
 // 检查用户登录状态
-async function checkLoginStatus() {
+async function checkLoginStatus(userUI) {
     try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -1494,19 +1517,16 @@ async function checkLoginStatus() {
         console.log('search.js: 令牌验证成功，获取用户数据');
         const user = await response.json();
         console.log('search.js: 用户数据:', user);
-        console.log('search.js: 用户数据类型:', typeof user);
-        console.log('search.js: 用户角色:', user.role);
-        console.log('search.js: 是否管理员:', user.is_admin);
         
         // 更新UI显示已登录状态
-        updateUIForLoggedIn(user);
+        updateUIForLoggedIn(user, userUI);
     } catch (error) {
         console.error('search.js: 检查登录状态出错:', error);
     }
 }
 
 // 更新UI显示已登录状态
-function updateUIForLoggedIn(user) {
+function updateUIForLoggedIn(user, userUI) {
     console.log('search.js: 更新UI为已登录状态');
     console.log('search.js: 传入的用户数据:', JSON.stringify(user));
     
@@ -1533,69 +1553,24 @@ function updateUIForLoggedIn(user) {
         return;
     }
     
-    // 兼容处理 role 字段
-    if (!user.role && user.is_admin === true) {
-        console.log('search.js: 用户对象中没有role字段，但is_admin为true，设置role为admin');
-        user.role = 'admin';
-    }
-    
-    console.log('search.js: 处理后的用户数据:', JSON.stringify(user));
-    console.log('search.js: 用户角色是否为admin:', user.role === 'admin');
-    
     // 更新导航栏
     const navLinks = document.querySelector('.nav-links');
     if (navLinks) {
         console.log('search.js: 更新导航栏显示用户信息');
         
-        // 添加用户菜单
-        if (!navLinks.querySelector('.user-menu')) {
-            const userMenu = document.createElement('div');
-            userMenu.className = 'user-menu';
-            
-            // 检查用户角色
-            console.log('search.js: 用户角色:', user.role);
-            
-            // 创建下拉菜单的HTML
-            // 注意：在生成HTML时不添加管理员链接，我们将在后面单独处理
-            userMenu.innerHTML = `
-                <span class="username">${user.username}</span>
-                <div class="dropdown-menu">
-                    <div class="dropdown-header">
-                        <div class="user-avatar">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="user-info">
-                            <div class="user-name">${user.username}</div>
-                            <div class="user-email">${user.email || ''}</div>
-                        </div>
-                    </div>
-                    <div class="dropdown-divider"></div>
-                    <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> 注销</a>
-                </div>
-            `;
-            navLinks.appendChild(userMenu);
-            
-            // 绑定注销按钮事件
-            userMenu.querySelector('#logoutBtn').addEventListener('click', async function(e) {
-                e.preventDefault();
-                await logoutUser();
+        // 移除登录/注册链接
+        const loginLink = navLinks.querySelector('.login-link');
+        if (loginLink) loginLink.remove();
+        
+        // 使用共享函数创建用户菜单
+        if (userUI) {
+            const userMenu = userUI.createUserMenu(navLinks, user, function() {
+                // 注销函数
+                logoutUser();
             });
-
-            // 检查并单独添加管理员链接
-            const dropdownMenu = userMenu.querySelector('.dropdown-menu');
-            if (user.role === 'admin') {
-                console.log('search.js: 检测到管理员用户，添加管理员链接');
-                // 检查管理员链接是否已存在
-                const existingAdminLink = dropdownMenu.querySelector('a[href="admin.html"]');
-                if (!existingAdminLink) {
-                    const adminLink = document.createElement('a');
-                    adminLink.href = "admin.html";
-                    adminLink.innerHTML = '<i class="fas fa-cog"></i> 管理控制台';
-                    // 将管理员链接添加到退出按钮之前
-                    dropdownMenu.insertBefore(adminLink, dropdownMenu.querySelector('#logoutBtn'));
-                    console.log('search.js: 管理员控制台链接已添加到菜单');
-                }
-            }
+            
+            // 更新会员状态
+            userUI.updateMembershipStatus(userMenu, user);
         }
     }
 }
@@ -1732,3 +1707,13 @@ function setupToolsFiltering() {
         setTimeout(() => utils.hideLoading(), 100);
     }
 }
+
+// 导出需要给其他模块使用的函数和对象
+export { 
+    utils, 
+    sequenceTools, 
+    getToolName, 
+    getSequenceType, 
+    checkResults, 
+    reloadParticles 
+};

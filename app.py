@@ -47,6 +47,7 @@ from user_auth.user_system import init_user_system, token_required, User, db
 from user_auth.auth_routes import auth_bp, mail
 from user_auth.admin_routes import admin_bp
 from user_auth.dashboard_api import dashboard_bp
+from user_auth.membership_routes import membership_bp  # 导入会员模块蓝图
 
 # 配置日志
 logging.basicConfig(
@@ -111,6 +112,7 @@ migrate = Migrate(app, db)
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(dashboard_bp)
+app.register_blueprint(membership_bp)  # 注册会员模块蓝图
 
 # 添加静态文件服务路由，用于访问temp目录中的图像
 @app.route('/temp/<path:filename>')

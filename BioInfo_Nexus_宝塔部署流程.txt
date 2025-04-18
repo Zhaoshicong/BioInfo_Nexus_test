@@ -48,7 +48,10 @@
    - 确保logs、uploads、temp等目录存在：`mkdir -p logs uploads temp`
    - 设置权限：`chmod -R 755 logs uploads temp`
 
-## 四、配置Gunicorn
+## 四、配置Gunicorn,MySQL
+
+    - 生成数据库
+    - CREATE DATABASE bioinfo_nexus CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 1. **测试启动应用**
    - 在项目目录中运行：`gunicorn -c gunicorn_config.py wsgi:application`

@@ -5,11 +5,21 @@ import uuid
 import datetime
 import jwt
 import os
+import enum
 from functools import wraps
 from dotenv import load_dotenv
 
 # 数据库配置
 db = SQLAlchemy()
+
+# 定义会员等级枚举类
+class MembershipLevel(enum.Enum):
+    FREE = "free"      # 默认免费用户
+    PLUS = "plus"      # Plus会员
+    PREMIUM = "premium"  # Premium会员
+    
+    def __str__(self):
+        return self.value
 
 # 用户模型
 class User(db.Model):
@@ -31,6 +41,10 @@ class User(db.Model):
     reset_token_expiry = db.Column(db.DateTime, nullable=True)  # 令牌过期时间
     reset_code = db.Column(db.String(10), nullable=True)  # 重置密码验证码
     
+    # 会员相关字段
+    membership_level = db.Column(db.String(20), default=MembershipLevel.FREE.value)
+    membership_expiry = db.Column(db.DateTime, nullable=True)
+    
     def __repr__(self):
         return f'<User {self.username}>'
         
@@ -44,8 +58,38 @@ class User(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
             'is_active': self.is_active,
-            'is_admin': self.is_admin
+            'is_admin': self.is_admin,
+            'membership_level': self.membership_level,
+            'membership_expiry': self.membership_expiry.isoformat() if self.membership_expiry else None,
+            'is_membership_active': self.is_membership_active()
         }
+        
+    def is_membership_active(self):
+        """检查用户会员是否在有效期内"""
+        if self.is_admin:  # 管理员默认拥有所有权限
+            return True
+        if self.membership_level == MembershipLevel.FREE.value:
+            return True  # 免费用户始终"有效"
+        if self.membership_expiry and self.membership_expiry > datetime.datetime.utcnow():
+            return True
+        return False
+    
+    def has_membership_level(self, required_level):
+        """检查用户是否拥有指定或更高的会员等级"""
+        if not self.is_membership_active():
+            return False
+            
+        # 会员等级层次关系
+        level_hierarchy = {
+            MembershipLevel.FREE.value: 0,
+            MembershipLevel.PLUS.value: 1,
+            MembershipLevel.PREMIUM.value: 2
+        }
+        
+        user_level = level_hierarchy.get(self.membership_level, 0)
+        required_level_value = level_hierarchy.get(required_level, 0) 
+        
+        return user_level >= required_level_value
 
 # 令牌黑名单模型（用于注销）
 class TokenBlacklist(db.Model):

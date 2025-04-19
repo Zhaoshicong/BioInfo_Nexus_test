@@ -200,12 +200,18 @@ body {
     color: var(--primary);
 }
 
-/* 图表容器样式 */
+/* 图表容器 */
 .charts-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 1.5rem;
     margin-bottom: 2rem;
+}
+
+.charts-row {
+    display: flex;
+    gap: 1.5rem;
+    width: 100%;
 }
 
 .chart-card {
@@ -217,6 +223,7 @@ body {
     position: relative;
     transition: transform 0.3s, box-shadow 0.3s;
     border: 1px solid rgba(230, 230, 230, 0.5);
+    width: 100%;
 }
 
 .chart-card:hover {

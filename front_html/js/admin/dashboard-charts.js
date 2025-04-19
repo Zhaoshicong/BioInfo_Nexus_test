@@ -3,7 +3,9 @@
 // 全局变量
 let resourceUsageChart = null;
 let userGrowthChart = null;
+let dailyLoginChart = null;
 let timeRangeSelector = 'year'; // 默认显示年度数据
+let loginTimeRangeSelector = 'year'; // 默认显示年度数据
 
 // 初始化图表
 document.addEventListener('DOMContentLoaded', function() {
@@ -18,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function initCharts() {
     initResourceUsageChart();
     initUserGrowthChart();
+    initDailyLoginChart();
 
     // 设置时间范围选择器事件
     setupTimeRangeSelector();
@@ -34,6 +37,15 @@ function setupTimeRangeSelector() {
         timeRangeSelect.addEventListener('change', function() {
             timeRangeSelector = this.value;
             updateUserGrowthChart();
+        });
+    }
+    
+    // 检查是否存在登录时间范围选择器
+    const loginTimeRangeSelect = document.getElementById('login-time-range-select');
+    if (loginTimeRangeSelect) {
+        loginTimeRangeSelect.addEventListener('change', function() {
+            loginTimeRangeSelector = this.value;
+            updateDailyLoginChart();
         });
     }
 }
@@ -269,6 +281,134 @@ function initUserGrowthChart() {
     updateUserGrowthChart();
 }
 
+// 初始化每日登录人数图表
+function initDailyLoginChart() {
+    const ctx = document.getElementById('daily-login-chart').getContext('2d');
+
+    // 创建渐变背景
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(75, 192, 192, 0.4)');
+    gradient.addColorStop(1, 'rgba(75, 192, 192, 0.01)');
+
+    dailyLoginChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: '登录人数',
+                    data: [],
+                    backgroundColor: gradient,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    tension: 0.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: 'rgba(75, 192, 192, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(75, 192, 192, 1)',
+                    pointHoverBorderWidth: 3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '每日登录人数趋势',
+                    font: {
+                        size: 20,
+                        weight: 'bold'
+                    },
+                    padding: {
+                        top: 10,
+                        bottom: 20
+                    }
+                },
+                legend: {
+                    display: false // 隐藏图例
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
+                    padding: 12,
+                    cornerRadius: 6,
+                    displayColors: true,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            return tooltipItems[0].label;
+                        },
+                        label: function(context) {
+                            return '登录人数: ' + context.raw;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    title: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 12
+                        },
+                        padding: 8,
+                        autoSkip: true,
+                        maxTicksLimit: 8,
+                        precision: 0
+                    },
+                    grid: {
+                        color: 'rgba(200, 200, 200, 0.2)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: false // 隐藏X轴标题
+                    },
+                    ticks: {
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        padding: 8
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.5 // 曲线平滑度
+                }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+
+    // 初始化后立即更新图表数据
+    updateDailyLoginChart();
+}
+
 // 刷新图表数据
 function refreshChartData() {
     // 从API获取系统资源使用数据
@@ -315,6 +455,9 @@ function refreshChartData() {
 
     // 更新用户增长图表
     updateUserGrowthChart();
+    
+    // 更新每日登录人数图表
+    updateDailyLoginChart();
 }
 
 // 生成随机数据
@@ -427,21 +570,118 @@ function updateUserGrowthChart() {
         // 更新图表
         userGrowthChart.update();
     });
-
-
 }
 
+// 更新每日登录人数图表数据
+function updateDailyLoginChart() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        console.error('未找到认证令牌');
+        return;
+    }
 
+    // 显示加载状态
+    const dailyLoginChartElement = document.getElementById('daily-login-chart');
+    if (dailyLoginChartElement) {
+        dailyLoginChartElement.style.opacity = '0.6';
+    }
 
+    // 从API获取每日登录人数数据
+    fetch(`/api/dashboard/daily-logins?range=${loginTimeRangeSelector}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('获取每日登录人数数据失败');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // 更新图表数据
+        dailyLoginChart.data.labels = data.labels || [];
+        dailyLoginChart.data.datasets[0].data = data.data || [];
+
+        // 恢复正常显示
+        if (dailyLoginChartElement) {
+            dailyLoginChartElement.style.opacity = '1';
+        }
+
+        // 更新图表
+        dailyLoginChart.update();
+    })
+    .catch(error => {
+        console.error('获取每日登录人数数据出错:', error);
+
+        // 出错时使用模拟数据
+        let labels = [];
+        let loginData = [];
+
+        // 根据时间范围选择器生成对应的数据
+        let dataPointCount = 12; // 默认数据点数量
+
+        switch(loginTimeRangeSelector) {
+            case 'month':
+                labels = Array.from({length: 30}, (_, i) => `${i+1}日`);
+                dataPointCount = 30;
+                break;
+            case 'year':
+            default:
+                // 年度数据 - 12个月
+                labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                dataPointCount = 12;
+                break;
+        }
+
+        // 使用平滑曲线生成器生成更美观的数据
+        if (window.smoothCurveGenerator) {
+            // 根据不同的时间范围设置不同的数据范围
+            let minValue, maxValue;
+
+            switch(loginTimeRangeSelector) {
+                case 'month':
+                    minValue = 10;
+                    maxValue = 50;
+                    break;
+                case 'year':
+                default:
+                    minValue = 20;
+                    maxValue = 80;
+                    break;
+            }
+
+            loginData = window.smoothCurveGenerator.generateSmoothCurveData(dataPointCount, minValue, maxValue);
+        } else {
+            // 如果平滑曲线生成器不可用，则使用普通随机数据
+            loginData = generateRandomData(dataPointCount, 10, 50);
+        }
+
+        // 更新图表数据
+        dailyLoginChart.data.labels = labels;
+        dailyLoginChart.data.datasets[0].data = loginData;
+
+        // 更新图表
+        dailyLoginChart.update();
+        
+        // 恢复正常显示
+        if (dailyLoginChartElement) {
+            dailyLoginChartElement.style.opacity = '1';
+        }
+    });
+}
 
 // 导出函数供其他模块使用
 window.dashboardCharts = {
     refreshChartData: refreshChartData,
     updateUserGrowthChart: updateUserGrowthChart,
+    updateDailyLoginChart: updateDailyLoginChart,
     setTimeRange: function(range) {
         if(['week', 'month', 'quarter', 'year'].includes(range)) {
             timeRangeSelector = range;
+            loginTimeRangeSelector = range;
             updateUserGrowthChart();
+            updateDailyLoginChart();
         }
     }
 };

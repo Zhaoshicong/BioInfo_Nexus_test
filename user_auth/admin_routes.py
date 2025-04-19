@@ -305,10 +305,10 @@ def get_stats(user):
         
         #logging.info(f"SQL查询结果: 用户总数={sql_user_count}, 管理员数量={sql_admin_count}")
         
-        # 获取今日活跃用户数
+        # 获取今日登录人数
         from datetime import datetime, timedelta
         today_start = datetime.combine(datetime.today(), datetime.min.time())
-        active_today = User.query.filter(User.last_login >= today_start).count()
+        login_today = User.query.filter(User.last_login >= today_start).count()
         
         # 获取今日注册用户数
         today_users = User.query.filter(User.created_at >= today_start).count()
@@ -317,7 +317,7 @@ def get_stats(user):
         stats = {
             'user_count': sql_user_count,
             'admin_count': sql_admin_count,
-            'active_today': active_today,
+            'active_today': login_today,
             'today_users': today_users
         }
         

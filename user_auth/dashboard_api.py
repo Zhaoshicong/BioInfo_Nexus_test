@@ -27,11 +27,11 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 # 数据库连接函数
 def get_db_connection():
     # 从环境变量获取数据库配置
-    db_host = os.environ.get('MYSQL_HOST', 'localhost')
-    db_user = os.environ.get('MYSQL_USER', 'root')
-    db_password = os.environ.get('MYSQL_PASSWORD', '123456')
-    db_name = os.environ.get('MYSQL_DB', 'bioinfo_nexus')
-    db_port = int(os.environ.get('MYSQL_PORT', 3306))
+    db_host = os.environ.get('MYSQL_HOST')
+    db_user = os.environ.get('MYSQL_USER')
+    db_password = os.environ.get('MYSQL_PASSWORD')
+    db_name = os.environ.get('MYSQL_DB')
+    db_port = int(os.environ.get('MYSQL_PORT'))
 
     # 创建MySQL连接
     conn = pymysql.connect(
@@ -243,3 +243,97 @@ def get_user_growth():
     except Exception as e:
         logging.error(f"获取用户增长数据失败: {str(e)}")
         return jsonify({"error": "获取用户增长数据失败，请检查服务器日志"}), 500
+
+# 获取每日登录人数数据
+@dashboard_bp.route('/daily-logins', methods=['GET'])
+@jwt_required()
+@admin_required
+def get_daily_logins():
+    """获取每日登录人数趋势数据"""
+    try:
+        range_param = request.args.get('range', 'month')  # 默认月视图
+
+        # 获取当前日期
+        today = datetime.now().date()
+
+        if range_param == 'year':
+            # 年度视图 - 按月统计
+            login_stats = {}
+            
+            # 获取所有月份的标签
+            months = [
+                '一月', '二月', '三月', '四月', '五月', '六月',
+                '七月', '八月', '九月', '十月', '十一月', '十二月'
+            ]
+
+            # 只处理到当前月份
+            current_month = today.month
+            
+            # 初始化每个月的登录人数为0
+            for month in range(1, current_month + 1):
+                login_stats[month] = 0
+                
+            # 获取今年所有登录记录
+            current_year_start = datetime(today.year, 1, 1).date()
+            users_with_logins = User.query.filter(User.last_login >= current_year_start).all()
+            
+            # 根据最后登录时间统计每月登录人数
+            for user in users_with_logins:
+                if user.last_login:
+                    login_month = user.last_login.month
+                    login_year = user.last_login.year
+                    if login_year == today.year and 1 <= login_month <= current_month:
+                        login_stats[login_month] += 1
+            
+            # 只返回到当前月份的数据
+            filtered_labels = months[:current_month]
+            filtered_data = [login_stats[month] for month in range(1, current_month + 1)]
+            
+            return jsonify({
+                'labels': filtered_labels,
+                'data': filtered_data,
+                'total': sum(login_stats.values())
+            })
+            
+        elif range_param == 'month':
+            # 月度视图 - 按日统计
+            login_stats = {}
+            
+            # 获取当前日期
+            current_day = today.day
+            
+            # 初始化每天的登录人数为0
+            for day in range(1, current_day + 1):
+                login_stats[day] = 0
+                
+            # 获取本月所有登录记录
+            current_month_start = datetime(today.year, today.month, 1).date()
+            users_with_logins = User.query.filter(User.last_login >= current_month_start).all()
+            
+            # 根据最后登录时间统计每天登录人数
+            for user in users_with_logins:
+                if user.last_login:
+                    login_day = user.last_login.day
+                    login_month = user.last_login.month
+                    login_year = user.last_login.year
+                    if login_year == today.year and login_month == today.month and 1 <= login_day <= current_day:
+                        login_stats[login_day] += 1
+            
+            return jsonify({
+                'labels': list(login_stats.keys()),
+                'data': list(login_stats.values()),
+                'total': sum(login_stats.values())
+            })
+            
+        # 默认返回错误
+        logging.error(f"无效的时间范围参数: {range_param}")
+        return jsonify({'error': '无效的时间范围参数', 'valid_ranges': ['year', 'month']}), 400
+    except ValueError as ve:
+        logging.error(f"每日登录数据值错误: {str(ve)}")
+        return jsonify({"error": "数据处理过程中出现错误"}), 422
+    except TypeError as te:
+        logging.error(f"每日登录数据类型错误: {str(te)}")
+        return jsonify({"error": "数据类型错误"}), 422
+    except Exception as e:
+        logging.error(f"获取每日登录数据失败: {str(e)}")
+        return jsonify({"error": "获取每日登录数据失败，请检查服务器日志"}), 500

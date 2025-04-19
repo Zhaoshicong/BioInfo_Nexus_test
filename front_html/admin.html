@@ -64,7 +64,7 @@
                             <div class="stat-value" id="admin-count">--</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-title">今日活跃用户</div>
+                            <div class="stat-title">今日登录人数</div>
                             <div class="stat-value" id="active-today">--</div>
                         </div>
                         <div class="stat-card">
@@ -75,17 +75,30 @@
                     
                     <!-- 数据可视化图表 -->
                     <div class="charts-container">
-                        <div class="chart-card chart-card-relative">
-                            <div class="chart-controls">
-                                <select id="time-range-select" class="form-control chart-select">
-                                    <option value="month">本月</option>
-                                    <option value="year" selected>年度</option>
-                                </select>
+                        <div class="charts-row">
+                            <div class="chart-card chart-card-relative" style="width: 50%;">
+                                <div class="chart-controls">
+                                    <select id="time-range-select" class="form-control chart-select">
+                                        <option value="month">本月</option>
+                                        <option value="year" selected>年度</option>
+                                    </select>
+                                </div>
+                                <canvas id="user-growth-chart"></canvas>
                             </div>
-                            <canvas id="user-growth-chart"></canvas>
+                            <div class="chart-card chart-card-relative" style="width: 50%;">
+                                <div class="chart-controls">
+                                    <select id="login-time-range-select" class="form-control chart-select">
+                                        <option value="month">本月</option>
+                                        <option value="year" selected>年度</option>
+                                    </select>
+                                </div>
+                                <canvas id="daily-login-chart"></canvas>
+                            </div>
                         </div>
-                        <div class="chart-card">
-                            <canvas id="resource-usage-chart"></canvas>
+                        <div class="charts-row">
+                            <div class="chart-card" style="width: 50%;">
+                                <canvas id="resource-usage-chart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>

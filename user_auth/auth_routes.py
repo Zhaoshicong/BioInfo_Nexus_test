@@ -537,6 +537,10 @@ def login():
     
     # 验证密码
     if check_password_hash(user.password, data['password']):
+        # 更新最后登录时间
+        user.last_login = datetime.datetime.utcnow()
+        db.session.commit()
+        
         # 生成JWT令牌
         token_payload = {
             'sub': str(user.id),  # 添加sub字段为用户ID字符串

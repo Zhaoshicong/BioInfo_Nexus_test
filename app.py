@@ -383,32 +383,43 @@ def transform_api(current_user):
 #@rate_limit
 @token_required
 def analyze_protparam(current_user):
-    """分析蛋白质分子量"""
+    """分析序列（蛋白质、DNA或RNA）的分子量和组成"""
     data = request.get_json()
     sequence = data.get('sequence', '').strip()
     
-    # 输入验证
+    # --- 验证：确保序列不为空且只包含有效生物字符 --- 
     if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
-    if not validate_sequence(sequence):
-        return jsonify({'error': '无效的氨基酸序列'}), 400
+        return jsonify({'error': '序列不能为空', 'success': False}), 400
+    # 使用 validate_sequence (不指定类型) 来检查基础有效性
+    if not validate_sequence(sequence): 
+        logger.warning(f"ProtParam 收到包含无效字符的序列: {sequence[:30]}...")
+        return jsonify({'error': '序列包含无效字符，无法计算分子量', 'success': False}), 400
+    # --------------------------------------------------
         
-    # 记录请求
-    logger.info(f"ProtParam analysis request - Sequence length: {len(sequence)}")
+    # 记录请求 (验证通过后)
+    logger.info(f"ProtParam (分子量) analysis request - Sequence length: {len(sequence)}")
     
-    # 执行分析
-    result = get_molecular_weight(sequence)
-    
-    if 'error' in result:
-        return jsonify(result), 400
+    # 执行分析 (调用已支持多类型的 get_molecular_weight)
+    try:
+        result = get_molecular_weight(sequence)
         
-    return jsonify({
-        'molecular_weight': result['molecular_weight'],
-        'sequence': result['sequence'],
-        'sequence_type': result['sequence_type'],
-        'amino_acid_composition': result['amino_acid_composition'],
-        'timestamp': datetime.now().isoformat()
-    })
+        # 检查底层函数是否成功 (主要检查是否存在 'error' 键)
+        if 'error' in result:
+            error_msg = result.get('error', 'ProtParam内部计算错误')
+            logger.error(f"get_molecular_weight 返回错误: {error_msg}")
+            status_code = 400 if "无效序列" in error_msg or "未识别的字符" in error_msg else 500
+            return jsonify({'error': error_msg, 'success': False}), status_code
+            
+        # --- 确认添加 success 标志 --- 
+        result['success'] = True 
+        result['timestamp'] = datetime.now().isoformat()
+        
+        # 返回成功结果 (包含 success: True)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"执行 get_molecular_weight 时发生异常: {str(e)}")
+        return jsonify({'error': f'分子量分析过程中发生内部错误: {str(e)}', 'success': False}), 500
 
 @app.route('/api/sequence_annotation', methods=['POST'])
 @error_handler
@@ -980,110 +991,70 @@ def ai_analyze(current_user):
     {
         "sequence": "序列内容",
         "query": "用户的自然语言查询/需求",
-        "tool": "工具名称"  // 可选，如果未指定，将自动选择合适的工具
+        "toolResults": {工具名: 结果对象}  // 前端传递的工具分析结果
     }
     """
     logger.info("收到AI分析请求")
     data = request.get_json()
     
     if not data:
+        logger.error("AI分析请求中未提供有效数据")
         return jsonify({"error": "无效的请求数据"}), 400
     
     sequence = data.get("sequence", "").strip().upper()
     user_query = data.get("query", "").strip()
-    tool = data.get("tool", "")
+    frontend_tool_results = data.get("toolResults")
     
     if not sequence:
+        logger.error("AI分析请求中未提供序列")
         return jsonify({"error": "序列不能为空"}), 400
     
     if not user_query:
+        logger.error("AI分析请求中未提供分析需求")
         return jsonify({"error": "分析需求不能为空"}), 400
     
+    if not frontend_tool_results:
+        logger.error("AI分析请求中未提供工具分析结果")
+        return jsonify({"error": "未提供工具分析结果"}), 400
+    
+    if not isinstance(frontend_tool_results, dict):
+        logger.error(f"AI分析请求中工具结果格式错误: {type(frontend_tool_results)}")
+        return jsonify({"error": "工具分析结果格式错误，应为对象"}), 400
+    
     try:
-        # 首先使用指定的工具或自动选择工具进行分析
-        tool_results = {}
+        logger.info(f"使用前端传递的工具结果进行AI分析，工具数量: {len(frontend_tool_results)}，工具: {', '.join(frontend_tool_results.keys())}")
         
-        # 检测序列类型以选择适当的工具
+        # 检测序列类型
         dna_pattern = re.compile(r'^[ATGC]+$')
         rna_pattern = re.compile(r'^[AUGC]+$')
         protein_pattern = re.compile(r'^[ACDEFGHIKLMNPQRSTVWY]+$')
         
-        detected_type = "unknown"
-        if dna_pattern.match(sequence):
-            detected_type = "dna"
-        elif rna_pattern.match(sequence):
-            detected_type = "rna"
-        elif protein_pattern.match(sequence):
-            detected_type = "protein"
-        
-        # 如果未指定工具，根据序列类型自动选择工具
-        if not tool:
-            if detected_type == "protein":
-                # 为蛋白质序列选择合适的工具
-                tools = ["protparam", "sequence_annotation", "physchemparam"]
-            elif detected_type == "dna":
-                # 为DNA序列选择合适的工具
-                tools = ["analyze_nucleic_acid", "find_cutting_enzymes", "translate"]
-            elif detected_type == "rna":
-                # 为RNA序列选择合适的工具
-                tools = ["analyze_nucleic_acid", "translate"]
-            else:
-                return jsonify({"error": "无法确定序列类型，请指定工具"}), 400
-        else:
-            # 使用用户指定的工具
-            tools = [tool]
-        
-        # 对每个工具执行分析
-        for tool_name in tools:
-            try:
-                if tool_name == "protparam":
-                    result = get_molecular_weight(sequence)
-                elif tool_name == "sequence_annotation":
-                    result = sequence_annotation(sequence)
-                elif tool_name == "physchemparam":
-                    result = get_PhysChemParameter(sequence)
-                elif tool_name == "analyze_nucleic_acid":
-                    result = analyze_nucleic_acid_properties(sequence)
-                elif tool_name == "find_cutting_enzymes":
-                    result = find_all_cutting_enzymes(sequence)
-                elif tool_name == "translate":
-                    result = translate_sequence(sequence)
-                elif tool_name == "toxinpred":
-                    result = predict_toxin(sequence)
-                elif tool_name == "vaxijen":
-                    result = get_vaxijen_result(sequence)
-                elif tool_name == "signalp  ":
-                    result = analyze_signalp(sequence)
-                else:
-                    logger.warning(f"未知工具: {tool_name}")
-                    continue
-                
-                # 将工具分析结果添加到结果集
-                tool_results[tool_name] = result
-                
-            except Exception as e:
-                logger.error(f"工具 {tool_name} 分析错误: {str(e)}")
-                tool_results[tool_name] = {"error": str(e)}
-        
-        # 如果没有任何工具返回结果，返回错误
-        if not tool_results:
-            return jsonify({"error": "所有工具分析均失败"}), 500
+        detected_type = data.get("detected_type", "unknown")
+        if not detected_type or detected_type == "unknown":
+            if dna_pattern.match(sequence):
+                detected_type = "dna"
+            elif rna_pattern.match(sequence):
+                detected_type = "rna"
+            elif protein_pattern.match(sequence):
+                detected_type = "protein"
         
         # 使用AI服务生成报告
-        ai_result = generate_report(tool_results, user_query)
+        ai_result = generate_report(frontend_tool_results, user_query)
         
         # 检查AI服务是否成功
         if not ai_result.get("success", False):
+            logger.error(f"AI服务处理失败: {ai_result.get('error', '未知错误')}")
             return jsonify({
                 "error": ai_result.get("error", "AI服务处理失败"),
-                "tool_results": tool_results  # 仍然返回工具结果
+                "tool_results": frontend_tool_results
             }), 500
         
-        # 返回完整的AI分析结果
+        logger.info("AI分析成功完成")
+        # 返回AI分析结果
         return jsonify({
             "success": True,
             "report": ai_result.get("report", ""),
-            "tool_results": tool_results,
+            "tool_results": frontend_tool_results,
             "user_query": user_query,
             "sequence": sequence,
             "detected_type": detected_type

@@ -1408,12 +1408,41 @@ function initPage() {
                 // 标记为在AI模式，防止多工具模块触发
                 this.dataset.aiMode = 'true';
                 
-                // 注意：不要在这个判断中阻止事件传播，否则会影响多工具功能
+                // 如果已选择多个工具且多工具模块已加载，交由多工具模块处理(会同时运行所有工具并将结果发送给AI)
+                const selectedTools = Array.from(document.querySelectorAll('.tool-card.active')).map(card => card.dataset.tool);
                 
+                if (window.multiToolLoaded && selectedTools.length > 1) {
+                    console.log("检测到多个工具和AI分析组合，交由多工具模块处理");
+                    // 移除当前事件处理，让事件冒泡到多工具模块
+                    this.removeAttribute('data-ai-mode');
+                    return; // 让事件继续传播到multiTool处理函数
+                }
+                
+                // *** 使用更强的事件阻止 ***
+                console.log("确认执行单工具AI分析，立即阻止其他同级事件监听器");
+                event.stopImmediatePropagation(); // 阻止事件传播到 multiTool.js 以及同一元素上的其他监听器
+
+                // 单工具+AI模式，先进行工具分析然后进行AI分析
                 this.classList.add('loading'); 
-                utils.showLoading('正在进行AI分析...');
+                utils.showLoading('正在进行分析...');
                 
                 try {
+                    // 先执行工具分析以获取结果
+                    const toolResult = await sequenceTools.analyzeSequence(tool, sequence);
+                    // --- 重要: 检查工具分析是否真的成功 ---
+                    // 后端返回的 result 对象应该有一个明确的 success 字段
+                    if (!toolResult || toolResult.success === false) { 
+                        // 如果后端没有返回 success: true，则认为失败
+                        // 使用后端返回的错误消息（如果存在）
+                        const errorMsg = toolResult?.error || "工具分析失败"; 
+                        throw new Error(`${errorMsg}，无法继续AI分析`);
+                    }
+                    
+                    // 显示工具分析结果
+                    sequenceTools.displayResults(tool, toolResult, detectedType);
+                    
+                    utils.updateLoadingText('正在进行AI分析...');
+                    
                     // 调用AI分析API
                     const response = await fetch('/api/ai_analyze', {
                         method: 'POST',
@@ -1424,7 +1453,7 @@ function initPage() {
                         body: JSON.stringify({
                             sequence: sequence,
                             query: aiQuery,
-                            tool: tool // 可选，传递当前选中的工具
+                            toolResults: {[tool]: toolResult}  // 传递工具分析结果
                         })
                     });
                     
@@ -1442,17 +1471,39 @@ function initPage() {
                         if (!resultsContainer) {
                             resultsContainer = document.createElement('div');
                             resultsContainer.className = 'results-container';
-                            document.querySelector('.content-container').appendChild(resultsContainer);
+                            const contentContainer = document.querySelector('.content-container');
+                            if (contentContainer) {
+                                contentContainer.appendChild(resultsContainer);
+                            } else {
+                                console.error("找不到content-container元素");
+                                document.body.appendChild(resultsContainer); // 备选方案
+                            }
                         }
                         
-                        // 创建AI分析结果显示区域
-                        let aiResultBox = document.querySelector('.ai-analysis-result');
-                        if (!aiResultBox) {
-                            aiResultBox = document.createElement('div');
-                            aiResultBox.className = 'ai-analysis-result result-box';
-                            resultsContainer.appendChild(aiResultBox);
-                        }
+                        // 确保resultsContainer可见
+                        resultsContainer.style.display = 'block';
                         
+                        // 创建AI分析结果显示区域 (合并工具结果和AI结果)
+                        // 查找或创建特定工具的结果框
+                        let toolResultBox = resultsContainer.querySelector(`.${tool}-result`);
+                        if (!toolResultBox) {
+                            console.warn(`未找到工具 ${tool} 的结果框，将创建新的AI结果框`);
+                             // 如果工具结果框不存在，则创建AI专属的结果框
+                            let aiResultBox = document.querySelector('.ai-analysis-result');
+                             if (!aiResultBox) {
+                                 aiResultBox = document.createElement('div');
+                                 aiResultBox.className = 'ai-analysis-result result-box'; // 使用不同的类名或合并
+                                 resultsContainer.appendChild(aiResultBox);
+                             }
+                            toolResultBox = aiResultBox; // 将AI结果放入这个框
+                         }
+                         
+                        // 清空可能存在的旧AI报告内容 (保留工具结果)
+                        const existingAiReport = toolResultBox.querySelector('.ai-report-section');
+                        if (existingAiReport) {
+                            existingAiReport.remove();
+                        }
+
                         // 生成带格式的AI分析报告
                         const aiReport = result.report || "AI未能生成报告";
                         
@@ -1465,9 +1516,14 @@ function initPage() {
                             .replace(/`(.*?)`/g, '<code>$1</code>')
                             .replace(/\n/g, '<br>');
                         
-                        // 设置AI分析结果内容
-                        aiResultBox.innerHTML = `
-                            <h3>AI分析报告</h3>
+                        // 创建新的AI报告部分并添加到工具结果框中
+                        const aiReportSection = document.createElement('div');
+                        aiReportSection.className = 'ai-report-section'; // 新增一个 class 用于区分
+                        aiReportSection.style.marginTop = '20px'; // 添加一些间距
+                        aiReportSection.style.borderTop = '1px dashed #ccc'; // 分隔线
+                        aiReportSection.style.paddingTop = '15px'; // 内边距
+                        aiReportSection.innerHTML = `
+                            <h3>AI分析报告 (基于${getToolName(tool)})</h3>
                             <div class="ai-report-content">
                                 ${formattedReport}
                             </div>
@@ -1475,64 +1531,49 @@ function initPage() {
                                 <p><strong>分析需求:</strong> ${aiQuery}</p>
                             </div>
                         `;
+                        toolResultBox.appendChild(aiReportSection);
+
+                        // 添加结果展示样式 (如果需要，可以调整样式目标)
+                        let styleElement = document.getElementById('ai-report-styles');
+                        if (!styleElement) {
+                            styleElement = document.createElement('style');
+                            styleElement.id = 'ai-report-styles';
+                            // 样式可以保持不变，或者根据需要调整
+                            styleElement.textContent = 
+                                '.ai-report-content { padding: 15px; background-color: #f9f9fd; border-radius: 10px; font-size: 15px; line-height: 1.6; margin-bottom: 15px; }' + 
+                                '.ai-report-content pre.code-block { background-color: #f0f0f0; padding: 12px; border-radius: 5px; overflow-x: auto; font-family: Consolas, Monaco, monospace; margin: 10px 0; }' + 
+                                '.ai-report-content code { background-color: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-family: Consolas, Monaco, monospace; }' + 
+                                '.ai-report-query { border-top: 1px solid #eee; padding-top: 10px; color: #666; font-size: 14px; }';
+                            document.head.appendChild(styleElement);
+                        }
                         
-                        // 添加结果展示样式
-                        const styleElement = document.createElement('style');
-                        styleElement.textContent = `
-                            .ai-report-content {
-                                padding: 15px;
-                                background-color: #f9f9fd;
-                                border-radius: 10px;
-                                font-size: 15px;
-                                line-height: 1.6;
-                                margin-bottom: 15px;
-                            }
-                            .ai-report-content pre.code-block {
-                                background-color: #f0f0f0;
-                                padding: 12px;
-                                border-radius: 5px;
-                                overflow-x: auto;
-                                font-family: Consolas, Monaco, monospace;
-                                margin: 10px 0;
-                            }
-                            .ai-report-content code {
-                                background-color: #f0f0f0;
-                                padding: 2px 5px;
-                                border-radius: 3px;
-                                font-family: Consolas, Monaco, monospace;
-                            }
-                            .ai-report-query {
-                                border-top: 1px solid #eee;
-                                padding-top: 10px;
-                                color: #666;
-                                font-size: 14px;
-                            }
-                        `;
-                        document.head.appendChild(styleElement);
+                        // 确保结果可见并滚动到结果区域
+                        if (toolResultBox) {
+                            setTimeout(() => {
+                                toolResultBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }, 100);
+                        }
                         
                         // 更新检查结果状态
-                        checkResults();
+                        try {
+                            checkResults();
+                        } catch (e) {
+                            console.error("调用checkResults失败:", e);
+                        }
                         
                         // 重载粒子系统
                         setTimeout(reloadParticles, 300);
-                        
-                        // 隐藏AI查询容器
-                        const aiAnalyzeBtn = document.querySelector('.ai-analyze-btn');
-                        if (aiAnalyzeBtn) {
-                            aiAnalyzeBtn.classList.remove('active');
-                        }
-                        const aiQueryContainer = document.querySelector('.ai-query-container');
-                        if (aiQueryContainer) {
-                            aiQueryContainer.style.display = 'none';
-                        }
-                        
+                                            
                         utils.showToast('AI分析完成');
                     } else {
+                         // AI 服务本身返回 success: false
                         throw new Error(result.error || "AI分析失败，未返回结果");
                     }
                 } catch (error) {
-                    utils.showToast(`分析失败: ${error.message}`);
+                     // 捕获工具分析失败 或 AI分析失败
+                    utils.showToast(`分析失败: ${error.message}`); // 这里模板字符串是安全的
                     console.error('AI分析错误:', error);
+                    // 注意：这里不再隐藏 Loading，因为 finally 会处理
                 } finally {
                     utils.hideLoading();
                     this.classList.remove('loading');
@@ -1552,6 +1593,10 @@ function initPage() {
                 // 多工具模块未加载，使用默认的单工具处理逻辑
                 console.log("多工具模块未加载，使用默认单工具处理");
                 
+                // *** 使用更强的事件阻止 ***
+                console.log("确认执行单工具处理（非AI），立即阻止其他同级事件监听器");
+                event.stopImmediatePropagation(); // 阻止事件传播
+
                 // Frontend Validation 
                 if (tool === 'analyze_nucleic_acid') {
                     if (detectedType === 'protein') { utils.showToast('核酸特性分析工具无法处理蛋白质序列，请输入DNA或RNA。'); return; } 
@@ -1576,12 +1621,12 @@ function initPage() {
                     if (tool === 'analyze_codons') {
                         // 提取序列和宿主ID (允许非数字)
                         const inputParts = sequence.trim().split(/\s+/);
-                        if (inputParts.length <= 1) {
-                            utils.hideLoading();
-                            this.classList.remove('loading');
-                            utils.showToast("请在序列后用空格分隔输入宿主ID (例如：ATGC 9606 或 ATGC 3645.chloroplast)");
-                            return;
-                        }
+                         if (inputParts.length <= 1) {
+                             utils.hideLoading();
+                             this.classList.remove('loading');
+                             utils.showToast("请在序列后用空格分隔输入宿主ID (例如：ATGC 9606 或 ATGC 3645.chloroplast)");
+                             return;
+                         }
                         const seqPart = inputParts[0];
                         const hostIdPart = inputParts.slice(1).join(' '); // 获取序列后的所有部分作为ID
                         
@@ -1596,10 +1641,20 @@ function initPage() {
                     utils.hideLoading();
                     
                     if (result) {
-                        sequenceTools.displayResults(tool, result, detectedType);
-                        checkResults(); 
-                        // 重载粒子系统
-                        setTimeout(reloadParticles, 300); 
+                        // --- 重要: 检查工具分析是否真的成功 ---
+                        if (result.success === false) {
+                            // 如果后端明确返回失败，显示错误
+                             utils.showToast(result.error || '分析失败，请检查输入或稍后重试');
+                        } else {
+                             // 否则，显示结果
+                            sequenceTools.displayResults(tool, result, detectedType);
+                            checkResults(); 
+                            // 重载粒子系统
+                            setTimeout(reloadParticles, 300); 
+                        }
+                    } else {
+                        // analyzeSequence 返回 null 或 undefined (例如前端验证失败)
+                         utils.showToast('分析未能执行，请检查输入');
                     }
                 } catch (error) {
                     utils.hideLoading();

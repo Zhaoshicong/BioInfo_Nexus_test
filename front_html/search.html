@@ -33,9 +33,20 @@
                 <h1 class="title">序列分析</h1>
 
                 <div class="input-section">
-                    <div class="input-group">
-                        <textarea class="sequence-input" placeholder="请输入序列..."></textarea>
-                        <div class="char-counter">0 个氨基酸 <span style="margin-left: 10px; font-size: 12px; color: #666;">* 序列将自动转换为大写字母</span></div>
+                    <div class="sequence-input-wrapper">
+                        <div class="sequence-input-container">
+                            <div class="sequence-input-editor" contenteditable="true" placeholder="请输入序列..."></div>
+                        </div>
+                        <div class="sequence-actions">
+                            <button class="ai-analyze-btn">
+                                <i class="fas fa-brain"></i> AI分析
+                            </button>
+                            <div class="char-counter"><span style="font-size: 14px; font-weight: 500;">0 个氨基酸</span> <span style="margin-left: 10px; font-size: 12px; color: #666;">* 序列将自动转换为大写字母</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-query-container" style="display: none;">
+                        <textarea class="ai-query-input" placeholder="请输入您的AI分析需求..."></textarea>
                     </div>
 
                     <div class="analysis-tools">

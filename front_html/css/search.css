@@ -281,23 +281,121 @@ body {
     margin-right: auto;
 }
 
-.sequence-input {
-    width: 100%;
-    min-height: 60px;
-    padding: 15px;
+.sequence-input-wrapper {
     border: 2px solid rgba(52, 152, 219, 0.2);
     border-radius: 12px;
-    font-family: 'Monaco', monospace;
-    font-size: 16px;
-    line-height: 1.6;
-    resize: none;
+    overflow: hidden;
+    background-color: white;
     transition: all 0.3s ease;
-    letter-spacing: 1px;
+    margin-bottom: 15px;
 }
 
-.sequence-input:focus {
+.sequence-input-wrapper:focus-within {
     border-color: #3498db;
-    box-shadow: 0 0 15px rgba(52, 152, 219, 0.1);
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.1);
+}
+
+.sequence-input-container {
+    padding: 15px 15px 0px 15px;
+    min-height: 60px;
+}
+
+.sequence-input-editor {
+    width: 100%;
+    min-height: 60px;
+    font-family: 'Monaco', monospace;
+    font-size: 15px;
+    line-height: 1.4;
+    outline: none;
+    letter-spacing: 1px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.sequence-input-editor[placeholder]:empty:before {
+    content: attr(placeholder);
+    color: #aaa;
+    pointer-events: none;
+}
+
+.sequence-actions {
+    display: flex;
+    align-items: flex-end;
+    padding: 0 15px 0.1px 15px;
+    background-color: white;
+    margin-top: 1px;
+}
+
+.char-counter {
+    margin-left: auto;
+    color: #666;
+    font-size: 12px;
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 0.1px;
+}
+
+.ai-analyze-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    color: #555;
+    border: 2px solid rgba(52, 152, 219, 0.2);
+    border-radius: 16px;
+    padding: 2px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    margin-right: 15px;
+}
+
+.ai-analyze-btn:hover {
+    background-color: white;
+    transform: translateY(-2px);
+    border-color: #3498db;
+}
+
+.ai-analyze-btn.active {
+    background: rgba(52, 152, 219, 0.1);
+    border-color: #3498db;
+    color: #0078d4;
+}
+
+.ai-analyze-btn i {
+    margin-right: 4px;
+    font-size: 12px;
+}
+
+.ai-query-container {
+    background-color: #fff;
+    border: 2px solid rgba(52, 152, 219, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.ai-query-container:focus-within {
+    border-color: #3498db;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.1);
+}
+
+.ai-query-input {
+    width: 100%;
+    min-height: 100px;
+    padding: 15px;
+    border: none;
+    font-family: 'Monaco', monospace;
+    font-size: 15px;
+    line-height: 1.4;
+    outline: none;
+    resize: vertical;
+}
+
+.ai-query-input:focus {
     outline: none;
 }
 
@@ -1346,7 +1444,7 @@ body {
     border-color: #3498db;
 }
 
-.tool-card.selected {
+.tool-card.active {
     background: rgba(52, 152, 219, 0.1);
     border-color: #3498db;
 }
@@ -1481,4 +1579,64 @@ body {
     color: #333;
     max-height: 300px;
     overflow-y: auto;
+}
+
+.sequence-actions {
+    display: flex;
+    margin: 10px 0;
+}
+
+.ai-analyze-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    color: #555;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 6px 15px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.ai-analyze-btn:hover {
+    background-color: #eceef0;
+}
+
+.ai-analyze-btn.active {
+    background-color: #e6f3ff;
+    border-color: #a8c8e8;
+    color: #0078d4;
+}
+
+.ai-analyze-btn i {
+    margin-right: 6px;
+}
+
+.ai-query-container {
+    background-color: #fff;
+    border: 2px solid rgba(52, 152, 219, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.ai-query-input {
+    width: 100%;
+    min-height: 100px;
+    padding: 15px;
+    border: none;
+    font-family: 'Monaco', monospace;
+    font-size: 15px;
+    line-height: 1.4;
+    outline: none;
+    resize: vertical;
+}
+
+.ai-query-input:focus {
+    outline: none;
 }

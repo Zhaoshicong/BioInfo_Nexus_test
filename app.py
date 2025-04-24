@@ -41,6 +41,7 @@ from flask_mail import Mail  # 导入Flask-Mail
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity  # 导入JWT扩展
 from user_auth.user_system import db, init_user_system
 from flask_migrate import Migrate
+from Bio_tools.AI_service import generate_report
 
 # 导入用户系统
 from user_auth.user_system import init_user_system, token_required, User, db
@@ -967,6 +968,130 @@ def expired_token_callback(jwt_header, jwt_payload):
         'message': '认证令牌已过期',
         'error': 'token_expired'
     }), 401
+
+# AI分析端点
+@app.route('/api/ai_analyze', methods=['POST'])
+@error_handler
+@token_required
+def ai_analyze(current_user):
+    """
+    使用AI分析序列并根据用户需求生成报告
+    请求格式:
+    {
+        "sequence": "序列内容",
+        "query": "用户的自然语言查询/需求",
+        "tool": "工具名称"  // 可选，如果未指定，将自动选择合适的工具
+    }
+    """
+    logger.info("收到AI分析请求")
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "无效的请求数据"}), 400
+    
+    sequence = data.get("sequence", "").strip().upper()
+    user_query = data.get("query", "").strip()
+    tool = data.get("tool", "")
+    
+    if not sequence:
+        return jsonify({"error": "序列不能为空"}), 400
+    
+    if not user_query:
+        return jsonify({"error": "分析需求不能为空"}), 400
+    
+    try:
+        # 首先使用指定的工具或自动选择工具进行分析
+        tool_results = {}
+        
+        # 检测序列类型以选择适当的工具
+        dna_pattern = re.compile(r'^[ATGC]+$')
+        rna_pattern = re.compile(r'^[AUGC]+$')
+        protein_pattern = re.compile(r'^[ACDEFGHIKLMNPQRSTVWY]+$')
+        
+        detected_type = "unknown"
+        if dna_pattern.match(sequence):
+            detected_type = "dna"
+        elif rna_pattern.match(sequence):
+            detected_type = "rna"
+        elif protein_pattern.match(sequence):
+            detected_type = "protein"
+        
+        # 如果未指定工具，根据序列类型自动选择工具
+        if not tool:
+            if detected_type == "protein":
+                # 为蛋白质序列选择合适的工具
+                tools = ["protparam", "sequence_annotation", "physchemparam"]
+            elif detected_type == "dna":
+                # 为DNA序列选择合适的工具
+                tools = ["analyze_nucleic_acid", "find_cutting_enzymes", "translate"]
+            elif detected_type == "rna":
+                # 为RNA序列选择合适的工具
+                tools = ["analyze_nucleic_acid", "translate"]
+            else:
+                return jsonify({"error": "无法确定序列类型，请指定工具"}), 400
+        else:
+            # 使用用户指定的工具
+            tools = [tool]
+        
+        # 对每个工具执行分析
+        for tool_name in tools:
+            try:
+                if tool_name == "protparam":
+                    result = get_molecular_weight(sequence)
+                elif tool_name == "sequence_annotation":
+                    result = sequence_annotation(sequence)
+                elif tool_name == "physchemparam":
+                    result = get_PhysChemParameter(sequence)
+                elif tool_name == "analyze_nucleic_acid":
+                    result = analyze_nucleic_acid_properties(sequence)
+                elif tool_name == "find_cutting_enzymes":
+                    result = find_all_cutting_enzymes(sequence)
+                elif tool_name == "translate":
+                    result = translate_sequence(sequence)
+                elif tool_name == "toxinpred":
+                    result = predict_toxin(sequence)
+                elif tool_name == "vaxijen":
+                    result = get_vaxijen_result(sequence)
+                elif tool_name == "signalp  ":
+                    result = analyze_signalp(sequence)
+                else:
+                    logger.warning(f"未知工具: {tool_name}")
+                    continue
+                
+                # 将工具分析结果添加到结果集
+                tool_results[tool_name] = result
+                
+            except Exception as e:
+                logger.error(f"工具 {tool_name} 分析错误: {str(e)}")
+                tool_results[tool_name] = {"error": str(e)}
+        
+        # 如果没有任何工具返回结果，返回错误
+        if not tool_results:
+            return jsonify({"error": "所有工具分析均失败"}), 500
+        
+        # 使用AI服务生成报告
+        ai_result = generate_report(tool_results, user_query)
+        
+        # 检查AI服务是否成功
+        if not ai_result.get("success", False):
+            return jsonify({
+                "error": ai_result.get("error", "AI服务处理失败"),
+                "tool_results": tool_results  # 仍然返回工具结果
+            }), 500
+        
+        # 返回完整的AI分析结果
+        return jsonify({
+            "success": True,
+            "report": ai_result.get("report", ""),
+            "tool_results": tool_results,
+            "user_query": user_query,
+            "sequence": sequence,
+            "detected_type": detected_type
+        })
+        
+    except Exception as e:
+        logger.error(f"AI分析处理错误: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # 确保临时文件目录存在

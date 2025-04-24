@@ -265,7 +265,11 @@ const multiTool = {
     // 更新工具卡片的点击事件处理
     updateToolCards() {
         const toolCards = document.querySelectorAll('.tool-card');
-        const sequenceInput = document.querySelector('.sequence-input');
+        const sequenceInput = document.querySelector('.sequence-input-editor');
+        
+        if (!sequenceInput) {
+            console.error("无法找到序列输入元素");
+        }
         
         console.log(`正在设置工具卡片，多选模式: ${this.isMembershipActive}`);
         
@@ -338,7 +342,16 @@ const multiTool = {
     
     // 更新输入框提示文字
     updateInputPlaceholder(sequenceInput) {
-        if (!sequenceInput) return;
+        // 如果没有传入sequenceInput，则尝试获取
+        if (!sequenceInput) {
+            sequenceInput = document.querySelector('.sequence-input-editor');
+            if (!sequenceInput) {
+                console.error("无法找到序列输入元素");
+                return;
+            }
+        }
+        
+        console.log("更新输入框占位符文本");
         
         if (this.selectedTools.length === 1) {
             const singleTool = this.selectedTools[0];
@@ -365,17 +378,42 @@ const multiTool = {
     // 绑定分析按钮事件
     bindAnalyzeButton() {
         const actionAnalyzeBtn = document.querySelector('.action-bar .analyze-btn');
-        const sequenceInput = document.querySelector('.sequence-input');
+        const sequenceInput = document.querySelector('.sequence-input-editor');
         
-        if (!actionAnalyzeBtn || !sequenceInput) return;
+        if (!actionAnalyzeBtn || !sequenceInput) {
+            console.error("找不到分析按钮或序列输入元素");
+            return;
+        }
         
-        // 移除现有的点击事件（如果有）
-        const oldBtn = actionAnalyzeBtn.cloneNode(true);
-        actionAnalyzeBtn.parentNode.replaceChild(oldBtn, actionAnalyzeBtn);
+        console.log("正在绑定多工具分析事件到分析按钮");
         
-        // 添加新的点击事件处理
-        oldBtn.addEventListener('click', async () => {
-            const sequence = sequenceInput.value.trim().toUpperCase();
+        // 使用具名函数便于后续移除
+        this.handleMultiToolAnalysis = async (event) => {
+            console.log("多工具分析事件处理函数被调用");
+            
+            // 检查是否是AI分析模式，如果是则不处理(交给search.js中的处理函数)
+            const isAiMode = document.querySelector('.ai-analyze-btn.active') !== null;
+            if (isAiMode) {
+                console.log("AI分析模式已激活，不处理多工具分析");
+                return; // 如果是AI分析模式，则退出不处理
+            }
+            
+            // 阻止事件冒泡以避免多次触发
+            event.preventDefault(); // 阻止默认事件
+            event.stopPropagation(); // 阻止冒泡
+            
+            console.log("开始处理多工具分析");
+            
+            // 重新获取序列输入元素，确保获取到最新的值
+            const sequenceInputEl = document.querySelector('.sequence-input-editor');
+            if (!sequenceInputEl) {
+                console.error("找不到序列输入元素");
+                utils.showToast('系统错误: 找不到序列输入元素');
+                return;
+            }
+            
+            const sequence = sequenceInputEl.textContent.trim().toUpperCase();
+            console.log("获取到的序列:", sequence ? sequence.substring(0, 20) + "..." : "空");
             
             if (!sequence) {
                 utils.showToast('请输入序列');
@@ -409,10 +447,15 @@ const multiTool = {
                 }
             }
             
-            const detectedType = getSequenceType(sequence);
+            // 只对第一部分序列进行类型检测，空格后的部分作为参数
+            const sequenceParts = sequence.split(/\s+/);
+            const mainSequence = sequenceParts[0];  // 第一部分作为主序列
+            const detectedType = getSequenceType(mainSequence);
+            
+            console.log("序列类型检测结果:", detectedType, "仅检测空格前部分:", mainSequence);
             
             // 添加loading状态
-            oldBtn.classList.add('loading');
+            actionAnalyzeBtn.classList.add('loading');
             
             // 为多个工具使用专用加载动画，单个工具使用普通加载动画
             if (this.selectedTools.length > 1) {
@@ -458,7 +501,7 @@ const multiTool = {
                             continue; 
                         }
                         if (tool === 'toxinpred') {
-                            const seqInput = sequence.split(/\s+/)[0];
+                            const seqInput = mainSequence; // 只检查第一部分序列
                             if (seqInput.length < 5 || seqInput.length > 50) { 
                                 utils.showToast('ToxinPred要求序列长度为5-50个氨基酸，跳过此工具。'); 
                                 continue; 
@@ -468,16 +511,28 @@ const multiTool = {
                         let result;
                         if (tool === 'analyze_codons') {
                             // 提取序列和宿主ID (允许非数字)
-                            const inputParts = sequence.trim().split(/\s+/);
-                            if (inputParts.length <= 1) {
+                            if (sequenceParts.length <= 1) {
                                 utils.showToast("密码子分析需要宿主ID，跳过此工具。");
                                 continue;
                             }
-                            const seqPart = inputParts[0];
-                            const hostIdPart = inputParts.slice(1).join(' ');
+                            const seqPart = mainSequence; // 主序列部分
+                            const hostIdPart = sequenceParts.slice(1).join(' '); // 宿主ID部分(可能包含点号等)
                             
+                            console.log(`密码子分析参数: 序列=${seqPart}, 宿主ID=${hostIdPart}`);
                             result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${hostIdPart}`);
+                        } else if (tool === 'analyze_restriction') {
+                            // 处理限制性内切酶分析，需要序列和酶名称
+                            if (sequenceParts.length <= 1) {
+                                utils.showToast("限制性内切酶分析需要酶名称，跳过此工具。");
+                                continue;
+                            }
+                            const seqPart = mainSequence; // 主序列部分
+                            const enzymesPart = sequenceParts.slice(1).join(' '); // 酶名称部分
+                            
+                            console.log(`限制性内切酶分析参数: 序列=${seqPart}, 酶名=${enzymesPart}`);
+                            result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${enzymesPart}`);
                         } else {
+                            // 其他工具只需要序列本身
                             result = await sequenceTools.analyzeSequence(tool, sequence);
                         }
                         
@@ -512,7 +567,7 @@ const multiTool = {
                 }
                 
                 // 移除按钮加载状态
-                oldBtn.classList.remove('loading');
+                actionAnalyzeBtn.classList.remove('loading');
                 
                 // 检查结果并重载粒子效果
                 try {
@@ -533,7 +588,11 @@ const multiTool = {
                 
                 console.log('分析完成，界面已更新');
             }
-        });
+        };
+        
+        // 先为按钮添加事件处理函数
+        actionAnalyzeBtn.addEventListener('click', this.handleMultiToolAnalysis);
+        console.log('多工具分析事件已绑定到分析按钮');
     }
 };
 

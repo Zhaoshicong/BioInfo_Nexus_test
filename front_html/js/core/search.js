@@ -1091,8 +1091,15 @@ function getToolName(tool) {
 // 统一的序列类型检测函数
 function getSequenceType(seq) {
     if (!seq) return 'unknown';
-    const seqUpper = seq.toUpperCase().replace(/\s+/g, ''); // 移除空格并转大写
+    
+    // 只取第一个空格前的部分作为序列
+    const firstPart = seq.split(/\s+/)[0];
+    if (!firstPart) return 'unknown';
+    
+    const seqUpper = firstPart.toUpperCase(); // 转大写
     if (!seqUpper) return 'unknown';
+    
+    console.log("序列类型检测只检查空格前的内容:", seqUpper);
 
     // 检查是否只包含 DNA 碱基
     if (/^[ATGC]+$/.test(seqUpper)) {
@@ -1245,14 +1252,22 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     try {
         // 导入多工具模块
+        console.log("正在导入多工具模块...");
         const multiToolModule = await import('./multiTool.js');
         const multiTool = multiToolModule.default;
         
         // 初始化多工具功能(处理会员多选功能)
+        console.log("初始化多工具功能...");
         await multiTool.init();
+        
+        // 添加全局标记，表示多工具模块已加载
+        window.multiToolLoaded = true;
+        console.log("多工具模块已成功加载和初始化");
     } catch (error) {
         console.error('无法加载多工具模块:', error);
         // 如果多工具模块加载失败，回退到默认的单选功能
+        window.multiToolLoaded = false;
+        console.log("多工具模块加载失败，回退到单工具模式");
         initPage();
     }
     
@@ -1278,9 +1293,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 // 初始化页面
 function initPage() {
     // 获取页面元素
-    const sequenceInput = document.querySelector('.sequence-input');
+    const sequenceInput = document.querySelector('.sequence-input-editor');
     const toolCards = document.querySelectorAll('.tool-card');
-    // const analyzeBtn = document.querySelector('.tool-cards-container .analyze-btn'); // Old button, likely unused
+    const aiAnalyzeBtn = document.querySelector('.ai-analyze-btn');
     
     // 获取操作栏元素
     const actionBar = document.querySelector('.action-bar');
@@ -1296,6 +1311,33 @@ function initPage() {
     
     // 设置文本输入和计数器
     setupSequenceInput(sequenceInput);
+    
+    // 设置AI分析按钮点击事件
+    if (aiAnalyzeBtn) {
+        aiAnalyzeBtn.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const aiQueryContainer = document.querySelector('.ai-query-container');
+            if (aiQueryContainer) {
+                // 显示/隐藏AI查询容器
+                const isActive = this.classList.contains('active');
+                aiQueryContainer.style.display = isActive ? 'block' : 'none';
+                
+                // 如果显示查询容器，则将序列输入框的内容复制到查询输入框
+                if (isActive) {
+                    const aiQueryInput = aiQueryContainer.querySelector('.ai-query-input');
+                    if (aiQueryInput && sequenceInput.textContent) {
+                        aiQueryInput.value = `请分析以下序列：\n${sequenceInput.textContent.trim()}`;
+                        
+                        // 聚焦到输入框并将光标放到文本末尾
+                        setTimeout(() => {
+                            aiQueryInput.focus();
+                            aiQueryInput.setSelectionRange(aiQueryInput.value.length, aiQueryInput.value.length);
+                        }, 100);
+                    }
+                }
+            }
+        });
+    }
     
     // 设置工具过滤功能
     setupToolsFiltering();
@@ -1333,8 +1375,10 @@ function initPage() {
     
     // 设置操作栏的分析按钮点击事件
     if (actionAnalyzeBtn) { 
-        actionAnalyzeBtn.addEventListener('click', async function() {
-            const sequence = sequenceInput.value.trim().toUpperCase();
+        actionAnalyzeBtn.addEventListener('click', async function(event) {
+            console.log("分析按钮被点击，检查AI模式状态和多工具模块状态");
+            
+            const sequence = sequenceInput.textContent.trim().toUpperCase();
             
             if (!sequence) {
                 utils.showToast('请输入序列');
@@ -1350,61 +1394,220 @@ function initPage() {
             const tool = activeCard.dataset.tool;
             const detectedType = getSequenceType(sequence);
             
-            // Frontend Validation 
-            if (tool === 'analyze_nucleic_acid') {
-                if (detectedType === 'protein') { utils.showToast('核酸特性分析工具无法处理蛋白质序列，请输入DNA或RNA。'); return; } 
-                else if (detectedType === 'unknown') { utils.showToast('序列包含无法识别的字符，无法进行核酸分析。'); return; }
-            }
-            if (tool === 'find_cutting_enzymes' && detectedType !== 'dna') { utils.showToast('限制酶分析工具仅支持DNA序列'); return; }
-            if (tool === 'sequence_annotation' && detectedType !== 'protein') { utils.showToast('DNA或RNA序列无法进行序列注释，请输入蛋白质。'); return; }
-            if (tool === 'translate' && detectedType === 'protein') { utils.showToast('蛋白质序列无法进行翻译，请输入DNA或RNA。'); return; }
-            if (tool === 'toxinpred') {
-                const seqInput = sequence.split(/\s+/)[0];
-                if (seqInput.length < 5) { utils.showToast('ToxinPred要求序列长度至少为5个氨基酸'); return; }
-                if (seqInput.length > 50) { utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列'); return; }
-            }
+            // 检查是否处于AI分析模式
+            const isAiMode = document.querySelector('.ai-analyze-btn.active') !== null;
+            const aiQueryInput = document.querySelector('.ai-query-input');
+            const aiQuery = isAiMode && aiQueryInput ? aiQueryInput.value.trim() : '';
             
-            this.classList.add('loading'); 
+            console.log("AI模式状态:", isAiMode ? "激活" : "未激活");
+            console.log("多工具模块状态:", window.multiToolLoaded ? "已加载" : "未加载");
             
-            try {
-                utils.showLoading('正在分析...');
+            // 如果是AI分析模式且有查询内容，则调用AI分析API
+            if (isAiMode && aiQuery) {
+                console.log("执行AI分析流程");
+                // 标记为在AI模式，防止多工具模块触发
+                this.dataset.aiMode = 'true';
                 
-                // --- Modify analyzeSequence call for analyze_codons ---
-                let result;
-                if (tool === 'analyze_codons') {
-                    // 提取序列和宿主ID (允许非数字)
-                    const inputParts = sequence.trim().split(/\s+/);
-                    if (inputParts.length <= 1) {
-                        utils.hideLoading();
-                        this.classList.remove('loading');
-                        utils.showToast("请在序列后用空格分隔输入宿主ID (例如：ATGC 9606 或 ATGC 3645.chloroplast)");
-                        return;
-                    }
-                    const seqPart = inputParts[0];
-                    const hostIdPart = inputParts.slice(1).join(' '); // 获取序列后的所有部分作为ID
+                // 注意：不要在这个判断中阻止事件传播，否则会影响多工具功能
+                
+                this.classList.add('loading'); 
+                utils.showLoading('正在进行AI分析...');
+                
+                try {
+                    // 调用AI分析API
+                    const response = await fetch('/api/ai_analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...utils.getAuthHeader()
+                        },
+                        body: JSON.stringify({
+                            sequence: sequence,
+                            query: aiQuery,
+                            tool: tool // 可选，传递当前选中的工具
+                        })
+                    });
                     
-                    // 直接将提取的 hostIdPart (可能是 3645.chloroplast) 传给后端
-                    result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${hostIdPart}`); // 保持原始格式发送
-                } else {
-                    // 其他工具的常规处理
-                    result = await sequenceTools.analyzeSequence(tool, sequence);
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `AI分析请求失败: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    // 处理AI分析结果
+                    if (result.success) {
+                        // 创建或获取结果容器
+                        let resultsContainer = document.querySelector('.results-container');
+                        if (!resultsContainer) {
+                            resultsContainer = document.createElement('div');
+                            resultsContainer.className = 'results-container';
+                            document.querySelector('.content-container').appendChild(resultsContainer);
+                        }
+                        
+                        // 创建AI分析结果显示区域
+                        let aiResultBox = document.querySelector('.ai-analysis-result');
+                        if (!aiResultBox) {
+                            aiResultBox = document.createElement('div');
+                            aiResultBox.className = 'ai-analysis-result result-box';
+                            resultsContainer.appendChild(aiResultBox);
+                        }
+                        
+                        // 生成带格式的AI分析报告
+                        const aiReport = result.report || "AI未能生成报告";
+                        
+                        // 转换Markdown格式为HTML
+                        const formattedReport = aiReport
+                            .replace(/\n\n/g, '<br><br>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                            .replace(/```([\s\S]*?)```/g, '<pre class="code-block">$1</pre>')
+                            .replace(/`(.*?)`/g, '<code>$1</code>')
+                            .replace(/\n/g, '<br>');
+                        
+                        // 设置AI分析结果内容
+                        aiResultBox.innerHTML = `
+                            <h3>AI分析报告</h3>
+                            <div class="ai-report-content">
+                                ${formattedReport}
+                            </div>
+                            <div class="ai-report-query">
+                                <p><strong>分析需求:</strong> ${aiQuery}</p>
+                            </div>
+                        `;
+                        
+                        // 添加结果展示样式
+                        const styleElement = document.createElement('style');
+                        styleElement.textContent = `
+                            .ai-report-content {
+                                padding: 15px;
+                                background-color: #f9f9fd;
+                                border-radius: 10px;
+                                font-size: 15px;
+                                line-height: 1.6;
+                                margin-bottom: 15px;
+                            }
+                            .ai-report-content pre.code-block {
+                                background-color: #f0f0f0;
+                                padding: 12px;
+                                border-radius: 5px;
+                                overflow-x: auto;
+                                font-family: Consolas, Monaco, monospace;
+                                margin: 10px 0;
+                            }
+                            .ai-report-content code {
+                                background-color: #f0f0f0;
+                                padding: 2px 5px;
+                                border-radius: 3px;
+                                font-family: Consolas, Monaco, monospace;
+                            }
+                            .ai-report-query {
+                                border-top: 1px solid #eee;
+                                padding-top: 10px;
+                                color: #666;
+                                font-size: 14px;
+                            }
+                        `;
+                        document.head.appendChild(styleElement);
+                        
+                        // 更新检查结果状态
+                        checkResults();
+                        
+                        // 重载粒子系统
+                        setTimeout(reloadParticles, 300);
+                        
+                        // 隐藏AI查询容器
+                        const aiAnalyzeBtn = document.querySelector('.ai-analyze-btn');
+                        if (aiAnalyzeBtn) {
+                            aiAnalyzeBtn.classList.remove('active');
+                        }
+                        const aiQueryContainer = document.querySelector('.ai-query-container');
+                        if (aiQueryContainer) {
+                            aiQueryContainer.style.display = 'none';
+                        }
+                        
+                        utils.showToast('AI分析完成');
+                    } else {
+                        throw new Error(result.error || "AI分析失败，未返回结果");
+                    }
+                } catch (error) {
+                    utils.showToast(`分析失败: ${error.message}`);
+                    console.error('AI分析错误:', error);
+                } finally {
+                    utils.hideLoading();
+                    this.classList.remove('loading');
+                    // 重置模式标记
+                    this.removeAttribute('data-ai-mode');
                 }
-                // --- End modification ---
+            } else {
+                // 非AI模式，此时可以由multiTool模块处理
+                console.log("非AI模式，多工具模块状态:", window.multiToolLoaded ? "已加载" : "未加载");
                 
-                utils.hideLoading();
-                
-                if (result) {
-                    sequenceTools.displayResults(tool, result, detectedType);
-                    checkResults(); 
-                    // 重载粒子系统
-                    setTimeout(reloadParticles, 300); 
+                // 如果多工具模块已加载，让事件继续传播给多工具模块处理
+                if (window.multiToolLoaded) {
+                    console.log("多工具模块已加载，交由多工具模块处理");
+                    return; // 不阻止事件传播，让multiTool模块处理
                 }
-            } catch (error) {
-                utils.hideLoading();
-                utils.showToast(error.message || `分析失败: ${tool}`);
-                console.error('分析错误:', error);
-            } finally {
-                this.classList.remove('loading'); 
+                
+                // 多工具模块未加载，使用默认的单工具处理逻辑
+                console.log("多工具模块未加载，使用默认单工具处理");
+                
+                // Frontend Validation 
+                if (tool === 'analyze_nucleic_acid') {
+                    if (detectedType === 'protein') { utils.showToast('核酸特性分析工具无法处理蛋白质序列，请输入DNA或RNA。'); return; } 
+                    else if (detectedType === 'unknown') { utils.showToast('序列包含无法识别的字符，无法进行核酸分析。'); return; }
+                }
+                if (tool === 'find_cutting_enzymes' && detectedType !== 'dna') { utils.showToast('限制酶分析工具仅支持DNA序列'); return; }
+                if (tool === 'sequence_annotation' && detectedType !== 'protein') { utils.showToast('DNA或RNA序列无法进行序列注释，请输入蛋白质。'); return; }
+                if (tool === 'translate' && detectedType === 'protein') { utils.showToast('蛋白质序列无法进行翻译，请输入DNA或RNA。'); return; }
+                if (tool === 'toxinpred') {
+                    const seqInput = sequence.split(/\s+/)[0];
+                    if (seqInput.length < 5) { utils.showToast('ToxinPred要求序列长度至少为5个氨基酸'); return; }
+                    if (seqInput.length > 50) { utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列'); return; }
+                }
+            
+                this.classList.add('loading'); 
+            
+                try {
+                    utils.showLoading('正在分析...');
+                    
+                    // --- Modify analyzeSequence call for analyze_codons ---
+                    let result;
+                    if (tool === 'analyze_codons') {
+                        // 提取序列和宿主ID (允许非数字)
+                        const inputParts = sequence.trim().split(/\s+/);
+                        if (inputParts.length <= 1) {
+                            utils.hideLoading();
+                            this.classList.remove('loading');
+                            utils.showToast("请在序列后用空格分隔输入宿主ID (例如：ATGC 9606 或 ATGC 3645.chloroplast)");
+                            return;
+                        }
+                        const seqPart = inputParts[0];
+                        const hostIdPart = inputParts.slice(1).join(' '); // 获取序列后的所有部分作为ID
+                        
+                        // 直接将提取的 hostIdPart (可能是 3645.chloroplast) 传给后端
+                        result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${hostIdPart}`); // 保持原始格式发送
+                    } else {
+                        // 其他工具的常规处理
+                        result = await sequenceTools.analyzeSequence(tool, sequence);
+                    }
+                    // --- End modification ---
+                    
+                    utils.hideLoading();
+                    
+                    if (result) {
+                        sequenceTools.displayResults(tool, result, detectedType);
+                        checkResults(); 
+                        // 重载粒子系统
+                        setTimeout(reloadParticles, 300); 
+                    }
+                } catch (error) {
+                    utils.hideLoading();
+                    utils.showToast(error.message || '分析失败');
+                    console.error('分析错误:', error);
+                } finally {
+                    this.classList.remove('loading');
+                }
             }
         });
     }
@@ -1468,20 +1671,32 @@ function setupSequenceInput(sequenceInput) {
     // 更新字符计数并将输入转换为大写
     sequenceInput.addEventListener('input', function() {
         // 将输入内容转换为大写
-        const originalValue = this.value;
-        const cursorPosition = this.selectionStart;
+        const originalValue = this.textContent;
+        const cursorPosition = window.getSelection().getRangeAt(0).startOffset;
         
         // 转换为大写
-        this.value = originalValue.toUpperCase();
-        
-        // 恢复光标位置
-        this.setSelectionRange(cursorPosition, cursorPosition);
+        if (originalValue !== originalValue.toUpperCase()) {
+            this.textContent = originalValue.toUpperCase();
+            
+            // 恢复光标位置
+            const range = document.createRange();
+            const sel = window.getSelection();
+            
+            try {
+                range.setStart(this.childNodes[0] || this, Math.min(cursorPosition, this.textContent.length));
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            } catch (e) {
+                console.log('光标位置恢复失败', e);
+            }
+        }
         
         // 更新字符计数
-        const sequence = this.value.trim();
+        const sequence = this.textContent.trim();
         const count = sequence.length;
         // 只更新计数部分，保留提示信息
-        charCounter.innerHTML = `${count} 个氨基酸 <span style="margin-left: 10px; font-size: 12px; color: #666;">* 序列将自动转换为大写字母</span>`;
+        charCounter.innerHTML = `<span style="font-size: 14px; font-weight: 500;">${count} 个氨基酸</span> <span style="margin-left: 10px; font-size: 12px; color: #666;">* 序列将自动转换为大写字母</span>`;
     });
 }
 

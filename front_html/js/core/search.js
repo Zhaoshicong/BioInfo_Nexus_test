@@ -1325,13 +1325,15 @@ function initPage() {
                 // 如果显示查询容器，则将序列输入框的内容复制到查询输入框
                 if (isActive) {
                     const aiQueryInput = aiQueryContainer.querySelector('.ai-query-input');
-                    if (aiQueryInput && sequenceInput.textContent) {
-                        aiQueryInput.value = `请分析以下序列：\n${sequenceInput.textContent.trim()}`;
-                        
-                        // 聚焦到输入框并将光标放到文本末尾
+                    if (aiQueryInput) { // 移除对 sequenceInput.textContent 的检查，即使序列为空也显示提示
+                        // *** 移除下面这行设置 value 的代码 ***
+                        // aiQueryInput.value = "请输入你对AI分析报告的需求";
+
+                        // 聚焦到输入框
                         setTimeout(() => {
                             aiQueryInput.focus();
-                            aiQueryInput.setSelectionRange(aiQueryInput.value.length, aiQueryInput.value.length);
+                            // 不需要设置光标位置了，因为输入框是空的
+                            // aiQueryInput.setSelectionRange(0, 0);
                         }, 100);
                     }
                 }
@@ -1747,9 +1749,18 @@ function setupSequenceInput(sequenceInput) {
             }
         }
         
-        // 更新字符计数
-        const sequence = this.textContent.trim();
-        const count = sequence.length;
+        // --- 修改计数逻辑 --- 
+        const fullSequence = this.textContent; // 获取完整内容
+        const firstSpaceIndex = fullSequence.search(/\s/); // 查找第一个空白字符的位置
+        
+        let sequenceToCount = fullSequence;
+        if (firstSpaceIndex !== -1) { // 如果找到空白字符
+            sequenceToCount = fullSequence.substring(0, firstSpaceIndex); // 只取空白字符之前的部分
+        }
+        
+        const count = sequenceToCount.length; // 计算这部分的长度
+        // --- 结束修改 --- 
+        
         // 只更新计数部分，保留提示信息
         charCounter.innerHTML = `<span style="font-size: 14px; font-weight: 500;">${count} 个氨基酸</span> <span style="margin-left: 10px; font-size: 12px; color: #666;">* 序列将自动转换为大写字母</span>`;
     });

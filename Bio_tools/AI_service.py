@@ -26,7 +26,7 @@ class AIService:
         # 从环境变量获取API密钥
         self.api_key = os.environ.get("DASHSCOPE_API_KEY")
         self.base_url = os.environ.get("DASHSCOPE_BASE_URL")
-        self.api_model = os.environ.get("DASHSCOPE_MODEL", "qwen-plus")
+        self.api_model = os.environ.get("DASHSCOPE_MODEL")
         
         if not self.api_key:
             logger.warning("未找到阿里云通义千问API密钥，AI服务将无法正常工作")

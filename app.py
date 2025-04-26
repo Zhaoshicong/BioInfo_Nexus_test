@@ -366,16 +366,17 @@ def transform_api(current_user):
     
     # 验证序列数据
     if not sequence_data:
-         return jsonify({'error': '未提供序列数据'}), 400
+         return jsonify({'error': '未提供序列数据', 'success': False}), 400
 
     # 调用transform_fasta主函数处理请求，传递整个 data 字典
     result = transform_fasta(data)
     
     # 如果处理失败，返回错误信息
     if not result.get('success', False):
-        return jsonify({'error': result.get('error', '未知错误')}), 400
+        return jsonify({'error': result.get('error', '未知错误'), 'success': False}), 400
     
     # 返回处理结果
+    result['success'] = True
     return jsonify(result)
 
 @app.route('/api/protparam', methods=['POST'])
@@ -432,7 +433,7 @@ def analyze_sequence_annotation(current_user):
     
     # 输入验证
     if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
+        return jsonify({'error': '序列不能为空', 'success': False}), 400
     
     # 记录请求
     logger.info(f"用户 {current_user.username} 请求序列注释分析，序列长度: {len(sequence)}")
@@ -442,16 +443,14 @@ def analyze_sequence_annotation(current_user):
         result = sequence_annotation(sequence)
         
         if "error" in result:
-            return jsonify({'error': result["error"]}), 500
+            return jsonify({'error': result["error"], 'success': False}), 500
         
-        # 标记成功
         result['success'] = True
-        
         return jsonify(result)
         
     except Exception as e:
         logger.error(f"序列注释分析错误: {str(e)}")
-        return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+        return jsonify({'error': f'分析过程发生错误: {str(e)}', 'success': False}), 500
     
 @app.route('/api/translate', methods=['POST'])
 @error_handler
@@ -468,7 +467,7 @@ def analyze_translate(current_user):
     
     # 输入验证
     if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
+        return jsonify({'error': '序列不能为空', 'success': False}), 400
     
     # 记录请求
     logger.info(f"用户 {current_user.username} 请求序列翻译，序列长度: {len(sequence)}")
@@ -478,7 +477,7 @@ def analyze_translate(current_user):
         result = translate_sequence(sequence, seq_type, table_id, to_stop, cds)
         
         if "error" in result:
-            return jsonify({'error': result["error"]}), 500
+            return jsonify({'error': result["error"], 'success': False}), 500
         
         # 获取可用的遗传密码表信息
         tables = get_available_tables()
@@ -491,7 +490,7 @@ def analyze_translate(current_user):
         
     except Exception as e:
         logger.error(f"序列翻译错误: {str(e)}")
-        return jsonify({'error': f'翻译过程发生错误: {str(e)}'}), 500
+        return jsonify({'error': f'翻译过程发生错误: {str(e)}', 'success': False}), 500
     
 @app.route('/api/analyze_codons', methods=['POST', 'GET'])
 @error_handler
@@ -517,7 +516,8 @@ def analyze_codons(current_user):
             if not os.path.exists(data_dir):
                 return jsonify({
                     'error': '找不到宿主数据目录',
-                    'message': f'目录 {data_dir} 不存在'
+                    'message': f'目录 {data_dir} 不存在',
+                    'success': False
                 }), 500
             
             # 直接扫描目录中的所有JSON文件，提取物种ID
@@ -544,7 +544,7 @@ def analyze_codons(current_user):
         
         except Exception as e:
             logger.error(f"获取可用宿主列表错误: {str(e)}")
-            return jsonify({'error': f'获取宿主列表时发生错误: {str(e)}'}), 500
+            return jsonify({'error': f'获取宿主列表时发生错误: {str(e)}', 'success': False}), 500
     
     # 处理密码子分析请求
     if request.method == 'POST':
@@ -558,10 +558,10 @@ def analyze_codons(current_user):
             
             # 输入验证
             if not sequence:
-                return jsonify({'error': '序列不能为空'}), 400
+                return jsonify({'error': '序列不能为空', 'success': False}), 400
             
             if not host_id:
-                return jsonify({'error': '宿主ID不能为空'}), 400
+                return jsonify({'error': '宿主ID不能为空', 'success': False}), 400
                 
             # 使用默认遗传密码表ID
             genetic_code_id = 1  # 标准遗传密码表
@@ -570,7 +570,7 @@ def analyze_codons(current_user):
             try:
                 rarity_threshold = float(rarity_threshold)
             except (ValueError, TypeError):
-                return jsonify({'error': '稀有密码子阈值必须为浮点数'}), 400
+                return jsonify({'error': '稀有密码子阈值必须为浮点数', 'success': False}), 400
             
             # 记录请求
             logger.info(f"用户 {current_user.username} 请求密码子分析，序列长度: {len(sequence)}，宿主ID: {host_id}，使用密码表ID: {genetic_code_id}")
@@ -581,7 +581,7 @@ def analyze_codons(current_user):
                 
                 # 检查分析结果状态
                 if result.get('status') == 'error':
-                    return jsonify({'error': result.get('message', '分析过程中发生错误')}), 500
+                    return jsonify({'error': result.get('message', '分析过程中发生错误'), 'success': False}), 500
                 
                 # 添加成功标志
                 result['success'] = True
@@ -591,10 +591,10 @@ def analyze_codons(current_user):
                 
             except Exception as e:
                 logger.error(f"密码子分析错误: {str(e)}")
-                return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+                return jsonify({'error': f'分析过程发生错误: {str(e)}', 'success': False}), 500
     
     # 如果代码执行到这里，说明请求不符合任何处理条件
-    return jsonify({'error': '不支持的请求格式或操作'}), 400
+    return jsonify({'error': '不支持的请求格式或操作', 'success': False}), 400
     
 @app.route('/api/find_cutting_enzymes', methods=['POST'])
 @error_handler
@@ -609,15 +609,16 @@ def handle_find_cutting_enzymes(current_user):
     sequence = data.get('sequence')
 
     if not sequence:
-        return jsonify({'error': '缺少序列', 'message': '需要提供DNA序列'}), 400
+        return jsonify({'error': '缺少序列', 'message': '需要提供DNA序列', 'success': False}), 400
 
     # 调用查找函数
     result = find_all_cutting_enzymes(sequence)
 
     # 如果函数返回错误，将其传递给前端
     if 'error' in result:
-        return jsonify({'error': result['error'], 'message': '查找过程中出错'}), 400 # 或 500
+        return jsonify({'error': result['error'], 'message': '查找过程中出错', 'success': False}), 400
 
+    result['success'] = True
     return jsonify(result)
 
 @app.route('/api/analyze_restriction', methods=['POST'])
@@ -634,22 +635,23 @@ def handle_analyze_restriction(current_user):
     enzymes_str = data.get('enzymes') # 接收用空格分隔的酶名称字符串
 
     if not sequence:
-        return jsonify({'error': '缺少序列', 'message': '需要提供DNA序列'}), 400
+        return jsonify({'error': '缺少序列', 'message': '需要提供DNA序列', 'success': False}), 400
     if not enzymes_str:
-        return jsonify({'error': '缺少酶名称', 'message': '需要提供至少一个限制酶名称'}), 400
+        return jsonify({'error': '缺少酶名称', 'message': '需要提供至少一个限制酶名称', 'success': False}), 400
 
     # 清理和分割酶名称
     enzyme_names = [name.strip() for name in enzymes_str.split() if name.strip()]
     if not enzyme_names:
-         return jsonify({'error': '无效的酶名称格式', 'message': '请提供有效的、用空格分隔的酶名称'}), 400
+         return jsonify({'error': '无效的酶名称格式', 'message': '请提供有效的、用空格分隔的酶名称', 'success': False}), 400
 
     # 调用分析函数
     result = analyze_restriction(sequence, enzyme_names)
 
     # 如果分析函数返回错误，将其传递给前端
     if 'error' in result:
-        return jsonify({'error': result['error'], 'message': '分析过程中出错'}), 400 # 或者 500，取决于错误类型
+        return jsonify({'error': result['error'], 'message': '分析过程中出错', 'success': False}), 400
 
+    result['success'] = True
     return jsonify(result)
 
 @app.route('/api/analyze_nucleic_acid', methods=['POST'])
@@ -664,11 +666,11 @@ def analyze_nucleic_acid(current_user):
     
     # 输入验证
     if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
+        return jsonify({'error': '序列不能为空', 'success': False}), 400
     
     # 验证序列类型
     if sequence_type not in ['dna', 'ssdna', 'rna']:
-        return jsonify({'error': '序列类型必须是 dna, ssdna 或 rna'}), 400
+        return jsonify({'error': '序列类型必须是 dna, ssdna 或 rna', 'success': False}), 400
     
     # 记录请求
     logger.info(f"用户 {current_user.username} 请求核酸物理化学特性分析，序列长度: {len(sequence)}")
@@ -678,7 +680,7 @@ def analyze_nucleic_acid(current_user):
         result = analyze_nucleic_acid_properties(sequence)
         
         if "error" in result:
-            return jsonify({'error': result["error"]}), 500
+            return jsonify({'error': result["error"], 'success': False}), 500
         
         # 添加序列类型信息
         result['sequence_type'] = sequence_type
@@ -688,7 +690,7 @@ def analyze_nucleic_acid(current_user):
         
     except Exception as e:
         logger.error(f"核酸物理化学特性分析错误: {str(e)}")
-        return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+        return jsonify({'error': f'分析过程发生错误: {str(e)}', 'success': False}), 500
 
 @app.route('/api/signalp', methods=['POST'])
 @error_handler
@@ -807,9 +809,9 @@ def analyze_vaxijen(current_user):
     
     # 输入验证
     if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
+        return jsonify({'error': '序列不能为空', 'success': False}), 400
     if not validate_sequence(sequence):
-        return jsonify({'error': '无效的氨基酸序列'}), 400
+        return jsonify({'error': '无效的氨基酸序列', 'success': False}), 400
     
     # 记录请求
     logger.info(f"VaxiJen analysis request - Sequence length: {len(sequence)}")
@@ -818,12 +820,13 @@ def analyze_vaxijen(current_user):
     result, probability = get_vaxijen_result(sequence)
     
     if not result or not probability:
-        return jsonify({'error': '无法获取预测结果'}), 500
+        return jsonify({'error': '无法获取预测结果', 'success': False}), 500
     
     # 判断是否为抗原
     is_antigen = result.lower() == 'antigen' or 'antigen' in result.lower()
     
     response_data = {
+        'success': True,
         'sequence': sequence,
         'result': result,
         'score': probability,
@@ -844,13 +847,13 @@ def analyze_toxinpred(current_user):
     
     # 输入验证
     if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
+        return jsonify({'error': '序列不能为空', 'success': False}), 400
     if not validate_sequence(sequence):
-        return jsonify({'error': '无效的氨基酸序列'}), 400
+        return jsonify({'error': '无效的氨基酸序列', 'success': False}), 400
     
     # 序列长度检查
     if len(sequence) < 5 or len(sequence) > 50:
-        return jsonify({'error': '序列长度应在5-50个氨基酸之间'}), 400
+        return jsonify({'error': '序列长度应在5-50个氨基酸之间', 'success': False}), 400
     
     # 记录请求
     logger.info(f"ToxinPred分析请求 - 序列长度: {len(sequence)}")
@@ -892,7 +895,7 @@ def analyze_toxinpred(current_user):
         result = predict_toxicity(sequence)
         
         if not result:
-            return jsonify({'error': '无法获取预测结果'}), 500
+            return jsonify({'error': '无法获取预测结果', 'success': False}), 500
         
         response_data = {
             'sequence': sequence,
@@ -907,7 +910,7 @@ def analyze_toxinpred(current_user):
         
     except Exception as e:
         logger.error(f"ToxinPred分析错误: {str(e)}")
-        return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+        return jsonify({'error': f'分析过程发生错误: {str(e)}', 'success': False}), 500
 
 @app.route('/api/physchemparam', methods=['POST'])
 @error_handler
@@ -920,9 +923,9 @@ def analyze_physchemparam(current_user):
     
     # 输入验证
     if not sequence:
-        return jsonify({'error': '序列不能为空'}), 400
+        return jsonify({'error': '序列不能为空', 'success': False}), 400
     if not validate_sequence(sequence):
-        return jsonify({'error': '无效的氨基酸序列'}), 400
+        return jsonify({'error': '无效的氨基酸序列', 'success': False}), 400
     
     # 记录请求
     logger.info(f"用户 {current_user.username} 请求物理化学参数分析，序列长度: {len(sequence)}")
@@ -932,7 +935,7 @@ def analyze_physchemparam(current_user):
         result = get_PhysChemParameter(sequence)
         
         if "error" in result:
-            return jsonify({'error': result["error"]}), 500
+            return jsonify({'error': result["error"], 'success': False}), 500
         
         # 记录分析历史 - 暂时注释掉以避免导入错误
         # from user_auth.user_system import AnalysisHistory, db
@@ -953,7 +956,7 @@ def analyze_physchemparam(current_user):
         
     except Exception as e:
         logger.error(f"PhysChemParameter分析错误: {str(e)}")
-        return jsonify({'error': f'分析过程发生错误: {str(e)}'}), 500
+        return jsonify({'error': f'分析过程发生错误: {str(e)}', 'success': False}), 500
 
 # 添加JWT错误处理
 @jwt.unauthorized_loader

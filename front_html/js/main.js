@@ -1003,3 +1003,79 @@ function showSuccessModal(title, message, callback) {
     }, 10);
 }
 
+// 登录/注册模态框交互逻辑 (Moved from index.html)
+document.addEventListener('DOMContentLoaded', function() {
+    const loginBtn = document.getElementById('loginBtn');
+    const getStartedBtn = document.getElementById('getStartedBtn');
+    const loginModal = document.getElementById('loginModal');
+    const closeModal = document.querySelector('.close-modal');
+    const authTabs = document.querySelectorAll('.auth-tab');
+    
+    // 点击登录按钮打开模态框
+    if (loginBtn) {
+        loginBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (loginModal) loginModal.classList.add('show');
+        });
+    }
+    
+    // 点击开始使用按钮打开模态框
+    if (getStartedBtn) {
+        getStartedBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (loginModal) loginModal.classList.add('show');
+        });
+    }
+    
+    // 点击关闭按钮关闭模态框
+    if (closeModal) {
+        closeModal.addEventListener('click', function() {
+            if (loginModal) loginModal.classList.remove('show');
+        });
+    }
+    
+    // 点击模态框外部关闭模态框
+    if (loginModal) {
+        loginModal.addEventListener('click', function(e) {
+            if (e.target === loginModal) {
+                loginModal.classList.remove('show');
+            }
+        });
+    }
+    
+    // 切换登录/注册标签
+    if (authTabs.length > 0) {
+        authTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabId = this.getAttribute('data-tab');
+                
+                // 移除所有标签的活动状态
+                authTabs.forEach(tab => tab.classList.remove('active'));
+                
+                // 隐藏所有内容区域
+                document.querySelectorAll('.auth-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // 激活当前标签
+                this.classList.add('active');
+                
+                // 显示对应的内容区域
+                const targetTabContent = document.getElementById(tabId + 'Tab');
+                if (targetTabContent) targetTabContent.classList.add('active');
+            });
+        });
+    }
+});
+
+// 滚动到指定区域的函数
+function scrollToSection(selector) {
+    const section = document.querySelector(selector);
+    if (section) {
+        window.scrollTo({
+            top: section.offsetTop,
+            behavior: 'smooth'
+        });
+    }
+}
+

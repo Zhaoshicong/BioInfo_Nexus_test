@@ -1328,7 +1328,7 @@ function initPage() {
                     if (aiQueryInput) { // 移除对 sequenceInput.textContent 的检查，即使序列为空也显示提示
                         // *** 移除下面这行设置 value 的代码 ***
                         // aiQueryInput.value = "请输入你对AI分析报告的需求";
-
+                        
                         // 聚焦到输入框
                         setTimeout(() => {
                             aiQueryInput.focus();

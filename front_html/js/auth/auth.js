@@ -254,11 +254,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const result = await authAPI.login(username, password);
                 console.log('登录成功:', result);
                 
-                // 更新UI
-                const user = await authAPI.getCurrentUser();
-                updateUIForLoggedIn(user, userUI);
-                
-                // 跳转到搜索页面
+                // 直接跳转到搜索页面
                 window.location.href = '/search.html';
             } catch (error) {
                 alert('登录失败: ' + error.message);
@@ -349,17 +345,7 @@ function updateUIForLoggedIn(user, userUI) {
     const loginContainer = document.querySelector('.login-container');
     if (loginContainer) {
         loginContainer.style.display = 'none';
-        
-        // 显示欢迎信息
-        const welcomeContainer = document.createElement('div');
-        welcomeContainer.className = 'welcome-container';
-        welcomeContainer.innerHTML = `
-            <h2>欢迎回来，${user.username}！</h2>
-            <p>您已成功登录。</p>
-            <a href="/search.html" class="search-link">开始分析</a>
-        `;
-        
-        loginContainer.parentNode.appendChild(welcomeContainer);
+        window.location.href = '/search.html';
     }
 }
 
@@ -386,9 +372,5 @@ function updateUIForLoggedOut() {
     const loginContainer = document.querySelector('.login-container');
     if (loginContainer) {
         loginContainer.style.display = 'block';
-        
-        // 移除欢迎信息
-        const welcomeContainer = document.querySelector('.welcome-container');
-        if (welcomeContainer) welcomeContainer.remove();
     }
 } 

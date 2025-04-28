@@ -81,6 +81,7 @@ const multiTool = {
                         <span class="progress-count">0/0</span>
                     </div>
                 </div>
+                <div class="analysis-phase">工具分析阶段</div>
             </div>
         `;
         document.body.appendChild(loadingElement);
@@ -164,6 +165,15 @@ const multiTool = {
             }
             .progress-count {
                 text-align: right;
+            }
+            .analysis-phase {
+                font-size: 12px;
+                color: #666;
+                margin-top: 10px;
+                background-color: #f1f8ff;
+                padding: 4px 8px;
+                border-radius: 12px;
+                display: inline-block;
             }
             @keyframes spin {
                 to { transform: rotate(360deg); }
@@ -588,6 +598,27 @@ const multiTool = {
                            throw new Error("所有选定工具均分析失败，无法进行AI分析");
                         }
                         
+                        // 更新加载动画状态为"AI分析中"
+                        const loadingElement = document.getElementById('multi-tool-loading');
+                        if (loadingElement) {
+                            const loadingTitle = loadingElement.querySelector('.loading-title');
+                            if (loadingTitle) loadingTitle.textContent = 'AI分析进行中';
+                            
+                            const currentTool = loadingElement.querySelector('.current-tool');
+                            if (currentTool) currentTool.textContent = '正在由AI综合分析多工具结果...';
+                            
+                            // 进度条保持满格
+                            const progressFill = loadingElement.querySelector('.progress-fill');
+                            if (progressFill) progressFill.style.width = '100%';
+                            
+                            // 更新分析阶段标签
+                            const analysisPhase = loadingElement.querySelector('.analysis-phase');
+                            if (analysisPhase) {
+                                analysisPhase.textContent = 'AI分析阶段';
+                                analysisPhase.style.backgroundColor = '#fff0db';
+                            }
+                        }
+                        
                         utils.updateLoadingText('正在进行AI分析...');
                         
                         // 调用AI分析API，传递所有工具结果
@@ -622,6 +653,23 @@ const multiTool = {
                         
                         // 处理AI分析结果
                         if (result.success) {
+                            // 更新加载动画状态为"分析完成"
+                            const loadingElement = document.getElementById('multi-tool-loading');
+                            if (loadingElement) {
+                                const loadingTitle = loadingElement.querySelector('.loading-title');
+                                if (loadingTitle) loadingTitle.textContent = '分析完成';
+                                
+                                const currentTool = loadingElement.querySelector('.current-tool');
+                                if (currentTool) currentTool.textContent = 'AI分析已完成';
+                                
+                                // 更新分析阶段标签
+                                const analysisPhase = loadingElement.querySelector('.analysis-phase');
+                                if (analysisPhase) {
+                                    analysisPhase.textContent = '分析全部完成';
+                                    analysisPhase.style.backgroundColor = '#e6ffe6';
+                                }
+                            }
+                            
                             // ... (保存localStorage的代码保持不变) ...
                             
                             // 创建或获取结果容器
@@ -720,6 +768,23 @@ const multiTool = {
                     } catch (error) {
                         utils.showToast(`AI分析失败: ${error.message}`);
                         console.error('AI分析错误:', error);
+                        
+                        // 更新加载动画状态为"分析失败"
+                        const loadingElement = document.getElementById('multi-tool-loading');
+                        if (loadingElement) {
+                            const loadingTitle = loadingElement.querySelector('.loading-title');
+                            if (loadingTitle) loadingTitle.textContent = 'AI分析失败';
+                            
+                            const currentTool = loadingElement.querySelector('.current-tool');
+                            if (currentTool) currentTool.textContent = '将显示常规分析结果';
+                            
+                            // 更新分析阶段标签
+                            const analysisPhase = loadingElement.querySelector('.analysis-phase');
+                            if (analysisPhase) {
+                                analysisPhase.textContent = 'AI分析失败';
+                                analysisPhase.style.backgroundColor = '#fff0f0';
+                            }
+                        }
                         
                         // 如果AI分析失败，显示普通工具结果 (只显示成功的)
                         allToolResults.filter(item => item.result && item.result.success === true).forEach(item => {

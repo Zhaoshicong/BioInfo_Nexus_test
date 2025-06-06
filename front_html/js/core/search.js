@@ -1424,6 +1424,75 @@ function initPage() {
                 console.log("确认执行单工具AI分析，立即阻止其他同级事件监听器");
                 event.stopImmediatePropagation(); // 阻止事件传播到 multiTool.js 以及同一元素上的其他监听器
 
+                // 前端验证特定工具的序列类型 - 从multiTool.js移植过来，确保单工具+AI也有验证
+                if (tool === 'analyze_nucleic_acid') {
+                    if (detectedType === 'protein') { 
+                        utils.showToast('核酸特性分析工具无法处理蛋白质序列，跳过此工具'); 
+                        this.classList.remove('loading'); // 确保加载状态被移除
+                        utils.hideLoading(); // 确保加载动画被隐藏
+                        return; 
+                    } else if (detectedType === 'unknown') { 
+                        utils.showToast('序列包含无法识别的字符，跳过核酸分析工具'); 
+                        this.classList.remove('loading');
+                        utils.hideLoading();
+                        return; 
+                    }
+                }
+                if (tool === 'find_cutting_enzymes' && detectedType !== 'dna') { 
+                    utils.showToast('限制酶分析工具仅支持DNA序列，跳过此工具'); 
+                    this.classList.remove('loading');
+                    utils.hideLoading();
+                    return; 
+                }
+                if (tool === 'sequence_annotation' && detectedType !== 'protein') { 
+                    utils.showToast('DNA或RNA序列无法进行序列注释，跳过此工具'); 
+                    this.classList.remove('loading');
+                    utils.hideLoading();
+                    return; 
+                }
+                if (tool === 'translate' && detectedType === 'protein') { 
+                    utils.showToast('蛋白质序列无法进行翻译，跳过此工具'); 
+                    this.classList.remove('loading');
+                    utils.hideLoading();
+                    return; 
+                }
+                if (tool === 'toxinpred') {
+                    const seqInput = sequence; // Use the 'sequence' variable from this scope
+                    if (seqInput.length < 5 || seqInput.length > 50) { 
+                        utils.showToast('ToxinPred要求序列长度为5-50个氨基酸，跳过此工具'); 
+                        this.classList.remove('loading');
+                        utils.hideLoading();
+                        return; 
+                    }
+                }
+                let result;
+                if (tool === 'analyze_codons') {
+                    // 提取序列和宿主ID (允许非数字)
+                    if (sequenceParts.length <= 1) {
+                        utils.showToast("密码子分析需要宿主ID，跳过此工具");
+                        return;
+                    }
+                    const seqPart = mainSequence; // 主序列部分
+                    const hostIdPart = sequenceParts.slice(1).join(' '); // 宿主ID部分(可能包含点号等)
+                    
+                    console.log(`密码子分析参数: 序列=${seqPart}, 宿主ID=${hostIdPart}`);
+                    result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${hostIdPart}`);
+                } else if (tool === 'analyze_restriction') {
+                    // 处理限制性内切酶分析，需要序列和酶名称
+                    if (sequenceParts.length <= 1) {
+                        utils.showToast("限制性内切酶分析需要酶名称，跳过此工具");
+                        return;
+                    }
+                    const seqPart = mainSequence; // 主序列部分
+                    const enzymesPart = sequenceParts.slice(1).join(' '); // 酶名称部分
+                    
+                    console.log(`限制性内切酶分析参数: 序列=${seqPart}, 酶名=${enzymesPart}`);
+                    result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${enzymesPart}`);
+                } else {
+                    // 其他工具只需要序列本身
+                    result = await sequenceTools.analyzeSequence(tool, sequence);
+                }
+
                 // 单工具+AI模式，先进行工具分析然后进行AI分析
                 this.classList.add('loading'); 
                 utils.showLoading('正在进行分析...');
@@ -1582,88 +1651,101 @@ function initPage() {
                     // 重置模式标记
                     this.removeAttribute('data-ai-mode');
                 }
-            } else {
-                // 非AI模式，此时可以由multiTool模块处理
-                console.log("非AI模式，多工具模块状态:", window.multiToolLoaded ? "已加载" : "未加载");
-                
-                // 如果多工具模块已加载，让事件继续传播给多工具模块处理
-                if (window.multiToolLoaded) {
-                    console.log("多工具模块已加载，交由多工具模块处理");
-                    return; // 不阻止事件传播，让multiTool模块处理
-                }
-                
-                // 多工具模块未加载，使用默认的单工具处理逻辑
-                console.log("多工具模块未加载，使用默认单工具处理");
-                
-                // *** 使用更强的事件阻止 ***
-                console.log("确认执行单工具处理（非AI），立即阻止其他同级事件监听器");
-                event.stopImmediatePropagation(); // 阻止事件传播
+            } else { // 如果不是AI分析模式，或者AI查询为空，则进行常规的单工具分析
+                console.log("执行常规单工具分析流程");
 
-                // Frontend Validation 
+                // *** 使用更强的事件阻止 ***
+                event.stopImmediatePropagation(); // 阻止事件传播到 multiTool.js 以及同一元素上的其他监听器
+
+                // 前端验证特定工具的序列类型 - 从multiTool.js移植过来，确保单工具也有验证
                 if (tool === 'analyze_nucleic_acid') {
-                    if (detectedType === 'protein') { utils.showToast('核酸特性分析工具无法处理蛋白质序列，请输入DNA或RNA。'); return; } 
-                    else if (detectedType === 'unknown') { utils.showToast('序列包含无法识别的字符，无法进行核酸分析。'); return; }
-                }
-                if (tool === 'find_cutting_enzymes' && detectedType !== 'dna') { utils.showToast('限制酶分析工具仅支持DNA序列'); return; }
-                if (tool === 'sequence_annotation' && detectedType !== 'protein') { utils.showToast('DNA或RNA序列无法进行序列注释，请输入蛋白质。'); return; }
-                if (tool === 'translate' && detectedType === 'protein') { utils.showToast('蛋白质序列无法进行翻译，请输入DNA或RNA。'); return; }
-                if (tool === 'toxinpred') {
-                    const seqInput = sequence.split(/\s+/)[0];
-                    if (seqInput.length < 5) { utils.showToast('ToxinPred要求序列长度至少为5个氨基酸'); return; }
-                    if (seqInput.length > 50) { utils.showToast('ToxinPred工具限制序列长度最多50个氨基酸，请缩短序列'); return; }
-                }
-            
-                this.classList.add('loading'); 
-            
-                try {
-                    utils.showLoading('正在分析...');
-                    
-                    // --- Modify analyzeSequence call for analyze_codons ---
-                    let result;
-                    if (tool === 'analyze_codons') {
-                        // 提取序列和宿主ID (允许非数字)
-                        const inputParts = sequence.trim().split(/\s+/);
-                         if (inputParts.length <= 1) {
-                             utils.hideLoading();
-                             this.classList.remove('loading');
-                             utils.showToast("请在序列后用空格分隔输入宿主ID (例如：ATGC 9606 或 ATGC 3645.chloroplast)");
-                             return;
-                         }
-                        const seqPart = inputParts[0];
-                        const hostIdPart = inputParts.slice(1).join(' '); // 获取序列后的所有部分作为ID
-                        
-                        // 直接将提取的 hostIdPart (可能是 3645.chloroplast) 传给后端
-                        result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${hostIdPart}`); // 保持原始格式发送
-                    } else {
-                        // 其他工具的常规处理
-                        result = await sequenceTools.analyzeSequence(tool, sequence);
+                    if (detectedType === 'protein') { 
+                        utils.showToast('核酸特性分析工具无法处理蛋白质序列，跳过此工具'); 
+                        this.classList.remove('loading'); // 确保加载状态被移除
+                        utils.hideLoading(); // 确保加载动画被隐藏
+                        return; 
+                    } else if (detectedType === 'unknown') { 
+                        utils.showToast('序列包含无法识别的字符，跳过核酸分析工具'); 
+                        this.classList.remove('loading');
+                        utils.hideLoading();
+                        return; 
                     }
-                    // --- End modification ---
-                    
+                }
+                if (tool === 'find_cutting_enzymes' && detectedType !== 'dna') { 
+                    utils.showToast('限制酶分析工具仅支持DNA序列，跳过此工具'); 
+                    this.classList.remove('loading');
                     utils.hideLoading();
+                    return; 
+                }
+                if (tool === 'sequence_annotation' && detectedType !== 'protein') { 
+                    utils.showToast('DNA或RNA序列无法进行序列注释，跳过此工具'); 
+                    this.classList.remove('loading');
+                    utils.hideLoading();
+                    return; 
+                }
+                if (tool === 'translate' && detectedType === 'protein') { 
+                    utils.showToast('蛋白质序列无法进行翻译，跳过此工具'); 
+                    this.classList.remove('loading');
+                    utils.hideLoading();
+                    return; 
+                }
+                if (tool === 'toxinpred') {
+                    const seqInput = sequence; // Use the 'sequence' variable from this scope
+                    if (seqInput.length < 5 || seqInput.length > 50) { 
+                        utils.showToast('ToxinPred要求序列长度为5-50个氨基酸，跳过此工具'); 
+                        this.classList.remove('loading');
+                        utils.hideLoading();
+                        return; 
+                    }
+                }
+                let result;
+                if (tool === 'analyze_codons') {
+                    // 提取序列和宿主ID (允许非数字)
+                    if (sequenceParts.length <= 1) {
+                        utils.showToast("密码子分析需要宿主ID，跳过此工具");
+                        return;
+                    }
+                    const seqPart = mainSequence; // 主序列部分
+                    const hostIdPart = sequenceParts.slice(1).join(' '); // 宿主ID部分(可能包含点号等)
                     
-                    if (result) {
-                        // --- 重要: 检查工具分析是否真的成功 ---
-                        if (result.success === false) {
-                            // 如果后端明确返回失败，显示错误
-                             utils.showToast(result.error || '分析失败，请检查输入或稍后重试');
-                        } else {
-                             // 否则，显示结果
-                            sequenceTools.displayResults(tool, result, detectedType);
-                            checkResults(); 
-                            // 重载粒子系统
-                            setTimeout(reloadParticles, 300); 
-                        }
+                    console.log(`密码子分析参数: 序列=${seqPart}, 宿主ID=${hostIdPart}`);
+                    result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${hostIdPart}`);
+                } else if (tool === 'analyze_restriction') {
+                    // 处理限制性内切酶分析，需要序列和酶名称
+                    if (sequenceParts.length <= 1) {
+                        utils.showToast("限制性内切酶分析需要酶名称，跳过此工具");
+                        return;
+                    }
+                    const seqPart = mainSequence; // 主序列部分
+                    const enzymesPart = sequenceParts.slice(1).join(' '); // 酶名称部分
+                    
+                    console.log(`限制性内切酶分析参数: 序列=${seqPart}, 酶名=${enzymesPart}`);
+                    result = await sequenceTools.analyzeSequence(tool, `${seqPart} ${enzymesPart}`);
+                } else {
+                    // 其他工具只需要序列本身
+                    result = await sequenceTools.analyzeSequence(tool, sequence);
+                }
+
+                this.classList.add('loading');
+                utils.showLoading('正在分析...');
+
+                try {
+                    const toolResult = await sequenceTools.analyzeSequence(tool, sequence);
+
+                    // 检查工具分析是否成功
+                    if (toolResult && toolResult.success) {
+                        sequenceTools.displayResults(tool, toolResult, detectedType);
                     } else {
-                        // analyzeSequence 返回 null 或 undefined (例如前端验证失败)
-                         utils.showToast('分析未能执行，请检查输入');
+                        const errorMsg = toolResult?.error || "工具分析失败";
+                        utils.showToast(`${getToolName(tool)} 分析失败: ${errorMsg}`);
+                        console.error(`${getToolName(tool)} 分析失败:`, toolResult);
                     }
                 } catch (error) {
-                    utils.hideLoading();
-                    utils.showToast(error.message || '分析失败');
-                    console.error('分析错误:', error);
+                    utils.showToast(`${getToolName(tool)} 分析失败: ${error.message || '未知错误'}`);
+                    console.error(`${getToolName(tool)} 分析错误:`, error);
                 } finally {
                     this.classList.remove('loading');
+                    utils.hideLoading();
                 }
             }
         });

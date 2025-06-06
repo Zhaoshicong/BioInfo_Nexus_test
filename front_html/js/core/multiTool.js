@@ -488,29 +488,29 @@ const multiTool = {
                         // 前端验证特定工具的序列类型
                         if (tool === 'analyze_nucleic_acid') {
                             if (detectedType === 'protein') { 
-                                utils.showToast('核酸特性分析工具无法处理蛋白质序列，跳过此工具。'); 
+                                utils.showToast('核酸特性分析工具无法处理蛋白质序列，跳过此工具'); 
                                 continue; 
                             } else if (detectedType === 'unknown') { 
-                                utils.showToast('序列包含无法识别的字符，跳过核酸分析工具。'); 
+                                utils.showToast('序列包含无法识别的字符，跳过核酸分析工具'); 
                                 continue; 
                             }
                         }
                         if (tool === 'find_cutting_enzymes' && detectedType !== 'dna') { 
-                            utils.showToast('限制酶分析工具仅支持DNA序列，跳过此工具。'); 
+                            utils.showToast('限制酶分析工具仅支持DNA序列，跳过此工具'); 
                             continue; 
                         }
                         if (tool === 'sequence_annotation' && detectedType !== 'protein') { 
-                            utils.showToast('DNA或RNA序列无法进行序列注释，跳过此工具。'); 
+                            utils.showToast('DNA或RNA序列无法进行序列注释，跳过此工具'); 
                             continue; 
                         }
                         if (tool === 'translate' && detectedType === 'protein') { 
-                            utils.showToast('蛋白质序列无法进行翻译，跳过此工具。'); 
+                            utils.showToast('蛋白质序列无法进行翻译，跳过此工具'); 
                             continue; 
                         }
                         if (tool === 'toxinpred') {
                             const seqInput = mainSequence; // 只检查第一部分序列
                             if (seqInput.length < 5 || seqInput.length > 50) { 
-                                utils.showToast('ToxinPred要求序列长度为5-50个氨基酸，跳过此工具。'); 
+                                utils.showToast('ToxinPred要求序列长度为5-50个氨基酸，跳过此工具'); 
                                 continue; 
                             }
                         }
@@ -519,7 +519,7 @@ const multiTool = {
                         if (tool === 'analyze_codons') {
                             // 提取序列和宿主ID (允许非数字)
                             if (sequenceParts.length <= 1) {
-                                utils.showToast("密码子分析需要宿主ID，跳过此工具。");
+                                utils.showToast("密码子分析需要宿主ID，跳过此工具");
                                 continue;
                             }
                             const seqPart = mainSequence; // 主序列部分
@@ -530,7 +530,7 @@ const multiTool = {
                         } else if (tool === 'analyze_restriction') {
                             // 处理限制性内切酶分析，需要序列和酶名称
                             if (sequenceParts.length <= 1) {
-                                utils.showToast("限制性内切酶分析需要酶名称，跳过此工具。");
+                                utils.showToast("限制性内切酶分析需要酶名称，跳过此工具");
                                 continue;
                             }
                             const seqPart = mainSequence; // 主序列部分

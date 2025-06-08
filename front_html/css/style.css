@@ -1052,7 +1052,7 @@ body:has(.reset-password-container) .content-wrapper {
 /* 重置密码页面样式 */
 .reset-password-container {
     padding: 40px;
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.75);
     position: relative;
     min-width: 300px;
     width: 400px;
@@ -1257,6 +1257,200 @@ body:has(.reset-password-container) .content-wrapper {
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
+}
+
+/* 用户协议同意样式 */
+.agreement-group {
+    margin: 20px 0;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    font-size: 13.5px;
+    line-height: 1.5;
+    position: relative;
+    padding-left: 30px;
+    margin-bottom: 12px;
+}
+
+.checkbox-container input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 2px;
+    left: 0;
+    height: 18px;
+    width: 18px;
+    background-color: #fff;
+    border: 2px solid #ddd;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+    border-color: #3498db;
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: #3498db;
+    border-color: #3498db;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-container .checkmark:after {
+    left: 50%;
+    top: 50%;
+    width: 5px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -60%) rotate(45deg);
+}
+
+.checkbox-container a {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.checkbox-container a:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+.agreement-link {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.agreement-link:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+/* 协议模态框样式 */
+.agreement-modal {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.agreement-modal .modal-content {
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.agreement-content h2 {
+    color: #000000;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #000000;
+    font-weight: 700;
+    text-align: center;
+    font-size: 1.5em;
+}
+
+.agreement-text {
+    line-height: 1.7;
+    color: #333333;
+    margin-bottom: 30px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.agreement-text h3 {
+    color: #000000;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+    font-weight: 700;
+    border-left: 4px solid #000000;
+    padding-left: 10px;
+}
+
+.agreement-text p {
+    margin-bottom: 15px;
+    text-align: justify;
+    color: #444444;
+    font-size: 14px;
+}
+
+.agreement-text ul {
+    margin: 10px 0 15px 0;
+    padding-left: 30px;
+}
+
+.agreement-text li {
+    margin-bottom: 8px;
+    color: #555555;
+    font-size: 14px;
+}
+
+.agreement-text strong {
+    color: #000000;
+    font-weight: 700;
+}
+
+.agreement-actions {
+    text-align: center;
+    padding-top: 20px;
+    border-top: 2px solid #000000;
+    background: #f8f9fa;
+}
+
+.agreement-confirm {
+    background: #000000;
+    color: #ffffff;
+    border: 2px solid #000000;
+    padding: 12px 40px;
+    border-radius: 0;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.agreement-confirm:hover {
+    background: #ffffff;
+    color: #000000;
+    border: 2px solid #000000;
+}
+
+.agreement-close {
+    color: #000000;
+    font-size: 24px;
+    font-weight: bold;
+    opacity: 0.7;
+}
+
+.agreement-close:hover {
+    opacity: 1;
+    color: #000000;
 }
 
 /* 对重置密码页面的验证容器进行特殊定制 */

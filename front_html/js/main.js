@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupPasswordReset();
     setupFeatureTooltips();
     setupPasswordStrengthValidator();
+    setupAgreementLinks();
     
     // 检查URL参数，如果有重置密码的token，则显示重置密码模态框
     checkResetPasswordToken();
@@ -620,6 +621,13 @@ function validateRegister(event) {
         return false;
     }
     
+    // 验证用户协议同意
+    const agreementCheckbox = document.getElementById('agreement-checkbox');
+    if (!agreementCheckbox.checked) {
+        showAuthError('register', 'error', '请先阅读并同意用户协议、隐私政策和产品服务协议');
+        return false;
+    }
+    
     // 显示注册中状态
     const registerBtn = document.querySelector('.register-btn');
     const originalText = registerBtn.textContent;
@@ -1077,5 +1085,315 @@ function scrollToSection(selector) {
             behavior: 'smooth'
         });
     }
+}
+
+// 设置协议链接功能
+function setupAgreementLinks() {
+    const agreementLinks = document.querySelectorAll('.agreement-link');
+    
+    agreementLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const agreementType = this.getAttribute('data-agreement');
+            showAgreementModal(agreementType);
+        });
+    });
+}
+
+// 显示协议模态框
+function showAgreementModal(type) {
+    let title, content;
+    
+    switch(type) {
+        case 'user':
+            title = '用户协议';
+            content = getUserAgreement();
+            break;
+        case 'privacy':
+            title = '隐私政策';
+            content = getPrivacyPolicy();
+            break;
+        case 'service':
+            title = '产品服务协议';
+            content = getServiceAgreement();
+            break;
+        default:
+            return;
+    }
+    
+    // 创建模态框
+    const modal = document.createElement('div');
+    modal.className = 'modal agreement-modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content agreement-content">
+            <span class="close-modal agreement-close">&times;</span>
+            <h2>${title}</h2>
+            <div class="agreement-text">
+                ${content}
+            </div>
+            <div class="agreement-actions">
+                <button class="btn-primary agreement-confirm">我已阅读</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 添加关闭事件
+    const closeBtn = modal.querySelector('.agreement-close');
+    const confirmBtn = modal.querySelector('.agreement-confirm');
+    
+    closeBtn.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    confirmBtn.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    // 点击模态框外部关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+// 用户协议内容
+function getUserAgreement() {
+    return `
+        <h3>1. 服务条款的接受</h3>
+        <p>欢迎使用BioInfo Nexus平台。在使用我们的服务之前，请仔细阅读以下服务条款。通过注册、访问或使用我们的服务，您表示同意受这些条款的约束。</p>
+        
+        <h3>2. 服务描述</h3>
+        <p>BioInfo Nexus是一个专业的生物信息学集成平台，提供以下服务：</p>
+        <ul>
+            <li>序列分析工具（包括但不限于序列比对、结构预测、功能注释等）</li>
+            <li>生物数据库查询服务</li>
+            <li>基于AI的生物学知识问答</li>
+            <li>其他相关的生物信息学分析工具</li>
+        </ul>
+        
+        <h3>3. 用户责任</h3>
+        <p>作为用户，您同意：</p>
+        <ul>
+            <li>提供准确、完整的注册信息</li>
+            <li>保护您的账户安全，不与他人共享登录凭据</li>
+            <li>仅将服务用于合法的科研和学术目的</li>
+            <li>不上传恶意软件、病毒或其他有害内容</li>
+            <li>尊重知识产权，不侵犯他人权利</li>
+            <li>遵守相关法律法规和学术伦理规范</li>
+        </ul>
+        
+        <h3>4. 禁止行为</h3>
+        <p>严禁以下行为：</p>
+        <ul>
+            <li>利用服务进行任何非法活动</li>
+            <li>试图破坏、干扰或未经授权访问系统</li>
+            <li>恶意使用服务资源，影响其他用户正常使用</li>
+            <li>传播虚假、误导性或有害信息</li>
+            <li>商业化使用免费服务</li>
+        </ul>
+        
+        <h3>5. 知识产权</h3>
+        <p>本平台的所有内容，包括但不限于软件、界面设计、文档、数据等，均受知识产权法保护。未经许可，不得复制、修改、分发或商业化使用。</p>
+        
+        <h3>6. 免责声明</h3>
+        <p>本服务按"现状"提供，我们不对服务的可用性、准确性或完整性作任何明示或暗示的保证。用户使用服务的风险由其自行承担。</p>
+        
+        <h3>7. 服务变更与终止</h3>
+        <p>我们保留随时修改、暂停或终止服务的权利。对于服务的变更，我们将尽力提前通知用户。</p>
+        
+        <h3>8. 争议解决</h3>
+        <p>因使用本服务产生的争议，应通过友好协商解决。协商不成的，提交有管辖权的人民法院解决。</p>
+        
+        <h3>9. 条款修订</h3>
+        <p>我们可能会不时更新这些条款。修订后的条款将在平台上公布，继续使用服务即表示接受修订后的条款。</p>
+        
+        <p><strong>生效日期：2025年1月1日</strong></p>
+    `;
+}
+
+// 隐私政策内容
+function getPrivacyPolicy() {
+    return `
+        <h3>1. 信息收集</h3>
+        <p>我们收集以下类型的信息：</p>
+        <ul>
+            <li><strong>账户信息：</strong>邮箱地址、密码（加密存储）</li>
+            <li><strong>使用数据：</strong>分析历史、查询记录、偏好设置</li>
+            <li><strong>技术信息：</strong>IP地址、浏览器类型、操作系统、访问时间</li>
+            <li><strong>分析数据：</strong>您上传的序列数据和分析结果</li>
+        </ul>
+        
+        <h3>2. 信息使用</h3>
+        <p>我们使用收集的信息用于：</p>
+        <ul>
+            <li>提供和改进我们的服务</li>
+            <li>个性化用户体验</li>
+            <li>技术支持和故障排除</li>
+            <li>安全监控和防欺诈</li>
+            <li>发送重要通知和更新</li>
+            <li>数据统计和分析（匿名化处理）</li>
+        </ul>
+        
+        <h3>3. 信息共享</h3>
+        <p>我们不会出售、出租或交易您的个人信息。仅在以下情况下可能共享信息：</p>
+        <ul>
+            <li>获得您的明确同意</li>
+            <li>法律要求或执法部门要求</li>
+            <li>保护我们的权利和安全</li>
+            <li>与可信的第三方服务提供商（已签署保密协议）</li>
+        </ul>
+        
+        <h3>4. 数据安全</h3>
+        <p>我们采取以下措施保护您的数据：</p>
+        <ul>
+            <li>SSL加密传输</li>
+            <li>密码加密存储</li>
+            <li>定期安全审计</li>
+            <li>访问控制和权限管理</li>
+            <li>数据备份和恢复机制</li>
+        </ul>
+        
+        <h3>5. 数据保存</h3>
+        <p>我们保存您的数据期限：</p>
+        <ul>
+            <li>账户信息：账户存续期间</li>
+            <li>分析数据：用户可自主删除，我们最多保存2年</li>
+            <li>日志数据：最多保存1年</li>
+            <li>匿名统计数据：可长期保存</li>
+        </ul>
+        
+        <h3>6. 您的权利</h3>
+        <p>您有权：</p>
+        <ul>
+            <li>查看和更新您的个人信息</li>
+            <li>删除您的账户和相关数据</li>
+            <li>导出您的数据</li>
+            <li>限制某些数据处理</li>
+            <li>撤回同意（在适用情况下）</li>
+        </ul>
+        
+        <h3>7. Cookie和跟踪技术</h3>
+        <p>我们使用Cookie和类似技术来：</p>
+        <ul>
+            <li>记住您的登录状态</li>
+            <li>保存您的偏好设置</li>
+            <li>分析网站使用情况</li>
+            <li>提供个性化内容</li>
+        </ul>
+        
+        <h3>8. 第三方服务</h3>
+        <p>我们可能集成第三方服务（如AI模型），这些服务有自己的隐私政策。我们建议您也阅读相关的第三方隐私政策。</p>
+        
+        <h3>9. 未成年人保护</h3>
+        <p>我们的服务主要面向成年用户。如果您未满18岁，请在监护人同意下使用我们的服务。</p>
+        
+        <h3>10. 政策更新</h3>
+        <p>我们可能会更新此隐私政策。重大变更会通过邮件或网站公告通知用户。</p>
+        
+        <h3>11. 联系我们</h3>
+        <p>如有隐私相关问题，请联系：bioinfo.nexus@example.com</p>
+        
+        <p><strong>生效日期：2025年1月1日</strong></p>
+    `;
+}
+
+// 产品服务协议内容
+function getServiceAgreement() {
+    return `
+        <h3>1. 服务级别</h3>
+        <p>我们提供以下服务级别：</p>
+        <ul>
+            <li><strong>免费服务：</strong>基础分析工具，有使用频率限制</li>
+            <li><strong>会员服务：</strong>高级功能，更高的使用限额，优先支持</li>
+            <li><strong>API服务：</strong>程序化访问接口，适用于批量处理</li>
+        </ul>
+        
+        <h3>2. 服务可用性</h3>
+        <p>我们努力保证服务的可用性，但不保证服务100%可用。可能因以下原因暂时中断：</p>
+        <ul>
+            <li>定期维护和更新</li>
+            <li>技术故障</li>
+            <li>网络问题</li>
+            <li>不可抗力因素</li>
+        </ul>
+        
+        <h3>3. 使用限制</h3>
+        <p>为确保服务质量，我们对使用进行以下限制：</p>
+        <ul>
+            <li><strong>免费用户：</strong>每日最多50次分析请求</li>
+            <li><strong>序列大小：</strong>单次分析最大50MB</li>
+            <li><strong>并发请求：</strong>同时最多5个分析任务</li>
+            <li><strong>存储限制：</strong>历史数据最多保存100个项目</li>
+        </ul>
+        
+        <h3>4. 数据处理</h3>
+        <p>关于您提交的数据：</p>
+        <ul>
+            <li>我们仅为提供服务而处理您的数据</li>
+            <li>分析过程中的临时数据会在24小时内自动删除</li>
+            <li>您可以随时删除保存的结果</li>
+            <li>我们不会将您的序列数据用于其他目的</li>
+        </ul>
+        
+        <h3>5. 质量保证</h3>
+        <p>我们努力提供准确的分析结果，但：</p>
+        <ul>
+            <li>结果仅供科研参考，不构成医疗建议</li>
+            <li>用户应验证重要结果</li>
+            <li>我们不对基于结果的决策承担责任</li>
+            <li>算法和数据库会定期更新，结果可能有变化</li>
+        </ul>
+        
+        <h3>6. 付费服务</h3>
+        <p>对于付费服务：</p>
+        <ul>
+            <li>费用按月或年收取</li>
+            <li>支持常见的支付方式</li>
+            <li>可随时取消订阅</li>
+            <li>退款政策：30天内可申请全额退款</li>
+        </ul>
+        
+        <h3>7. 技术支持</h3>
+        <p>我们提供：</p>
+        <ul>
+            <li>在线文档和教程</li>
+            <li>邮件技术支持</li>
+            <li>会员用户享有优先支持</li>
+            <li>工作日24小时内响应</li>
+        </ul>
+        
+        <h3>8. 服务变更</h3>
+        <p>我们可能会：</p>
+        <ul>
+            <li>增加新功能和工具</li>
+            <li>调整使用限制</li>
+            <li>修改价格（提前30天通知）</li>
+            <li>停止某些功能（提前90天通知）</li>
+        </ul>
+        
+        <h3>9. 责任限制</h3>
+        <p>在法律允许的最大范围内：</p>
+        <ul>
+            <li>我们的责任仅限于提供服务</li>
+            <li>不对间接损失承担责任</li>
+            <li>赔偿上限为您支付的服务费用</li>
+            <li>不保证服务满足您的特定需求</li>
+        </ul>
+        
+        <h3>10. 合规要求</h3>
+        <p>用户使用服务时应：</p>
+        <ul>
+            <li>遵守所在地区的法律法规</li>
+            <li>获得必要的数据使用许可</li>
+            <li>尊重他人的知识产权</li>
+            <li>不用于危害公共安全的目的</li>
+        </ul>
+        
+        <p><strong>生效日期：2025年1月1日</strong></p>
+    `;
 }
 

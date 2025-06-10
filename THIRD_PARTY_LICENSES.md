@@ -20,17 +20,6 @@ BioPython项目主页：https://biopython.org/
 
 本项目使用了以下第三方生物信息学网络服务。使用这些工具时，请注意遵守各自的使用条款：
 
-### SignalP
-
-本项目使用DTU (丹麦技术大学) 提供的SignalP在线服务进行信号肽预测。
-
-- 服务提供方：DTU Health Tech
-- 服务网址：https://services.healthtech.dtu.dk/services/SignalP-4.1/
-- 使用条款：https://services.healthtech.dtu.dk/service.php?SignalP-5.0
-- 引用：Nielsen H, et al. (2019) SignalP 5.0 improves signal peptide predictions using deep neural networks. Nature Biotechnology, 37:420-423.
-
-**重要提示**：SignalP仅供学术和非商业研究使用。商业用途需要获得单独许可。我们的脚本仅用于教育和研究目的，通过网页接口访问SignalP服务。
-
 ### VaxiJen
 
 本项目使用VaxiJen网络服务进行抗原性预测。

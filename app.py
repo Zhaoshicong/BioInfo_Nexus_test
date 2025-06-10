@@ -41,7 +41,7 @@ from flask_mail import Mail  # 导入Flask-Mail
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity  # 导入JWT扩展
 from user_auth.user_system import db, init_user_system
 from flask_migrate import Migrate
-from Bio_tools.AI_service import generate_report
+from Bio_tools.AI_service import generate_report, generate_report_async, cancel_ai_request, get_ai_service_status, get_ai_request_result
 
 # 导入用户系统
 from user_auth.user_system import init_user_system, token_required, User, db
@@ -994,7 +994,9 @@ def ai_analyze(current_user):
     {
         "sequence": "序列内容",
         "query": "用户的自然语言查询/需求",
-        "toolResults": {工具名: 结果对象}  // 前端传递的工具分析结果
+        "toolResults": {工具名: 结果对象},  // 前端传递的工具分析结果
+        "async": true/false,  // 是否使用异步模式，默认false
+        "timeout": 90  // 超时时间（秒），默认90
     }
     """
     logger.info("收到AI分析请求")
@@ -1007,6 +1009,8 @@ def ai_analyze(current_user):
     sequence = data.get("sequence", "").strip().upper()
     user_query = data.get("query", "").strip()
     frontend_tool_results = data.get("toolResults")
+    use_async = data.get("async", False)
+    timeout = data.get("timeout", 90)
     
     if not sequence:
         logger.error("AI分析请求中未提供序列")
@@ -1041,7 +1045,34 @@ def ai_analyze(current_user):
             elif protein_pattern.match(sequence):
                 detected_type = "protein"
         
-        # 使用AI服务生成报告
+        # 如果请求异步处理
+        if use_async:
+            try:
+                # 使用异步AI服务生成报告
+                request_id = generate_report_async(frontend_tool_results, user_query, timeout)
+                
+                logger.info(f"AI异步分析请求已提交，请求ID: {request_id}")
+                
+                return jsonify({
+                    "success": True,
+                    "async": True,
+                    "request_id": request_id,
+                    "message": "AI分析请求已提交，请等待结果",
+                    "tool_results": frontend_tool_results,
+                    "user_query": user_query,
+                    "sequence": sequence,
+                    "detected_type": detected_type
+                })
+                
+            except Exception as e:
+                logger.error(f"提交异步AI分析失败: {str(e)}")
+                # 如果异步失败，降级到同步处理
+                logger.info("异步AI分析失败，降级到同步处理")
+                use_async = False
+        
+        # 同步处理（默认或异步失败时的降级）
+        if not use_async:
+            # 使用AI服务生成报告（增加超时控制）
         ai_result = generate_report(frontend_tool_results, user_query)
         
         # 检查AI服务是否成功
@@ -1056,6 +1087,7 @@ def ai_analyze(current_user):
         # 返回AI分析结果
         return jsonify({
             "success": True,
+                "async": False,
             "report": ai_result.get("report", ""),
             "tool_results": frontend_tool_results,
             "user_query": user_query,
@@ -1066,6 +1098,86 @@ def ai_analyze(current_user):
     except Exception as e:
         logger.error(f"AI分析处理错误: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+# AI服务状态查询端点
+@app.route('/api/ai_status', methods=['GET'])
+@error_handler
+@token_required
+def ai_status(current_user):
+    """
+    查询AI服务状态
+    """
+    try:
+        status = get_ai_service_status()
+        return jsonify({
+            "success": True,
+            "status": status
+        })
+    except Exception as e:
+        logger.error(f"获取AI服务状态失败: {str(e)}")
+        return jsonify({
+            "error": f"获取AI服务状态失败: {str(e)}"
+        }), 500
+
+# AI请求取消端点
+@app.route('/api/ai_cancel', methods=['POST'])
+@error_handler
+@token_required
+def ai_cancel(current_user):
+    """
+    取消AI分析请求
+    请求格式:
+    {
+        "request_id": "请求ID"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data or not data.get("request_id"):
+            return jsonify({"error": "缺少请求ID"}), 400
+        
+        request_id = data.get("request_id")
+        cancelled = cancel_ai_request(request_id)
+        
+        return jsonify({
+            "success": True,
+            "cancelled": cancelled,
+            "message": "请求已取消" if cancelled else "请求无法取消或已完成"
+        })
+        
+    except Exception as e:
+        logger.error(f"取消AI请求失败: {str(e)}")
+        return jsonify({
+            "error": f"取消AI请求失败: {str(e)}"
+        }), 500
+
+# AI请求结果查询端点
+@app.route('/api/ai_result/<request_id>', methods=['GET'])
+@error_handler
+@token_required
+def ai_result(current_user, request_id):
+    """
+    查询AI分析请求的结果
+    """
+    try:
+        result = get_ai_request_result(request_id)
+        
+        if result is None:
+            return jsonify({
+                "error": "请求不存在或已过期"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "request_id": request_id,
+            **result
+        })
+        
+    except Exception as e:
+        logger.error(f"查询AI请求结果失败: {str(e)}")
+        return jsonify({
+            "error": f"查询AI请求结果失败: {str(e)}"
+        }), 500
 
 if __name__ == '__main__':
     # 确保临时文件目录存在

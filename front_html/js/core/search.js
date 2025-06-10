@@ -1088,6 +1088,110 @@ function getToolName(tool) {
     }
 }
 
+// 处理AI分析完成的函数
+function handleAIAnalysisComplete(tool, result, toolResult, detectedType) {
+    if (!result.success) {
+        throw new Error(result.error || "AI分析失败，未返回结果");
+    }
+
+    // 创建或获取结果容器
+    let resultsContainer = document.querySelector('.results-container');
+    if (!resultsContainer) {
+        resultsContainer = document.createElement('div');
+        resultsContainer.className = 'results-container';
+        const contentContainer = document.querySelector('.content-container');
+        if (contentContainer) {
+            contentContainer.appendChild(resultsContainer);
+        } else {
+            console.error("找不到content-container元素");
+            document.body.appendChild(resultsContainer);
+        }
+    }
+    
+    // 确保resultsContainer可见
+    resultsContainer.style.display = 'block';
+    
+    // 查找或创建特定工具的结果框
+    let toolResultBox = resultsContainer.querySelector(`.${tool}-result`);
+    if (!toolResultBox) {
+        console.warn(`未找到工具 ${tool} 的结果框，将创建新的AI结果框`);
+        let aiResultBox = document.querySelector('.ai-analysis-result');
+        if (!aiResultBox) {
+            aiResultBox = document.createElement('div');
+            aiResultBox.className = 'ai-analysis-result result-box';
+            resultsContainer.appendChild(aiResultBox);
+        }
+        toolResultBox = aiResultBox;
+    }
+    
+    // 清空可能存在的旧AI报告内容
+    const existingAiReport = toolResultBox.querySelector('.ai-report-section');
+    if (existingAiReport) {
+        existingAiReport.remove();
+    }
+
+    // 生成带格式的AI分析报告
+    const aiReport = result.report || "AI未能生成报告";
+    
+    // 转换Markdown格式为HTML
+    const formattedReport = aiReport
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/```([\s\S]*?)```/g, '<pre class="code-block">$1</pre>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+    
+    // 创建新的AI报告部分并添加到工具结果框中
+    const aiReportSection = document.createElement('div');
+    aiReportSection.className = 'ai-report-section';
+    aiReportSection.style.marginTop = '20px';
+    aiReportSection.style.borderTop = '1px dashed #ccc';
+    aiReportSection.style.paddingTop = '15px';
+    aiReportSection.innerHTML = `
+        <h3>AI分析报告 (基于${getToolName(tool)})</h3>
+        <div class="ai-report-content">
+            ${formattedReport}
+        </div>
+        <div class="ai-report-query">
+            <p><strong>分析需求:</strong> ${result.user_query || '无特定需求'}</p>
+        </div>
+    `;
+    toolResultBox.appendChild(aiReportSection);
+
+    // 添加样式
+    let styleElement = document.getElementById('ai-report-styles');
+    if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = 'ai-report-styles';
+        styleElement.textContent = 
+            '.ai-report-content { padding: 15px; background-color: #f9f9fd; border-radius: 10px; font-size: 15px; line-height: 1.6; margin-bottom: 15px; }' + 
+            '.ai-report-content pre.code-block { background-color: #f0f0f0; padding: 12px; border-radius: 5px; overflow-x: auto; font-family: Consolas, Monaco, monospace; margin: 10px 0; }' + 
+            '.ai-report-content code { background-color: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-family: Consolas, Monaco, monospace; }' + 
+            '.ai-report-query { border-top: 1px solid #eee; padding-top: 10px; color: #666; font-size: 14px; }';
+        document.head.appendChild(styleElement);
+    }
+    
+    // 确保结果可见并滚动到结果区域
+    if (toolResultBox) {
+        setTimeout(() => {
+            toolResultBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+    }
+    
+    // 更新检查结果状态
+    try {
+        checkResults();
+    } catch (e) {
+        console.error("调用checkResults失败:", e);
+    }
+    
+    // 重载粒子系统
+    setTimeout(reloadParticles, 300);
+    
+    utils.showToast('AI分析完成');
+}
+
 // 统一的序列类型检测函数
 function getSequenceType(seq) {
     if (!seq) return 'unknown';
@@ -1514,7 +1618,59 @@ function initPage() {
                     
                     utils.updateLoadingText('正在进行AI分析...');
                     
-                    // 调用AI分析API
+                    // 检查是否可以使用异步AI分析
+                    console.log('检查异步AI可用性...');
+                    const hasAsyncAI = window.asyncAI;
+                    console.log('window.asyncAI存在:', !!hasAsyncAI);
+                    
+                    let isAvailable = false;
+                    if (hasAsyncAI) {
+                        try {
+                            isAvailable = await window.asyncAI.isAvailable();
+                            console.log('异步AI可用性检查结果:', isAvailable);
+                        } catch (error) {
+                            console.error('检查异步AI可用性时出错:', error);
+                        }
+                    }
+                    
+                    if (hasAsyncAI && isAvailable) {
+                        console.log('使用异步AI分析');
+                        
+                        // 保存当前按钮引用，因为在回调中this会变化
+                        const analyzeButton = this;
+                        
+                        // 使用异步AI分析
+                        const requestId = await window.asyncAI.startAsyncAnalysis(
+                            {[tool]: toolResult},
+                            aiQuery,
+                            {
+                                timeout: 90,
+                                onProgress: (message, progress) => {
+                                    utils.updateLoadingText(`AI分析: ${message}`);
+                                },
+                                onComplete: (result) => {
+                                    // 处理AI分析完成
+                                    handleAIAnalysisComplete(tool, result, toolResult, detectedType);
+                                    utils.hideLoading();
+                                    analyzeButton.classList.remove('loading');
+                                    analyzeButton.removeAttribute('data-ai-mode');
+                                },
+                                onError: (error) => {
+                                    console.error('异步AI分析失败:', error);
+                                    utils.showToast(`AI分析失败: ${error.message}`);
+                                    utils.hideLoading();
+                                    analyzeButton.classList.remove('loading');
+                                    analyzeButton.removeAttribute('data-ai-mode');
+                                }
+                            }
+                        );
+                        
+                        console.log(`异步AI分析已启动，请求ID: ${requestId}`);
+                        return; // 异步处理，不需要继续同步代码
+                    }
+                    
+                    // 降级到同步AI分析
+                    console.log('使用同步AI分析');
                     const response = await fetch('/api/ai_analyze', {
                         method: 'POST',
                         headers: {
@@ -1524,7 +1680,8 @@ function initPage() {
                         body: JSON.stringify({
                             sequence: sequence,
                             query: aiQuery,
-                            toolResults: {[tool]: toolResult}  // 传递工具分析结果
+                            toolResults: {[tool]: toolResult},  // 传递工具分析结果
+                            async: false
                         })
                     });
                     
@@ -1702,32 +1859,32 @@ function initPage() {
 
                 try {
                     let toolResult;
-                    if (tool === 'analyze_codons') {
-                        // 提取序列和宿主ID (允许非数字)
+                if (tool === 'analyze_codons') {
+                    // 提取序列和宿主ID (允许非数字)
                         const sequenceParts = sequence.trim().split(/\s+/);
-                        if (sequenceParts.length <= 1) {
-                            utils.showToast("密码子分析需要宿主ID，跳过此工具");
-                            return;
-                        }
+                    if (sequenceParts.length <= 1) {
+                        utils.showToast("密码子分析需要宿主ID，跳过此工具");
+                        return;
+                    }
                         const seqPart = sequenceParts[0]; // 主序列部分
-                        const hostIdPart = sequenceParts.slice(1).join(' '); // 宿主ID部分(可能包含点号等)
-                        
-                        console.log(`密码子分析参数: 序列=${seqPart}, 宿主ID=${hostIdPart}`);
+                    const hostIdPart = sequenceParts.slice(1).join(' '); // 宿主ID部分(可能包含点号等)
+                    
+                    console.log(`密码子分析参数: 序列=${seqPart}, 宿主ID=${hostIdPart}`);
                         toolResult = await sequenceTools.analyzeSequence(tool, `${seqPart} ${hostIdPart}`);
-                    } else if (tool === 'analyze_restriction') {
-                        // 处理限制性内切酶分析，需要序列和酶名称
+                } else if (tool === 'analyze_restriction') {
+                    // 处理限制性内切酶分析，需要序列和酶名称
                         const sequenceParts = sequence.trim().split(/\s+/);
-                        if (sequenceParts.length <= 1) {
-                            utils.showToast("限制性内切酶分析需要酶名称，跳过此工具");
-                            return;
-                        }
+                    if (sequenceParts.length <= 1) {
+                        utils.showToast("限制性内切酶分析需要酶名称，跳过此工具");
+                        return;
+                    }
                         const seqPart = sequenceParts[0]; // 主序列部分
-                        const enzymesPart = sequenceParts.slice(1).join(' '); // 酶名称部分
-                        
-                        console.log(`限制性内切酶分析参数: 序列=${seqPart}, 酶名=${enzymesPart}`);
+                    const enzymesPart = sequenceParts.slice(1).join(' '); // 酶名称部分
+                    
+                    console.log(`限制性内切酶分析参数: 序列=${seqPart}, 酶名=${enzymesPart}`);
                         toolResult = await sequenceTools.analyzeSequence(tool, `${seqPart} ${enzymesPart}`);
-                    } else {
-                        // 其他工具只需要序列本身
+                } else {
+                    // 其他工具只需要序列本身
                         toolResult = await sequenceTools.analyzeSequence(tool, sequence);
                     }
 

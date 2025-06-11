@@ -152,7 +152,16 @@ const authAPI = {
                 throw new Error('获取用户信息失败');
             }
             
-            return await response.json();
+            const user = await response.json();
+            
+            // 同步用户信息到cookies，确保isAdmin状态正确
+            if (user.username) {
+                cookieUtils.setCookie('username', user.username, 7, false);
+                cookieUtils.setCookie('isAdmin', user.is_admin ? 'true' : 'false', 7, false);
+                console.log('auth.js: 已同步用户信息到cookies，isAdmin:', user.is_admin);
+            }
+            
+            return user;
         } catch (error) {
             console.error('获取用户信息错误:', error);
             return null;

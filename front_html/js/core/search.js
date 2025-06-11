@@ -2039,6 +2039,13 @@ async function checkLoginStatus(userUI) {
         const user = await response.json();
         console.log('search.js: 用户数据:', user);
         
+        // 同步用户信息到cookies，确保isAdmin状态正确
+        if (user.username) {
+            cookieUtils.setCookie('username', user.username, 7, false);
+            cookieUtils.setCookie('isAdmin', user.is_admin ? 'true' : 'false', 7, false);
+            console.log('search.js: 已同步用户信息到cookies，isAdmin:', user.is_admin);
+        }
+        
         // 更新UI显示已登录状态
         updateUIForLoggedIn(user, userUI);
     } catch (error) {
@@ -2070,6 +2077,12 @@ function updateUIForLoggedIn(user, userUI) {
             console.error('search.js: 解析cookies中的用户信息失败:', e);
             return;
         }
+    } else {
+        // 确保从API获取的用户数据中is_admin字段类型正确
+        if (typeof user.is_admin === 'string') {
+            user.is_admin = user.is_admin === 'true';
+        }
+        console.log('search.js: API用户数据，is_admin类型:', typeof user.is_admin, '值:', user.is_admin);
     }
     
     // 确保用户对象有基本字段

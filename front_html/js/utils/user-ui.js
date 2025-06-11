@@ -126,7 +126,7 @@ export function createUserMenu(navLinks, user, logoutHandler) {
             </div>
             <div class="dropdown-divider"></div>
             <a href="/profile.html"><i class="fas fa-user-circle"></i> 个人资料</a>
-            ${user.is_admin || user.role === 'admin' ? '<a href="/admin.html"><i class="fas fa-cog"></i> 管理控制台</a>' : ''}
+            ${(user.is_admin === true || user.is_admin === 1 || user.role === 'admin') ? '<a href="/admin.html"><i class="fas fa-cog"></i> 管理控制台</a>' : ''}
             <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> 注销</a>
         </div>
     `;

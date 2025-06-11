@@ -1073,7 +1073,7 @@ def ai_analyze(current_user):
         # 同步处理（默认或异步失败时的降级）
         if not use_async:
             # 使用AI服务生成报告（增加超时控制）
-        ai_result = generate_report(frontend_tool_results, user_query)
+            ai_result = generate_report(frontend_tool_results, user_query)
         
         # 检查AI服务是否成功
         if not ai_result.get("success", False):

@@ -1015,6 +1015,7 @@ function showSuccessModal(title, message, callback) {
 document.addEventListener('DOMContentLoaded', function() {
     const loginBtn = document.getElementById('loginBtn');
     const getStartedBtn = document.getElementById('getStartedBtn');
+    const aiAssistantBtn = document.getElementById('aiAssistantBtn');
     const loginModal = document.getElementById('loginModal');
     const closeModal = document.querySelector('.close-modal');
     const authTabs = document.querySelectorAll('.auth-tab');
@@ -1032,6 +1033,34 @@ document.addEventListener('DOMContentLoaded', function() {
         getStartedBtn.addEventListener('click', function(e) {
             e.preventDefault();
             if (loginModal) loginModal.classList.add('show');
+        });
+    }
+    
+    // 点击体验AI助手按钮打开模态框并切换到注册页面
+    if (aiAssistantBtn) {
+        aiAssistantBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (loginModal) {
+                loginModal.classList.add('show');
+                
+                // 切换到注册标签
+                const registerTab = document.querySelector('[data-tab="register"]');
+                const loginTab = document.querySelector('[data-tab="login"]');
+                const registerContent = document.getElementById('registerTab');
+                const loginContent = document.getElementById('loginTab');
+                
+                if (registerTab && loginTab && registerContent && loginContent) {
+                    // 移除所有活动状态
+                    authTabs.forEach(tab => tab.classList.remove('active'));
+                    document.querySelectorAll('.auth-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // 激活注册标签和内容
+                    registerTab.classList.add('active');
+                    registerContent.classList.add('active');
+                }
+            }
         });
     }
     

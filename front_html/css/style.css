@@ -1594,6 +1594,60 @@ body:has(.reset-password-container) .content-wrapper {
     margin-bottom: 40px;
 }
 
+/* Qwen Logo 样式 */
+.qwen-logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin: 40px 0 1px 0;
+    padding: 20px 0;
+    transition: all 0.3s ease;
+}
+
+.qwen-logo-container:hover {
+    transform: translateY(-3px);
+}
+
+.qwen-logo {
+    height: 50px;
+    width: auto;
+    transition: all 0.3s ease;
+    filter: brightness(1.1) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.qwen-logo:hover {
+    transform: scale(1.08);
+    filter: brightness(1.2) drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
+}
+
+.qwen-text {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .qwen-logo-container {
+        flex-direction: column;
+        gap: 12px;
+        margin: 30px 0 15px 0;
+    }
+    
+    .qwen-logo {
+        height: 40px;
+    }
+    
+    .qwen-text {
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+    }
+}
+
 /* 登录模态框 */
 .modal {
     display: none;

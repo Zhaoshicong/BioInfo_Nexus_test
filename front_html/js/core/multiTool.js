@@ -551,16 +551,14 @@ const multiTool = {
                                 result: result // 保存整个后端返回的结果对象
                             });
                             
-                            // 如果不是AI模式或AI查询为空，显示结果
-                            if (!isAiMode || !aiQuery) {
-                                // 只显示成功的工具结果
-                                if (result.success) {
-                                    sequenceTools.displayResults(tool, result, detectedType);
-                                } else {
-                                    console.warn(`工具 ${toolName} 分析失败，结果:`, result.error);
-                                    // 可以选择性地显示错误提示，或者只在控制台记录
-                                    // utils.showToast(`${toolName} 分析返回失败: ${result.error || '未知原因'}`);
-                                }
+                            // 在多工具模式下，总是显示原始工具结果
+                            // 即使启用了AI分析，用户也应该能看到原始分析结果
+                            if (result.success) {
+                                sequenceTools.displayResults(tool, result, detectedType);
+                            } else {
+                                console.warn(`工具 ${toolName} 分析失败，结果:`, result.error);
+                                // 可以选择性地显示错误提示，或者只在控制台记录
+                                // utils.showToast(`${toolName} 分析返回失败: ${result.error || '未知原因'}`);
                             }
                         }
                         
@@ -724,10 +722,25 @@ const multiTool = {
             // 确保resultsContainer可见
             resultsContainer.style.display = 'block';
             
-            // 清空之前的结果
-            resultsContainer.innerHTML = '';
+            // 不清空之前的结果，而是先显示原始工具结果
+            // 如果还没有显示原始结果，现在显示它们
+            const existingResults = resultsContainer.querySelectorAll('.result-box:not(.ai-analysis-result)');
+            if (existingResults.length === 0) {
+                // 显示成功的原始工具结果
+                successfulToolResults.forEach(item => {
+                    if (item.result && item.result.success) {
+                        sequenceTools.displayResults(item.tool, item.result, detectedType);
+                    }
+                });
+            }
             
-            // 创建AI分析结果显示区域
+            // 检查是否已存在AI结果框，如果存在则移除
+            const existingAiResult = resultsContainer.querySelector('.ai-analysis-result');
+            if (existingAiResult) {
+                existingAiResult.remove();
+            }
+            
+            // 创建AI分析结果显示区域，添加到最后
             let aiResultBox = document.createElement('div');
             aiResultBox.className = 'ai-analysis-result result-box';
             resultsContainer.appendChild(aiResultBox);
@@ -751,7 +764,7 @@ const multiTool = {
                 </div>
                 <div class="ai-report-query">
                     <p><strong>分析需求:</strong> ${aiQuery}</p>
-                    <p><strong>原选工具:</strong> ${this.selectedTools.map(t => getToolName(t)).join(', ')}</p>
+                    <p><strong>使用工具:</strong> ${this.selectedTools.map(t => getToolName(t)).join(', ')}</p>
                 </div>
                 <div class="ai-tools-used" style="margin-top: 10px; font-size: 14px; color: #666;">
                     <details>

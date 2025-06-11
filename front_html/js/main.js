@@ -17,6 +17,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 检查URL参数，如果有重置密码的token，则显示重置密码模态框
     checkResetPasswordToken();
+    
+    // 初始化cookie同意横幅
+    cookieConsentManager.init();
+    
+    // 设置页面上下文
+    setContextText();
 });
 
 // 设置 fetch 请求拦截器，为所有 API 请求自动添加 Authorization 头
@@ -27,7 +33,7 @@ function setupFetchInterceptor() {
     // 重写 fetch 函数
     window.fetch = function(url, options = {}) {
         // 获取存储的令牌 - 每次请求时都重新获取，确保使用最新的
-        const token = localStorage.getItem('token');
+        const token = cookieUtils.getCookie('auth_token');
         
         // 调试输出请求信息
         console.log(`发起请求: ${url}`, options);
@@ -68,9 +74,11 @@ function setupFetchInterceptor() {
                         // 如果是刷新用户信息的请求失败，不要清除令牌
                         // 可能是服务器临时问题
                         if (!url.includes('/api/auth/me')) {
-                            console.error('认证失败，清除本地令牌');
-                            localStorage.removeItem('token');
-                            localStorage.removeItem('user');
+                            console.error('认证失败，清除cookie令牌');
+                            cookieUtils.deleteCookie('auth_token');
+                            cookieUtils.deleteCookie('username');
+                            cookieUtils.deleteCookie('isAdmin');
+                            cookieUtils.deleteCookie('loginTime');
                             
                             // 如果不是登录页面，可以重定向到登录页
                             const isLoginPage = window.location.pathname === '/' || 
@@ -441,23 +449,26 @@ function validateLogin(event) {
             loginBtn.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
             loginBtn.innerHTML = '登录成功 <span style="margin-left: 5px">✓</span>';
             
-            // 保存token和用户信息
-            localStorage.setItem('token', data.token);
-            console.log('令牌已保存到localStorage:', localStorage.getItem('token'));
+            // 保存token和用户信息到cookies
+            authUtils.saveToken(data.token, data.username, data.is_admin);
+            console.log('令牌已保存到cookies:', cookieUtils.getCookie('auth_token'));
             
             // 确保role字段存在
             const role = data.role || (data.is_admin ? 'admin' : 'user');
             console.log('用户角色:', role);
             
-            localStorage.setItem('user', JSON.stringify({
-                username: data.username,  // 使用响应中的用户名
-                public_id: data.public_id,
-                user_id: data.user_id,
-                email: data.email,
-                role: role   // 确保包含role字段
-            }));
+            // 保存额外的用户信息到cookies（如果需要）
+            if (data.email) {
+                cookieUtils.setCookie('user_email', data.email, 7, false);
+            }
+            if (data.public_id) {
+                cookieUtils.setCookie('user_public_id', data.public_id, 7, false);
+            }
+            if (data.user_id) {
+                cookieUtils.setCookie('user_id', data.user_id, 7, false);
+            }
             
-            console.log('用户信息已保存到 localStorage:', JSON.parse(localStorage.getItem('user')));
+            console.log('用户信息已保存到cookies');
             
             // 跳转到主页
             setTimeout(() => {
@@ -727,7 +738,7 @@ function showAuthError(button, type, message, shouldResetButton = true) {
 // 检查登录状态
 function checkLoginStatus() {
     console.log('正在检查登录状态...');
-    const token = localStorage.getItem('token');
+    const token = cookieUtils.getCookie('auth_token');
     
     if (token) {
         console.log('找到令牌:', token);
@@ -736,8 +747,10 @@ function checkLoginStatus() {
         const parts = token.split('.');
         if (parts.length !== 3) {
             console.error('令牌格式无效:', token);
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+            cookieUtils.deleteCookie('auth_token');
+            cookieUtils.deleteCookie('username');
+            cookieUtils.deleteCookie('isAdmin');
+            cookieUtils.deleteCookie('loginTime');
             return;
         }
         
@@ -776,9 +789,11 @@ function checkLoginStatus() {
             console.error('令牌验证错误:', e);
         }
         
-        // token无效或过期，清除本地存储
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        // token无效或过期，清除cookies
+        cookieUtils.deleteCookie('auth_token');
+        cookieUtils.deleteCookie('username');
+        cookieUtils.deleteCookie('isAdmin');
+        cookieUtils.deleteCookie('loginTime');
     } else {
         console.log('未找到令牌');
     }
@@ -1425,4 +1440,14 @@ function getServiceAgreement() {
         <p><strong>生效日期：2025年1月1日</strong></p>
     `;
 }
+
+// 设置页面上下文文本
+function setContextText() {
+    const contextElement = document.getElementById('context-text');
+    if (contextElement) {
+        contextElement.textContent = '进入生物信息学数据分析和AI辅助研究平台，探索前沿科学工具。';
+    }
+}
+
+
 

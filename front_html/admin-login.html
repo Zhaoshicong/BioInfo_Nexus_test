@@ -175,6 +175,7 @@
         <div class="loading-spinner"></div>
     </div>
     
+    <script src="js/utils/cookie-manager.js"></script>
     <script>
         // Helper function to decode JWT payload (basic, no signature verification)
         function decodeJwtPayload(token) {
@@ -238,13 +239,11 @@
                     if (data.role === 'admin') {
                         console.log("管理员登录成功，准备跳转...");
                         
-                        // 保存令牌和用户信息
-                        localStorage.setItem('token', data.token);
-                        localStorage.setItem('admin_user', JSON.stringify({
-                            username: data.username,
-                            public_id: data.public_id,
-                            role: data.role
-                        }));
+                        // 使用cookies保存令牌和用户信息
+                        cookieUtils.setCookie('auth_token', data.token, 7); // 7天过期
+                        cookieUtils.setCookie('username', data.username, 7);
+                        cookieUtils.setCookie('isAdmin', 'true', 7);
+                        cookieUtils.setCookie('loginTime', new Date().toISOString(), 7);
                         
                         // 跳转到管理面板
                         console.log("跳转到管理面板...");

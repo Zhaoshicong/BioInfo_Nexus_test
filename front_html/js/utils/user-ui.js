@@ -65,7 +65,7 @@ export async function getMembershipInfo(user) {
         }
         
         // 否则通过API获取会员信息
-        const token = localStorage.getItem('token');
+        const token = cookieUtils.getCookie('auth_token');
         if (!token) return null;
         
         const response = await fetch('/api/membership/status', {
@@ -192,4 +192,35 @@ export function addMembershipStyles() {
         }
     `;
     document.head.appendChild(styleEl);
-} 
+}
+
+// 自动加载用户状态
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM加载完成，初始化用户UI');
+    
+    // 初始化cookie同意横幅
+    if (typeof cookieConsentManager !== 'undefined') {
+        cookieConsentManager.init();
+    }
+    
+    // 先更新UI为加载状态
+    const userDropdown = document.getElementById('userActions');
+    if (userDropdown) {
+        userDropdown.innerHTML = `
+            <div class="user-info">
+                <span class="username">加载中...</span>
+                <div class="user-dropdown">
+                    <a href="#" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        注销
+                    </a>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 延迟一点时间再初始化用户UI，确保authUtils已加载
+    setTimeout(() => {
+        UserUI.init();
+    }, 100);
+}); 

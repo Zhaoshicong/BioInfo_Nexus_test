@@ -545,7 +545,7 @@ def login():
         token_payload = {
             'sub': str(user.id),  # 添加sub字段为用户ID字符串
             'public_id': user.public_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 统一设置为7天
         }
         
         # 获取 SECRET_KEY 并确保它是字符串类型

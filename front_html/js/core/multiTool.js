@@ -233,7 +233,7 @@ const multiTool = {
     async checkMembershipStatus() {
         try {
             console.log("开始检查会员状态...");
-            const token = localStorage.getItem('token');
+            const token = cookieUtils.getCookie('auth_token');
             if (!token) {
                 console.log("未找到令牌，返回非会员状态");
                 return false;

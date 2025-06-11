@@ -199,7 +199,7 @@ class AsyncAIHandler {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${cookieUtils.getCookie('auth_token')}`
                 },
                 body: JSON.stringify({
                     sequence: sequence,
@@ -261,7 +261,7 @@ class AsyncAIHandler {
                 // 调用后端API查询真实状态
                 const response = await fetch(`/api/ai_result/${request.backendRequestId}`, {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${cookieUtils.getCookie('auth_token')}`
                     }
                 });
 
@@ -415,7 +415,7 @@ class AsyncAIHandler {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${cookieUtils.getCookie('auth_token')}`
                     },
                     body: JSON.stringify({
                         request_id: request.backendRequestId
@@ -534,7 +534,7 @@ class AsyncAIHandler {
         try {
             const response = await fetch('/api/ai_status', {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${cookieUtils.getCookie('auth_token')}`
                 }
             });
 
@@ -555,7 +555,7 @@ class AsyncAIHandler {
         try {
             const response = await fetch('/api/ai_status', {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${cookieUtils.getCookie('auth_token')}`
                 }
             });
 

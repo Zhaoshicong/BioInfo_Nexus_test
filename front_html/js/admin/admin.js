@@ -1,41 +1,79 @@
 // 全局变量
 let currentUserId = null;
-let token = localStorage.getItem('token');
+let token = null; // 延迟获取token
 const API_BASE = '/admin';
 let currentUserInfo = null; // 存储当前登录用户信息
 
 // DOM 加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
     console.log("管理面板页面加载中...");
-    console.log("检查令牌:", token ? "已找到" : "未找到");
     
-    // 检查是否已登录
-    if (!token) {
-        console.log("未找到令牌，重定向到登录页...");
-        window.location.href = 'admin-login.html';
-        return;
-    }
-    
-    // 尝试获取管理员用户信息
-    try {
-        const adminUserStr = localStorage.getItem('admin_user');
-        if (adminUserStr) {
-            const adminUser = JSON.parse(adminUserStr);
-            console.log("从localStorage获取的管理员信息:", adminUser);
-            
-            // 如果不是管理员，重定向回登录页
-            if (adminUser.role !== 'admin') {
-                console.log("非管理员用户，重定向到登录页...");
-                window.location.href = 'admin-login.html';
-                return;
-            }
-            
-            // 设置当前用户信息
-            currentUserInfo = adminUser;
+    // 延迟获取token，确保cookieUtils已加载
+    setTimeout(() => {
+        token = cookieUtils.getCookie('auth_token');
+        console.log("检查令牌:", token ? "已找到" : "未找到");
+        
+        // 检查是否已登录
+        if (!token) {
+            console.log("未找到令牌，重定向到登录页...");
+            window.location.href = 'admin-login.html';
+            return;
         }
+        
+        // 验证管理员权限
+        checkAdminPermission();
+    }, 100);
+});
+
+// 验证管理员权限
+async function checkAdminPermission() {
+    try {
+        // 首先通过API验证token有效性和管理员权限
+        const response = await fetch('/api/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            console.log("Token验证失败，重定向到登录页...");
+            window.location.href = 'admin-login.html';
+            return;
+        }
+        
+        const userData = await response.json();
+        console.log("API返回的用户数据:", userData);
+        
+        // 检查是否是管理员
+        if (!userData.is_admin && userData.role !== 'admin') {
+            console.log("非管理员用户，重定向到登录页...");
+            window.location.href = 'admin-login.html';
+            return;
+        }
+        
+        // 设置当前用户信息
+        currentUserInfo = {
+            id: userData.id,
+            username: userData.username,
+            email: userData.email,
+            is_admin: userData.is_admin,
+            role: userData.role || 'admin'
+        };
+        
+        console.log("管理员权限验证成功:", currentUserInfo);
+        
+        // 初始化管理后台
+        initAdminPanel();
+        
     } catch (e) {
-        console.error("解析管理员信息出错:", e);
+        console.error("验证管理员权限出错:", e);
+        window.location.href = 'admin-login.html';
     }
+}
+
+// 初始化管理后台
+function initAdminPanel() {
+    console.log("开始初始化管理后台...");
     
     // 获取当前用户信息
     getCurrentUserInfo();
@@ -58,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.modal-close').addEventListener('click', closeModal);
     document.getElementById('cancel-delete').addEventListener('click', closeModal);
     document.getElementById('confirm-delete').addEventListener('click', deleteUser);
-});
+}
 
 // 获取当前用户信息
 function getCurrentUserInfo() {
@@ -628,7 +666,10 @@ function initTabs() {
 
 // 退出登录
 function logout() {
-    localStorage.removeItem('token');
+            cookieUtils.deleteCookie('auth_token');
+        cookieUtils.deleteCookie('username');
+        cookieUtils.deleteCookie('isAdmin');
+        cookieUtils.deleteCookie('loginTime');
     window.location.href = 'admin-login.html';
 }
 

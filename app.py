@@ -71,7 +71,7 @@ if not isinstance(app_secret_key, str):
 # 设置密钥
 app.config['SECRET_KEY'] = app_secret_key
 app.config['JWT_SECRET_KEY'] = app_secret_key
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)  # 统一设置为7天
 app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'

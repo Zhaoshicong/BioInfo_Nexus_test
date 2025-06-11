@@ -1,26 +1,27 @@
 // 认证相关工具函数
 const authUtils = {
-    // 保存令牌到本地存储
+    // 保存令牌到cookies
     saveToken(token, username, isAdmin) {
-        localStorage.setItem('token', token);
-        localStorage.setItem('username', username);
-        localStorage.setItem('isAdmin', isAdmin);
-        localStorage.setItem('loginTime', new Date().toISOString());
+        // 设置token cookie，7天过期
+        cookieUtils.setCookie('auth_token', token, 7, true);
+        cookieUtils.setCookie('username', username, 7, false);
+        cookieUtils.setCookie('isAdmin', isAdmin, 7, false);
+        cookieUtils.setCookie('loginTime', new Date().toISOString(), 7, false);
     },
     
-    // 从本地存储获取令牌
+    // 从cookies获取令牌
     getToken() {
-        return localStorage.getItem('token');
+        return cookieUtils.getCookie('auth_token');
     },
     
     // 获取用户名
     getUsername() {
-        return localStorage.getItem('username');
+        return cookieUtils.getCookie('username');
     },
     
     // 检查是否是管理员
     isAdmin() {
-        return localStorage.getItem('isAdmin') === 'true';
+        return cookieUtils.getCookie('isAdmin') === 'true';
     },
     
     // 检查用户是否已登录
@@ -30,10 +31,10 @@ const authUtils = {
     
     // 清除令牌（注销）
     clearToken() {
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        localStorage.removeItem('isAdmin');
-        localStorage.removeItem('loginTime');
+        cookieUtils.deleteCookie('auth_token');
+        cookieUtils.deleteCookie('username');
+        cookieUtils.deleteCookie('isAdmin');
+        cookieUtils.deleteCookie('loginTime');
     },
     
     // 获取认证头
@@ -44,7 +45,7 @@ const authUtils = {
     
     // 检查令牌是否过期（默认24小时）
     isTokenExpired() {
-        const loginTime = localStorage.getItem('loginTime');
+        const loginTime = cookieUtils.getCookie('loginTime');
         if (!loginTime) return true;
         
         const loginDate = new Date(loginTime);

@@ -412,7 +412,7 @@ function initDailyLoginChart() {
 // 刷新图表数据
 function refreshChartData() {
     // 从API获取系统资源使用数据
-    const token = localStorage.getItem('token');
+    const token = cookieUtils.getCookie('auth_token');
     if (!token) {
         console.error('未找到认证令牌');
         return;
@@ -471,7 +471,7 @@ function generateRandomData(count, min, max) {
 
 // 更新用户增长图表数据
 function updateUserGrowthChart() {
-    const token = localStorage.getItem('token');
+    const token = cookieUtils.getCookie('auth_token');
     if (!token) {
         console.error('未找到认证令牌');
         return;
@@ -574,7 +574,7 @@ function updateUserGrowthChart() {
 
 // 更新每日登录人数图表数据
 function updateDailyLoginChart() {
-    const token = localStorage.getItem('token');
+    const token = cookieUtils.getCookie('auth_token');
     if (!token) {
         console.error('未找到认证令牌');
         return;

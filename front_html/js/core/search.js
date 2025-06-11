@@ -48,16 +48,16 @@ const utils = {
     
     // 获取认证头
     getAuthHeader() {
-        const token = localStorage.getItem('token');
+        const token = cookieUtils.getCookie('auth_token');
         console.log('utils.getAuthHeader: token =', token);
         return token ? { 'Authorization': `Bearer ${token}` } : {};
     },
     
     // 检查是否已登录
     isLoggedIn() {
-        const token = localStorage.getItem('token');
-        const userStr = localStorage.getItem('user');
-        const isLogged = Boolean(token && userStr);
+        const token = cookieUtils.getCookie('auth_token');
+        const username = cookieUtils.getCookie('username');
+        const isLogged = Boolean(token && username);
         console.log('utils.isLoggedIn:', isLogged);
         return isLogged;
     }
@@ -1330,7 +1330,7 @@ function reloadParticles() {
 // 在页面加载时初始化
 document.addEventListener('DOMContentLoaded', async function() {
     // 检查登录状态
-    const token = localStorage.getItem('token');
+    const token = cookieUtils.getCookie('auth_token');
     if (!token) {
         // 未登录，跳转到首页
         window.location.href = 'index.html';
@@ -2007,7 +2007,7 @@ function setupSequenceInput(sequenceInput) {
 // 检查用户登录状态
 async function checkLoginStatus(userUI) {
     try {
-        const token = localStorage.getItem('token');
+        const token = cookieUtils.getCookie('auth_token');
         if (!token) {
             console.log('search.js: 未找到令牌，用户未登录');
             return;
@@ -2023,10 +2023,12 @@ async function checkLoginStatus(userUI) {
         
         if (!response.ok) {
             if (response.status === 401) {
-                console.error('search.js: 令牌验证失败(401)，清除本地存储');
-                // 令牌无效，清除本地存储
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
+                console.error('search.js: 令牌验证失败(401)，清除cookies');
+                // 令牌无效，清除cookies
+                cookieUtils.deleteCookie('auth_token');
+                cookieUtils.deleteCookie('username');
+                cookieUtils.deleteCookie('isAdmin');
+                cookieUtils.deleteCookie('loginTime');
                 console.log('search.js: 令牌已清除，准备跳转到登录页面');
                 window.location.href = 'index.html';
             }
@@ -2049,19 +2051,23 @@ function updateUIForLoggedIn(user, userUI) {
     console.log('search.js: 更新UI为已登录状态');
     console.log('search.js: 传入的用户数据:', JSON.stringify(user));
     
-    // 如果没有直接从API获取用户，尝试从localStorage获取
+    // 如果没有直接从API获取用户，尝试从cookies获取
     if (!user) {
         try {
-            const userStr = localStorage.getItem('user');
-            if (userStr) {
-                user = JSON.parse(userStr);
-                console.log('search.js: 从localStorage获取用户信息:', user);
+            const username = cookieUtils.getCookie('username');
+            const isAdmin = cookieUtils.getCookie('isAdmin');
+            if (username) {
+                user = {
+                    username: username,
+                    is_admin: isAdmin === 'true'
+                };
+                console.log('search.js: 从cookies获取用户信息:', user);
             } else {
-                console.error('search.js: localStorage中没有用户信息');
+                console.error('search.js: cookies中没有用户信息');
                 return;
             }
         } catch (e) {
-            console.error('search.js: 解析localStorage中的用户信息失败:', e);
+            console.error('search.js: 解析cookies中的用户信息失败:', e);
             return;
         }
     }
@@ -2097,7 +2103,7 @@ function updateUIForLoggedIn(user, userUI) {
 // 注销用户
 async function logoutUser() {
     console.log('准备注销用户');
-    const token = localStorage.getItem('token');
+    const token = cookieUtils.getCookie('auth_token');
     if (!token) {
         console.log('未找到令牌，无需注销');
         return;
@@ -2117,10 +2123,12 @@ async function logoutUser() {
     } catch (error) {
         console.error('注销出错:', error);
     } finally {
-        // 清除本地存储
-        console.log('清除本地存储的用户凭据');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        // 清除cookies
+        console.log('清除cookies中的用户凭据');
+        cookieUtils.deleteCookie('auth_token');
+        cookieUtils.deleteCookie('username');
+        cookieUtils.deleteCookie('isAdmin');
+        cookieUtils.deleteCookie('loginTime');
         
         // 跳转到首页
         console.log('准备跳转到首页');

@@ -251,6 +251,9 @@ def get_user_growth():
 def get_daily_logins():
     """获取每日登录人数趋势数据"""
     try:
+        from user_auth.user_system import LoginRecord
+        from sqlalchemy import func, extract
+        
         range_param = request.args.get('range', 'month')  # 默认月视图
 
         # 获取当前日期
@@ -272,18 +275,26 @@ def get_daily_logins():
             # 初始化每个月的登录人数为0
             for month in range(1, current_month + 1):
                 login_stats[month] = 0
-                
-            # 获取今年所有登录记录
-            current_year_start = datetime(today.year, 1, 1).date()
-            users_with_logins = User.query.filter(User.last_login >= current_year_start).all()
             
-            # 根据最后登录时间统计每月登录人数
-            for user in users_with_logins:
-                if user.last_login:
-                    login_month = user.last_login.month
-                    login_year = user.last_login.year
-                    if login_year == today.year and 1 <= login_month <= current_month:
-                        login_stats[login_month] += 1
+            # 使用登录记录表统计每月独立登录用户数
+            current_year_start = datetime(today.year, 1, 1)
+            current_year_end = datetime(today.year, current_month + 1, 1) if current_month < 12 else datetime(today.year + 1, 1, 1)
+            
+            # 查询今年的登录记录，按月份和用户ID分组，统计每月独立登录用户数
+            monthly_login_counts = db.session.query(
+                extract('month', LoginRecord.login_time).label('month'),
+                func.count(func.distinct(LoginRecord.user_id)).label('unique_users')
+            ).filter(
+                LoginRecord.login_time >= current_year_start,
+                LoginRecord.login_time < current_year_end
+            ).group_by(
+                extract('month', LoginRecord.login_time)
+            ).all()
+            
+            # 将查询结果填入统计字典
+            for month_num, unique_users in monthly_login_counts:
+                if 1 <= month_num <= current_month:
+                    login_stats[int(month_num)] = unique_users
             
             # 只返回到当前月份的数据
             filtered_labels = months[:current_month]
@@ -305,19 +316,26 @@ def get_daily_logins():
             # 初始化每天的登录人数为0
             for day in range(1, current_day + 1):
                 login_stats[day] = 0
-                
-            # 获取本月所有登录记录
-            current_month_start = datetime(today.year, today.month, 1).date()
-            users_with_logins = User.query.filter(User.last_login >= current_month_start).all()
             
-            # 根据最后登录时间统计每天登录人数
-            for user in users_with_logins:
-                if user.last_login:
-                    login_day = user.last_login.day
-                    login_month = user.last_login.month
-                    login_year = user.last_login.year
-                    if login_year == today.year and login_month == today.month and 1 <= login_day <= current_day:
-                        login_stats[login_day] += 1
+            # 使用登录记录表统计每日独立登录用户数
+            current_month_start = datetime(today.year, today.month, 1)
+            current_month_end = datetime(today.year, today.month, current_day + 1) if current_day < 31 else datetime(today.year, today.month + 1, 1) if today.month < 12 else datetime(today.year + 1, 1, 1)
+            
+            # 查询本月的登录记录，按日期和用户ID分组，统计每日独立登录用户数
+            daily_login_counts = db.session.query(
+                extract('day', LoginRecord.login_time).label('day'),
+                func.count(func.distinct(LoginRecord.user_id)).label('unique_users')
+            ).filter(
+                LoginRecord.login_time >= current_month_start,
+                LoginRecord.login_time < current_month_end
+            ).group_by(
+                extract('day', LoginRecord.login_time)
+            ).all()
+            
+            # 将查询结果填入统计字典
+            for day_num, unique_users in daily_login_counts:
+                if 1 <= day_num <= current_day:
+                    login_stats[int(day_num)] = unique_users
             
             return jsonify({
                 'labels': list(login_stats.keys()),

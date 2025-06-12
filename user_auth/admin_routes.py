@@ -305,10 +305,21 @@ def get_stats(user):
         
         #logging.info(f"SQL查询结果: 用户总数={sql_user_count}, 管理员数量={sql_admin_count}")
         
-        # 获取今日登录人数
+        # 获取今日登录人数 - 使用登录记录表统计独立用户数
         from datetime import datetime, timedelta
+        from user_auth.user_system import LoginRecord
+        from sqlalchemy import func
+        
         today_start = datetime.combine(datetime.today(), datetime.min.time())
-        login_today = User.query.filter(User.last_login >= today_start).count()
+        today_end = today_start + timedelta(days=1)
+        
+        # 统计今日独立登录用户数
+        login_today = db.session.query(
+            func.count(func.distinct(LoginRecord.user_id))
+        ).filter(
+            LoginRecord.login_time >= today_start,
+            LoginRecord.login_time < today_end
+        ).scalar() or 0
         
         # 获取今日注册用户数
         today_users = User.query.filter(User.created_at >= today_start).count()

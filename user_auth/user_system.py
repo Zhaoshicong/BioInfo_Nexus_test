@@ -102,6 +102,32 @@ class TokenBlacklist(db.Model):
     def __repr__(self):
         return f'<TokenBlacklist {self.id}>'
 
+# 登录记录模型（用于统计每日登录人数）
+class LoginRecord(db.Model):
+    __tablename__ = 'login_records'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    login_time = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    ip_address = db.Column(db.String(45), nullable=True)  # 支持IPv6
+    user_agent = db.Column(db.String(500), nullable=True)
+    
+    # 建立与用户的关系
+    user = db.relationship('User', backref=db.backref('login_records', lazy=True))
+    
+    def __repr__(self):
+        return f'<LoginRecord {self.user_id} at {self.login_time}>'
+    
+    def to_dict(self):
+        """将登录记录对象转换为字典格式"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'login_time': self.login_time.isoformat() if self.login_time else None,
+            'ip_address': self.ip_address,
+            'user_agent': self.user_agent
+        }
+
 # 初始化用户系统
 def init_user_system(app):
     # 尝试直接检查环境变量是否已加载

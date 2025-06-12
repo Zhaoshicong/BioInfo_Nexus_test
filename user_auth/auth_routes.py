@@ -539,6 +539,16 @@ def login():
     if check_password_hash(user.password, data['password']):
         # 更新最后登录时间
         user.last_login = datetime.datetime.utcnow()
+        
+        # 记录登录行为
+        from user_auth.user_system import LoginRecord
+        login_record = LoginRecord(
+            user_id=user.id,
+            login_time=datetime.datetime.utcnow(),
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', '')[:500]  # 限制长度
+        )
+        db.session.add(login_record)
         db.session.commit()
         
         # 生成JWT令牌

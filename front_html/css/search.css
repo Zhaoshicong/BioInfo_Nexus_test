@@ -907,6 +907,29 @@ body {
     border: 1px solid #eee;
 }
 
+/* 序列提示信息样式 */
+.sequence-note {
+    margin: 10px 0;
+    padding: 10px 12px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    border-left: 3px solid #f39c12;
+}
+
+.sequence-note p {
+    margin: 0;
+    color: #856404;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: normal;
+}
+
+.sequence-note strong {
+    color: #6c5500;
+    font-weight: 600;
+}
+
 /* 处理长序列文本的样式 */
 .result-box p {
     word-wrap: break-word;

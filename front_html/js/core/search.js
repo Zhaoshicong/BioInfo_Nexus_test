@@ -341,6 +341,15 @@ const sequenceTools = {
                     <p>氨基酸组成:</p>
                     ${aaTable}
                 `;
+                
+                // 如果有提示信息，显示它
+                if (result.note) {
+                    resultBox.innerHTML += `
+                        <div class="sequence-note">
+                            <p><strong>注意：</strong>${result.note}</p>
+                        </div>
+                    `;
+                }
                 break;
                 
             case 'sequence_annotation':

@@ -275,7 +275,7 @@ def get_daily_logins():
             # 初始化每个月的登录人数为0
             for month in range(1, current_month + 1):
                 login_stats[month] = 0
-            
+                
             # 使用登录记录表统计每月独立登录用户数
             current_year_start = datetime(today.year, 1, 1)
             current_year_end = datetime(today.year, current_month + 1, 1) if current_month < 12 else datetime(today.year + 1, 1, 1)
@@ -316,7 +316,7 @@ def get_daily_logins():
             # 初始化每天的登录人数为0
             for day in range(1, current_day + 1):
                 login_stats[day] = 0
-            
+                
             # 使用登录记录表统计每日独立登录用户数
             current_month_start = datetime(today.year, today.month, 1)
             current_month_end = datetime(today.year, today.month, current_day + 1) if current_day < 31 else datetime(today.year, today.month + 1, 1) if today.month < 12 else datetime(today.year + 1, 1, 1)

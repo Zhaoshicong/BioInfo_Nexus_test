@@ -346,8 +346,12 @@ function updateUIForLoggedIn(user, userUI) {
                 }
             });
             
-            // 更新会员状态
-            userUI.updateMembershipStatus(userMenu, user);
+            // 更新会员状态（异步执行）
+            if (userMenu) {
+                userUI.updateMembershipStatus(userMenu, user).catch(error => {
+                    console.warn('更新会员状态失败:', error);
+                });
+            }
         }
     }
     

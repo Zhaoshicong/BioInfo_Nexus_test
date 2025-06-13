@@ -128,48 +128,54 @@ class LoginRecord(db.Model):
             'user_agent': self.user_agent
         }
 
+# AI使用记录模型（用于追踪AI分析使用次数）
+class AIUsageRecord(db.Model):
+    __tablename__ = 'ai_usage_records'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    usage_date = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    tool_name = db.Column(db.String(100), nullable=True)  # 使用的工具名称（可选）
+    sequence_length = db.Column(db.Integer, nullable=True)  # 序列长度（可选）
+    
+    # 建立与用户的关系
+    user = db.relationship('User', backref=db.backref('ai_usage_records', lazy=True))
+    
+    def __repr__(self):
+        return f'<AIUsageRecord {self.user_id} at {self.usage_date}>'
+    
+    def to_dict(self):
+        """将AI使用记录对象转换为字典格式"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'usage_date': self.usage_date.isoformat() if self.usage_date else None,
+            'tool_name': self.tool_name,
+            'sequence_length': self.sequence_length
+        }
+
 # 初始化用户系统
 def init_user_system(app):
-    # 尝试直接检查环境变量是否已加载
-    db_type = os.environ.get('DB_TYPE')
-    print(f"从环境变量读取 DB_TYPE: {db_type}")
-    
-    # 再次显式加载 .env 文件（以防之前未加载）
+    # 加载环境变量
     load_dotenv()
     
-    # 从环境变量读取数据库类型
-    db_type = os.environ.get('DB_TYPE', 'sqlite').lower()
-    print(f"重新加载 .env 后的 DB_TYPE: {db_type}")
+    # 配置MySQL数据库
+    mysql_user = os.environ.get('MYSQL_USER')
+    mysql_password = os.environ.get('MYSQL_PASSWORD')
+    mysql_host = os.environ.get('MYSQL_HOST')
+    mysql_port = os.environ.get('MYSQL_PORT', '3306')
+    mysql_db = os.environ.get('MYSQL_DB')
     
-    # 根据数据库类型配置URI
-    if db_type == 'mysql':
-        mysql_user = os.environ.get('MYSQL_USER')
-        mysql_password = os.environ.get('MYSQL_PASSWORD')
-        mysql_host = os.environ.get('MYSQL_HOST')
-        mysql_port = os.environ.get('MYSQL_PORT', '3306')
-        mysql_db = os.environ.get('MYSQL_DB')
+    print(f"MySQL 配置: 用户={mysql_user}, 主机={mysql_host}, 数据库={mysql_db}, 端口={mysql_port}")
+    
+    if not all([mysql_user, mysql_password, mysql_host, mysql_db]):
+        raise ValueError("MySQL 配置不完整，请检查 .env 文件中的 MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DB")
         
-        print(f"MySQL 配置: 用户={mysql_user}, 主机={mysql_host}, 数据库={mysql_db}, 端口={mysql_port}")
-        
-        if not all([mysql_user, mysql_password, mysql_host, mysql_db]):
-            raise ValueError("MySQL 配置不完整，请检查 .env 文件中的 MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DB")
-            
-        # 使用 pymysql 驱动
-        db_uri = f'mysql+pymysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_db}?charset=utf8mb4'
-        app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
-        print(f"已配置使用 MySQL 数据库: {mysql_host}/{mysql_db}")
-        print(f"数据库 URI: {db_uri}")
-    else:  # 默认为 SQLite
-        # 确保 instance 目录存在
-        instance_path = os.path.join(app.instance_path)
-        if not os.path.exists(instance_path):
-            os.makedirs(instance_path)
-        
-        db_path = os.path.join(instance_path, 'bioinfo_nexus.db')
-        sqlite_uri = f'sqlite:///{db_path}?timeout=30&check_same_thread=False'
-        app.config['SQLALCHEMY_DATABASE_URI'] = sqlite_uri
-        print(f"已配置使用 SQLite 数据库: {db_path}")
-        print(f"数据库 URI: {sqlite_uri}")
+    # 使用 pymysql 驱动
+    db_uri = f'mysql+pymysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_db}?charset=utf8mb4'
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+    print(f"已配置使用 MySQL 数据库: {mysql_host}/{mysql_db}")
+    print(f"数据库 URI: {db_uri}")
 
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {

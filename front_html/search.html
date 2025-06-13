@@ -11,6 +11,7 @@
     <link href="https://cdn.staticfile.org/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/search.css">
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/utils/config.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 </head>
 <body>
@@ -20,7 +21,7 @@
             <div class="nav-links">
                 <a href="bioknowledge.html">生物知识库</a>
                 <a href="#" class="contact-link">联系我们
-                    <span class="email-tooltip">bioinfo.nexus@example.com</span>
+                    <span class="email-tooltip">bioinfonexus@bionex.top</span>
                 </a>
             </div>
         </div>
@@ -218,6 +219,24 @@
 
     </div>
 
+    <!-- 反馈提示弹窗 -->
+    <div id="feedbackPopup" class="feedback-popup">
+        <div class="feedback-popup-content">
+            <div class="feedback-popup-header">
+                <h3>💡 项目初期，需要您的反馈</h3>
+                <button class="feedback-popup-close">&times;</button>
+            </div>
+            <div class="feedback-popup-body">
+                <p>BioInfo Nexus 正在不断完善中，您的意见对我们很重要！</p>
+                <p>如有问题、bug或者希望增加某些新工具，请发邮件至：</p>
+                <p><strong><a href="mailto:bioinfonexus@bionex.top">bioinfonexus@bionex.top</a></strong></p>
+            </div>
+            <div class="feedback-popup-footer">
+                <button id="feedbackOk" class="feedback-btn">知道了</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Cookie 同意横幅 -->
     <div id="cookieConsentBanner" class="cookie-consent-banner">
         <div class="cookie-content">
@@ -237,5 +256,46 @@
     <script src="js/utils/particles-config.js"></script>
     <script src="js/core/async-ai.js"></script>
     <script src="js/core/search.js" type="module"></script>
+    
+    <script>
+        // 反馈弹窗控制
+        document.addEventListener('DOMContentLoaded', function() {
+            const feedbackPopup = document.getElementById('feedbackPopup');
+            const closeBtn = document.querySelector('.feedback-popup-close');
+            const okBtn = document.getElementById('feedbackOk');
+            
+            // 检查是否已经显示过弹窗
+            if (!localStorage.getItem('feedbackPopupShown')) {
+                // 延迟2秒显示弹窗
+                setTimeout(() => {
+                    feedbackPopup.classList.add('show');
+                }, 2000);
+            }
+            
+            // 关闭弹窗的函数
+            function closeFeedbackPopup() {
+                feedbackPopup.classList.remove('show');
+                localStorage.setItem('feedbackPopupShown', 'true');
+            }
+            
+            // 绑定关闭事件
+            closeBtn.addEventListener('click', closeFeedbackPopup);
+            okBtn.addEventListener('click', closeFeedbackPopup);
+            
+            // 点击背景关闭
+            feedbackPopup.addEventListener('click', function(e) {
+                if (e.target === feedbackPopup) {
+                    closeFeedbackPopup();
+                }
+            });
+            
+            // ESC键关闭
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && feedbackPopup.classList.contains('show')) {
+                    closeFeedbackPopup();
+                }
+            });
+        });
+    </script>
 </body>
 </html>

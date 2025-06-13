@@ -15,36 +15,47 @@ export async function updateMembershipStatus(userMenu, user) {
     if (!membershipInfo) {
         membershipStatus.textContent = '普通会员';
         membershipStatus.className = 'membership-badge free';
-        return null;
-    }
-    
-    let level = membershipInfo.membership_level || membershipInfo.level || 'free';
-    level = level.toLowerCase();
-    
-    // 根据会员级别设置显示内容和样式
-    if (level === 'plus') {
-        membershipStatus.textContent = 'Plus会员';
-        membershipStatus.className = 'membership-badge plus';
-    } else if (level === 'premium') {
-        membershipStatus.textContent = 'Premium会员';
-        membershipStatus.className = 'membership-badge premium';
     } else {
-        membershipStatus.textContent = '普通会员';
-        membershipStatus.className = 'membership-badge free';
-    }
-    
-    // 如果有过期日期，添加到显示
-    if (membershipInfo.expiry_date) {
-        const expiryDate = new Date(membershipInfo.expiry_date);
-        const today = new Date();
-        if (expiryDate > today) {
-            const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-            const expiryInfo = document.createElement('div');
-            expiryInfo.className = 'membership-expiry';
-            expiryInfo.textContent = `有效期: 还剩${daysLeft}天`;
-            userMenu.querySelector('.membership-status').appendChild(expiryInfo);
+        let level = membershipInfo.membership_level || membershipInfo.level || 'free';
+        level = level.toLowerCase();
+        
+        // 根据会员级别设置显示内容和样式
+        if (level === 'plus') {
+            membershipStatus.textContent = 'Plus会员';
+            membershipStatus.className = 'membership-badge plus';
+        } else if (level === 'premium') {
+            membershipStatus.textContent = 'Premium会员';
+            membershipStatus.className = 'membership-badge premium';
+        } else {
+            membershipStatus.textContent = '普通会员';
+            membershipStatus.className = 'membership-badge free';
+        }
+        
+        // 如果有过期日期，添加到显示
+        if (membershipInfo.expiry_date) {
+            const expiryDate = new Date(membershipInfo.expiry_date);
+            const today = new Date();
+            if (expiryDate > today) {
+                const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                const expiryInfo = document.createElement('div');
+                expiryInfo.className = 'membership-expiry';
+                expiryInfo.textContent = `有效期: 还剩${daysLeft}天`;
+                userMenu.querySelector('.membership-status').appendChild(expiryInfo);
+            }
         }
     }
+    
+    // 获取并显示AI使用情况（异步执行，不阻塞主流程）
+    setTimeout(async () => {
+        try {
+            const aiUsageInfo = await getAIUsageInfo();
+            if (aiUsageInfo) {
+                displayAIUsageInMenu(userMenu, aiUsageInfo);
+            }
+        } catch (error) {
+            console.warn('获取AI使用情况失败:', error);
+        }
+    }, 100);
     
     return membershipInfo;
 }
@@ -65,7 +76,12 @@ export async function getMembershipInfo(user) {
         }
         
         // 否则通过API获取会员信息
-        const token = cookieUtils.getCookie('auth_token');
+        let token;
+        if (typeof cookieUtils !== 'undefined') {
+            token = cookieUtils.getCookie('auth_token');
+        } else {
+            token = getCookie('auth_token');
+        }
         if (!token) return null;
         
         const response = await fetch('/api/membership/status', {
@@ -124,8 +140,9 @@ export function createUserMenu(navLinks, user, logoutHandler) {
                     <span class="membership-badge">加载中...</span>
                 </div>
             </div>
+            <!--<div class="dropdown-divider"></div> 
+            <a href="/profile.html"><i class="fas fa-user-circle"></i> 个人资料</a> -->
             <div class="dropdown-divider"></div>
-            <a href="/profile.html"><i class="fas fa-user-circle"></i> 个人资料</a>
             ${(user.is_admin === true || user.is_admin === 1 || user.role === 'admin') ? '<a href="/admin.html"><i class="fas fa-cog"></i> 管理控制台</a>' : ''}
             <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> 注销</a>
         </div>
@@ -175,16 +192,6 @@ export function addMembershipStyles() {
             background-color: #e9ecef;
             color: #495057;
         }
-        .membership-badge.plus {
-            background-color: #e6f7ff;
-            color: #1890ff;
-            border: 1px solid #91d5ff;
-        }
-        .membership-badge.premium {
-            background-color: #fff7e6;
-            color: #fa8c16;
-            border: 1px solid #ffd591;
-        }
         .membership-expiry {
             font-size: 11px;
             color: #888;
@@ -192,6 +199,107 @@ export function addMembershipStyles() {
         }
     `;
     document.head.appendChild(styleEl);
+} 
+
+/**
+ * 获取AI使用情况
+ * @returns {Promise<Object>} - AI使用情况对象
+ */
+async function getAIUsageInfo() {
+    try {
+        // 获取token，优先使用全局cookieUtils，如果不存在则使用简单的cookie获取方法
+        let token;
+        if (typeof cookieUtils !== 'undefined') {
+            token = cookieUtils.getCookie('auth_token');
+        } else {
+            token = getCookie('auth_token');
+        }
+        
+        const response = await fetch('/api/membership/ai-usage', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (data.message) {
+            throw new Error(data.message);
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('获取AI使用情况失败:', error);
+        return null;
+    }
+}
+
+/**
+ * 在用户菜单中显示AI使用情况
+ * @param {Element} userMenu - 用户菜单元素
+ * @param {Object} aiUsage - AI使用情况数据
+ */
+function displayAIUsageInMenu(userMenu, aiUsage) {
+    const membershipInfo = userMenu.querySelector('.membership-info');
+    if (!membershipInfo) return;
+    
+    // 移除现有的AI使用信息
+    const existingAIInfo = membershipInfo.querySelector('.ai-usage-info');
+    if (existingAIInfo) {
+        existingAIInfo.remove();
+    }
+    
+    // 创建AI使用信息元素
+    const aiUsageDiv = document.createElement('div');
+    aiUsageDiv.className = 'ai-usage-info';
+    
+    let usageText = '';
+    let usageClass = 'ai-usage-normal';
+    
+    if (aiUsage.unlimited || aiUsage.monthly_limit === -1) {
+        usageText = `AI分析: 无限制使用`;
+        usageClass = 'ai-usage-unlimited';
+    } else {
+        const percentage = aiUsage.usage_percentage || 0;
+        usageText = `AI分析: ${aiUsage.current_usage}/${aiUsage.monthly_limit}`;
+        
+        if (percentage >= 90) {
+            usageClass = 'ai-usage-danger';
+        } else if (percentage >= 70) {
+            usageClass = 'ai-usage-warning';
+        }
+    }
+    
+    aiUsageDiv.innerHTML = `
+        <div class="ai-usage-status ${usageClass}">
+            <i class="fas fa-brain"></i>
+            <span class="usage-text">${usageText}</span>
+        </div>
+        ${!aiUsage.unlimited && aiUsage.monthly_limit > 0 ? `
+            <div class="ai-usage-bar">
+                <div class="ai-usage-progress" style="width: ${Math.min(aiUsage.usage_percentage || 0, 100)}%"></div>
+            </div>
+        ` : ''}
+    `;
+    
+    membershipInfo.appendChild(aiUsageDiv);
+}
+
+/**
+ * 简单的获取Cookie函数（备用）
+ * @param {string} name - Cookie名称
+ * @returns {string|null} - Cookie值
+ */
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
 }
 
 // 自动加载用户状态
@@ -202,25 +310,4 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof cookieConsentManager !== 'undefined') {
         cookieConsentManager.init();
     }
-    
-    // 先更新UI为加载状态
-    const userDropdown = document.getElementById('userActions');
-    if (userDropdown) {
-        userDropdown.innerHTML = `
-            <div class="user-info">
-                <span class="username">加载中...</span>
-                <div class="user-dropdown">
-                    <a href="#" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        注销
-                    </a>
-                </div>
-            </div>
-        `;
-    }
-    
-    // 延迟一点时间再初始化用户UI，确保authUtils已加载
-    setTimeout(() => {
-        UserUI.init();
-    }, 100);
 }); 

@@ -20,7 +20,7 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(__file__))
 
 # 确保目录存在
-for directory in ['temp', 'uploads/avatars', 'instance']:
+for directory in ['temp', 'uploads/avatars']:
     os.makedirs(directory, exist_ok=True)
 
 # 预加载和打补丁，以避免可能的问题
@@ -54,4 +54,4 @@ if __name__ == "__main__":
     #print(f"* 本地访问地址: http://localhost:5000\n")
     
     # 直接运行时使用开发服务器
-    application.run(host='0.0.0.0', port=5000, debug=True)
+    application.run(host='0.0.0.0', port=5000, debug=False)

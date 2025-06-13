@@ -261,7 +261,7 @@ def send_verification_code_email(user_email, code):
         
         # 创建邮件
         msg = MIMEMultipart()
-        msg['From'] = "BioInfoNexus <bioinfo-nexus@o41w.ren>"
+        msg['From'] = f"BioInfoNexus <{smtp_username}>"
         msg['To'] = user_email
         msg['Subject'] = "BioInfoNexus - 验证码"
         
@@ -302,7 +302,7 @@ BioInfoNexus 团队
                         print("启用TLS")
                         server.starttls()
                 
-                server.set_debuglevel(1)  # 启用SMTP调试
+                # server.set_debuglevel(1)  # 生产环境关闭SMTP调试
                 
                 # 登录
                 print(f"尝试登录邮件服务器，用户名: {smtp_username}")
@@ -341,7 +341,7 @@ BioInfoNexus 团队
                 subject="BioInfoNexus - 验证码",
                 recipients=[user_email],
                 body=body,
-                sender=("BioInfoNexus", "bioinfo-nexus@o41w.ren")
+                sender=("BioInfoNexus", smtp_username)
             )
             mail.send(msg)
             print(f"使用Flask-Mail成功发送验证码到 {user_email}")
@@ -375,8 +375,7 @@ def forgot_password():
     
     if not user:
         print(f"用户不存在: {user_email}")
-        # 为了安全，即使用户不存在也返回成功消息
-        return jsonify({'message': '验证码已发送，请查收邮件。'}), 200
+        return jsonify({'message': '该邮箱未注册，请检查邮箱地址或先注册账户。'}), 404
     
     print(f"找到用户: {user.username}, ID: {user.id}")
     
@@ -457,7 +456,7 @@ def send_reset_password_code_email(user_email, code):
         
         # 创建邮件
         msg = MIMEMultipart()
-        msg['From'] = "BioInfoNexus <bioinfo-nexus@o41w.ren>"
+        msg['From'] = f"BioInfoNexus <{smtp_username}>"
         msg['To'] = user_email
         msg['Subject'] = "BioInfoNexus - 密码重置验证码"
         

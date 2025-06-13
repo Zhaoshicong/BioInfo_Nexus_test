@@ -1840,28 +1840,40 @@ function initPage() {
                 if (tool === 'analyze_nucleic_acid') {
                     if (detectedType === 'protein') { 
                         utils.showToast('核酸特性分析工具无法处理蛋白质序列，跳过此工具'); 
+                        this.classList.remove('loading');
+                        utils.hideLoading();
                         return; 
                     } else if (detectedType === 'unknown') { 
                         utils.showToast('序列包含无法识别的字符，跳过核酸分析工具'); 
+                        this.classList.remove('loading');
+                        utils.hideLoading();
                         return; 
                     }
                 }
                 if (tool === 'find_cutting_enzymes' && detectedType !== 'dna') { 
                     utils.showToast('限制酶分析工具仅支持DNA序列，跳过此工具'); 
+                    this.classList.remove('loading');
+                    utils.hideLoading();
                     return; 
                 }
                 if (tool === 'sequence_annotation' && detectedType !== 'protein') { 
                     utils.showToast('DNA或RNA序列无法进行序列注释，跳过此工具'); 
+                    this.classList.remove('loading');
+                    utils.hideLoading();
                     return; 
                 }
                 if (tool === 'translate' && detectedType === 'protein') { 
                     utils.showToast('蛋白质序列无法进行翻译，跳过此工具'); 
+                    this.classList.remove('loading');
+                    utils.hideLoading();
                     return; 
                 }
                 if (tool === 'toxinpred') {
                     const seqInput = sequence; // Use the 'sequence' variable from this scope
                     if (seqInput.length < 5 || seqInput.length > 50) { 
                         utils.showToast('ToxinPred要求序列长度为5-50个氨基酸，跳过此工具'); 
+                        this.classList.remove('loading');
+                        utils.hideLoading();
                         return; 
                     }
                 }
@@ -1873,7 +1885,7 @@ function initPage() {
                         const sequenceParts = sequence.trim().split(/\s+/);
                     if (sequenceParts.length <= 1) {
                         utils.showToast("密码子分析需要宿主ID，跳过此工具");
-                        return;
+                        throw new Error("密码子分析需要宿主ID");
                     }
                         const seqPart = sequenceParts[0]; // 主序列部分
                     const hostIdPart = sequenceParts.slice(1).join(' '); // 宿主ID部分(可能包含点号等)
@@ -1885,7 +1897,7 @@ function initPage() {
                         const sequenceParts = sequence.trim().split(/\s+/);
                     if (sequenceParts.length <= 1) {
                         utils.showToast("限制性内切酶分析需要酶名称，跳过此工具");
-                        return;
+                        throw new Error("限制性内切酶分析需要酶名称");
                     }
                         const seqPart = sequenceParts[0]; // 主序列部分
                     const enzymesPart = sequenceParts.slice(1).join(' '); // 酶名称部分
@@ -2116,8 +2128,12 @@ function updateUIForLoggedIn(user, userUI) {
                 logoutUser();
             });
             
-            // 更新会员状态
-            userUI.updateMembershipStatus(userMenu, user);
+            // 更新会员状态（异步执行）
+            if (userMenu) {
+                userUI.updateMembershipStatus(userMenu, user).catch(error => {
+                    console.warn('更新会员状态失败:', error);
+                });
+            }
         }
     }
 }

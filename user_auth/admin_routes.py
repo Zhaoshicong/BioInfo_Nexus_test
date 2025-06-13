@@ -419,7 +419,7 @@ def update_user_role(user, user_id):
 @admin_required
 def delete_user_api(user, user_id):
     try:
-        from user_auth.user_system import User
+        from user_auth.user_system import User, LoginRecord
         
         # 查找用户
         target_user = User.query.get(user_id)
@@ -436,6 +436,13 @@ def delete_user_api(user, user_id):
             if admin_count <= 1:
                 return jsonify({"error": "不能删除最后一个管理员"}), 400
                 
+        # 先删除该用户的所有登录记录
+        # 使用原生SQL删除，避免SQLAlchemy关系的干扰
+        db.session.execute(
+            db.text("DELETE FROM login_records WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
         # 删除用户
         db.session.delete(target_user)
         db.session.commit()
@@ -592,70 +599,6 @@ def api_remove_admin(current_user, user_id):
     except Exception as e:
         logging.error(f"移除管理员权限失败: {str(e)}")
         return jsonify({"error": f"移除管理员权限失败: {str(e)}"}), 500
-
-# 删除用户 API
-@admin_bp.route('/api/users/<int:user_id>/delete', methods=['POST'])
-@admin_required
-def api_delete_user(user, user_id):
-    try:
-        logging.info(f"开始删除用户，ID: {user_id}")
-        
-        # 检查用户ID是否有效
-        if not user_id or user_id <= 0:
-            logging.error(f"尝试删除用户失败：无效的用户ID: {user_id}")
-            return jsonify({"error": "无效的用户ID"}), 400
-        
-        # 获取当前用户信息
-        auth_header = request.headers.get('Authorization')
-        token = auth_header.split(' ')[1]
-        current_user_data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE public_id = %s', 
-                    (current_user_data['public_id'],))
-        current_user = cursor.fetchone()
-        
-        # 检查是否是自己
-        if current_user and current_user['id'] == user_id:
-            conn.close()
-            logging.warning(f"用户 {current_user['username']} (ID: {user_id}) 尝试删除自己的账户")
-            return jsonify({"error": "不能删除自己的账户"}), 400
-            
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
-        user = cursor.fetchone()
-        
-        if not user:
-            conn.close()
-            logging.error(f"尝试删除用户失败：用户不存在，ID: {user_id}")
-            return jsonify({"error": "用户不存在"}), 404
-            
-        username = user['username']
-        is_admin = user['is_admin']
-        
-        # 检查是否是最后一个管理员
-        if is_admin:
-            cursor = conn.cursor()
-            cursor.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1')
-            admin_count = cursor.fetchone()['COUNT(*)']
-            if admin_count <= 1:
-                conn.close()
-                logging.error(f"尝试删除用户失败：不能删除最后一个管理员 ({username}, ID: {user_id})")
-                return jsonify({"error": "不能删除最后一个管理员"}), 400
-        
-        # 执行删除
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
-        conn.commit()
-        conn.close()
-        
-        logging.info(f"用户 {username} (ID: {user_id}) 已被成功删除")
-        return jsonify({"message": f"用户 {username} 已成功删除", "success": True})
-    
-    except Exception as e:
-        logging.error(f"删除用户失败，ID: {user_id}, 错误: {str(e)}")
-        return jsonify({"error": f"删除用户失败: {str(e)}"}), 500
 
 # 管理员登录API
 @admin_bp.route('/api/login', methods=['POST'])

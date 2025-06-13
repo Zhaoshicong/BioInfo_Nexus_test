@@ -1,3 +1,8 @@
+/**
+ * Reset Password JavaScript - Version 2.0
+ * Updated: 2025-06-13 - 修复用户不存在时的错误提示
+ */
+
 document.addEventListener('DOMContentLoaded', function() {
     // 设置密码可见性切换
     setupPasswordToggles();
@@ -101,11 +106,14 @@ function setupVerificationCode() {
             })
             .then(response => {
                 console.log('验证码请求响应状态:', response.status);
-                return response.json();
+                return response.json().then(data => {
+                    return { data, status: response.status, ok: response.ok };
+                });
             })
-            .then(data => {
+            .then(({ data, status, ok }) => {
                 console.log('验证码请求响应数据:', data);
                 
+                if (ok) {
                 // 记录发送时间
                 localStorage.setItem('lastResetCodeSentTime', Date.now());
                 
@@ -114,6 +122,15 @@ function setupVerificationCode() {
                 
                 // 开始倒计时
                 startCooldown(this, 60);
+                } else {
+                    // 处理错误状态
+                    console.log('用户不存在或其他错误:', data.message);
+                    this.textContent = originalText;
+                    this.disabled = false;
+                    this.style.backgroundColor = '';
+                    this.style.cursor = '';
+                    showMessage(data.message || '发送验证码失败！', 'error');
+                }
             })
             .catch(error => {
                 console.error('验证码请求错误:', error);

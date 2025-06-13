@@ -211,7 +211,20 @@ class AsyncAIHandler {
             });
 
             if (!response.ok) {
-                throw new Error(`请求失败: ${response.status}`);
+                // 尝试解析错误信息
+                let errorMessage = `请求失败: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                        errorMessage = errorData.error;
+                    } else if (errorData.message) {
+                        errorMessage = errorData.message;
+                    }
+                } catch (e) {
+                    // 如果无法解析JSON，使用默认错误信息
+                    console.warn('无法解析错误响应:', e);
+                }
+                throw new Error(errorMessage);
             }
 
             const result = await response.json();

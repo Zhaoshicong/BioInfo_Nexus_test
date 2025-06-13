@@ -42,6 +42,7 @@ from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity  # 导
 from user_auth.user_system import db, init_user_system
 from flask_migrate import Migrate
 from Bio_tools.AI_service import generate_report, generate_report_async, cancel_ai_request, get_ai_service_status, get_ai_request_result
+from user_auth.decorators import ai_usage_limit_check
 
 # 导入用户系统
 from user_auth.user_system import init_user_system, token_required, User, db
@@ -381,7 +382,7 @@ def transform_api(current_user):
 
 @app.route('/api/protparam', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_protparam(current_user):
     """分析序列（蛋白质、DNA或RNA）的分子量和组成"""
@@ -424,7 +425,7 @@ def analyze_protparam(current_user):
 
 @app.route('/api/sequence_annotation', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_sequence_annotation(current_user):
     """分析蛋白质序列的功能注释和特征预测"""
@@ -454,7 +455,7 @@ def analyze_sequence_annotation(current_user):
     
 @app.route('/api/translate', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_translate(current_user):
     """翻译DNA/RNA序列为蛋白质序列"""
@@ -494,7 +495,7 @@ def analyze_translate(current_user):
     
 @app.route('/api/analyze_codons', methods=['POST', 'GET'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_codons(current_user):
     """密码子分析API接口
@@ -598,7 +599,7 @@ def analyze_codons(current_user):
     
 @app.route('/api/find_cutting_enzymes', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def handle_find_cutting_enzymes(current_user):
     """处理查找所有切割酶的请求"""
@@ -623,7 +624,7 @@ def handle_find_cutting_enzymes(current_user):
 
 @app.route('/api/analyze_restriction', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def handle_analyze_restriction(current_user):
     """处理限制性内切酶分析请求"""
@@ -656,7 +657,7 @@ def handle_analyze_restriction(current_user):
 
 @app.route('/api/analyze_nucleic_acid', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_nucleic_acid(current_user):
     """分析核酸序列的物理化学特性，包括GC含量、熔解温度和浮力密度"""
@@ -694,7 +695,7 @@ def analyze_nucleic_acid(current_user):
 
 @app.route('/api/signalp', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_signalp(current_user):
     data = request.get_json()
@@ -801,7 +802,7 @@ def analyze_signalp(current_user):
 
 @app.route('/api/vaxijen', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_vaxijen(current_user):
     data = request.get_json()
@@ -838,7 +839,7 @@ def analyze_vaxijen(current_user):
 
 @app.route('/api/toxinpred', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_toxinpred(current_user):
     """分析肽的毒性"""
@@ -914,7 +915,7 @@ def analyze_toxinpred(current_user):
 
 @app.route('/api/physchemparam', methods=['POST'])
 @error_handler
-#@rate_limit
+@rate_limit
 @token_required
 def analyze_physchemparam(current_user):
     """分析蛋白质物理化学参数"""
@@ -986,6 +987,7 @@ def expired_token_callback(jwt_header, jwt_payload):
 # AI分析端点
 @app.route('/api/ai_analyze', methods=['POST'])
 @error_handler
+@ai_usage_limit_check
 @token_required
 def ai_analyze(current_user):
     """
@@ -1075,25 +1077,25 @@ def ai_analyze(current_user):
             # 使用AI服务生成报告（增加超时控制）
             ai_result = generate_report(frontend_tool_results, user_query)
         
-        # 检查AI服务是否成功
-        if not ai_result.get("success", False):
-            logger.error(f"AI服务处理失败: {ai_result.get('error', '未知错误')}")
-            return jsonify({
-                "error": ai_result.get("error", "AI服务处理失败"),
-                "tool_results": frontend_tool_results
-            }), 500
+            # 检查AI服务是否成功
+            if not ai_result.get("success", False):
+                logger.error(f"AI服务处理失败: {ai_result.get('error', '未知错误')}")
+                return jsonify({
+                    "error": ai_result.get("error", "AI服务处理失败"),
+                    "tool_results": frontend_tool_results
+                }), 500
         
-        logger.info("AI分析成功完成")
-        # 返回AI分析结果
-        return jsonify({
-            "success": True,
+            logger.info("AI分析成功完成")
+            # 返回AI分析结果
+            return jsonify({
+                "success": True,
                 "async": False,
-            "report": ai_result.get("report", ""),
-            "tool_results": frontend_tool_results,
-            "user_query": user_query,
-            "sequence": sequence,
-            "detected_type": detected_type
-        })
+                "report": ai_result.get("report", ""),
+                "tool_results": frontend_tool_results,
+                "user_query": user_query,
+                "sequence": sequence,
+                "detected_type": detected_type
+            })
         
     except Exception as e:
         logger.error(f"AI分析处理错误: {str(e)}")
@@ -1197,6 +1199,6 @@ if __name__ == '__main__':
     app.run(
         host='0.0.0.0',  # 允许外部访问
         port=5000,
-        debug=True,     # 开发环境开启调试模式
+        debug=False,    # 生产环境关闭调试模式
         threaded=True    # 启用多线程
     )

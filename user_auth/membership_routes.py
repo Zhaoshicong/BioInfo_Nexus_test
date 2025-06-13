@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 import logging
-from .user_system import db, User, MembershipLevel
+from .user_system import db, User, MembershipLevel, AIUsageRecord
 from .decorators import plus_required, premium_required
 
 # 创建蓝图
@@ -33,6 +33,57 @@ def get_membership_status():
         })
     except Exception as e:
         logging.error(f"获取会员状态出错: {str(e)}")
+        return jsonify({"message": f"服务器错误: {str(e)}"}), 500
+
+@membership_bp.route('/ai-usage', methods=['GET'])
+@jwt_required()
+def get_ai_usage_status():
+    """获取当前用户的AI使用情况"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({"message": "用户未找到"}), 404
+        
+        # 获取当月开始时间
+        current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        # 统计当月使用次数
+        current_usage = AIUsageRecord.query.filter(
+            AIUsageRecord.user_id == user.id,
+            AIUsageRecord.usage_date >= current_month_start
+        ).count()
+        
+        # 获取最近10次使用记录
+        recent_usage = AIUsageRecord.query.filter(
+            AIUsageRecord.user_id == user.id
+        ).order_by(AIUsageRecord.usage_date.desc()).limit(10).all()
+        
+        # 根据会员等级设置限制
+        usage_limits = {
+            MembershipLevel.FREE.value: 25,
+            MembershipLevel.PLUS.value: 100,
+            MembershipLevel.PREMIUM.value: -1  # -1表示无限制
+        }
+        
+        user_limit = usage_limits.get(user.membership_level, 25)
+        remaining = user_limit - current_usage if user_limit > 0 else -1
+        
+        return jsonify({
+            "membership_level": user.membership_level,
+            "is_admin": user.is_admin,
+            "current_usage": current_usage,
+            "monthly_limit": user_limit,
+            "remaining": remaining,
+            "usage_percentage": (current_usage / user_limit * 100) if user_limit > 0 else 0,
+            "unlimited": user_limit == -1,
+            "recent_usage": [usage.to_dict() for usage in recent_usage],
+            "month_start": current_month_start.isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"获取AI使用状态出错: {str(e)}")
         return jsonify({"message": f"服务器错误: {str(e)}"}), 500
 
 @membership_bp.route('/upgrade', methods=['POST'])

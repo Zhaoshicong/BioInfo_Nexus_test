@@ -826,6 +826,103 @@ body:has(.reset-password-container) .content-wrapper {
     vertical-align: middle;
 }
 
+/* 会员状态样式 */
+.membership-status {
+    padding: 8px 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.membership-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 8px;
+}
+
+.membership-badge.free {
+    background-color: #95a5a6;
+}
+
+.membership-badge.plus {
+    background-color: #e6f7ff;
+    color: #1890ff;
+    border: 1px solid #91d5ff;
+}
+
+.membership-badge.premium {
+    background-color: #fff7e6;
+    color: #fa8c16;
+    border: 1px solid #ffd591;
+}
+
+.membership-expiry {
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* AI使用情况样式 */
+.ai-usage-info {
+    margin-top: 8px;
+}
+
+.ai-usage-status {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.ai-usage-status i {
+    margin-right: 6px;
+    width: 14px;
+}
+
+.ai-usage-normal {
+    color: #2ecc71;
+}
+
+.ai-usage-warning {
+    color: #f39c12;
+}
+
+.ai-usage-danger {
+    color: #e74c3c;
+}
+
+.ai-usage-unlimited {
+    color: #9b59b6;
+}
+
+.ai-usage-bar {
+    width: 100%;
+    height: 4px;
+    background-color: #ecf0f1;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ai-usage-progress {
+    height: 100%;
+    transition: width 0.3s ease;
+    border-radius: 2px;
+}
+
+.ai-usage-normal ~ .ai-usage-bar .ai-usage-progress {
+    background-color: #2ecc71;
+}
+
+.ai-usage-warning ~ .ai-usage-bar .ai-usage-progress {
+    background-color: #f39c12;
+}
+
+.ai-usage-danger ~ .ai-usage-bar .ai-usage-progress {
+    background-color: #e74c3c;
+}
+
 /* 模态框样式 */
 .modal {
     display: none;

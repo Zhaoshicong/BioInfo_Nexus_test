@@ -11,15 +11,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // 延迟获取token，确保cookieUtils已加载
     setTimeout(() => {
         token = cookieUtils.getCookie('auth_token');
-        console.log("检查令牌:", token ? "已找到" : "未找到");
-        
-        // 检查是否已登录
-        if (!token) {
-            console.log("未找到令牌，重定向到登录页...");
-            window.location.href = 'admin-login.html';
-            return;
-        }
-        
+    console.log("检查令牌:", token ? "已找到" : "未找到");
+    
+    // 检查是否已登录
+    if (!token) {
+        console.log("未找到令牌，重定向到登录页...");
+        window.location.href = 'admin-login.html';
+        return;
+    }
+    
         // 验证管理员权限
         checkAdminPermission();
     }, 100);
@@ -43,15 +43,15 @@ async function checkAdminPermission() {
         
         const userData = await response.json();
         console.log("API返回的用户数据:", userData);
-        
+            
         // 检查是否是管理员
         if (!userData.is_admin && userData.role !== 'admin') {
-            console.log("非管理员用户，重定向到登录页...");
-            window.location.href = 'admin-login.html';
-            return;
-        }
-        
-        // 设置当前用户信息
+                console.log("非管理员用户，重定向到登录页...");
+                window.location.href = 'admin-login.html';
+                return;
+            }
+            
+            // 设置当前用户信息
         currentUserInfo = {
             id: userData.id,
             username: userData.username,
@@ -487,11 +487,11 @@ function deleteUser() {
     showLoading();
     closeModal();
     
-    const url = `${API_BASE}/api/users/${userId}/delete`;
+    const url = `${API_BASE}/api/users/${userId}`;
     console.log('发送删除请求到:', url);
     
     fetch(url, {
-        method: 'POST',
+        method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

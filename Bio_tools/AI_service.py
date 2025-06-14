@@ -9,7 +9,8 @@ import logging
 import threading
 import time
 import hashlib
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
+import pickle
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, Future
 from typing import Dict, List, Any, Union, Optional, Callable
 from dotenv import load_dotenv
 import requests
@@ -54,14 +55,51 @@ class AIService:
         self.active_futures = {}
         self.request_counter = 0
         
+        # 异步任务存储（文件系统，支持多进程共享）
+        self.tasks_dir = "/tmp/bioinfo_ai_tasks"
+        os.makedirs(self.tasks_dir, exist_ok=True)
+        
         # 初始化OpenAI客户端，使用通义千问的兼容接口
         try:
+            # 尝试标准方式初始化
             self.client = OpenAI(
                 api_key=self.api_key,
                 base_url=self.base_url,
                 timeout=90.0  # 90秒超时
             )
             logger.info(f"成功初始化AI客户端，使用模型: {self.api_model}")
+        except TypeError as e:
+            error_msg = str(e).lower()
+            if "proxies" in error_msg or "unexpected keyword argument" in error_msg:
+                # 如果是参数兼容性问题，尝试不同的初始化方式
+                logger.warning(f"检测到参数兼容性问题，尝试备用初始化方法: {e}")
+                
+                # 尝试方法1：只使用必要参数
+                try:
+                    self.client = OpenAI(
+                        api_key=self.api_key,
+                        base_url=self.base_url
+                    )
+                    logger.info(f"使用基础参数初始化成功，使用模型: {self.api_model}")
+                except Exception as e1:
+                    logger.warning(f"基础参数初始化失败: {e1}")
+                    
+                    # 尝试方法2：使用httpx客户端
+                    try:
+                        import httpx
+                        http_client = httpx.Client(timeout=90.0)
+                        self.client = OpenAI(
+                            api_key=self.api_key,
+                            base_url=self.base_url,
+                            http_client=http_client
+                        )
+                        logger.info(f"使用httpx客户端初始化成功，使用模型: {self.api_model}")
+                    except Exception as e2:
+                        logger.error(f"所有初始化方法都失败了: {e2}")
+                        self.client = None
+            else:
+                logger.error(f"初始化AI客户端失败: {str(e)}")
+                self.client = None
         except Exception as e:
             logger.error(f"初始化AI客户端失败: {str(e)}")
             self.client = None
@@ -157,7 +195,7 @@ class AIService:
     def process_analysis_results_async(self, tools_results: Dict[str, Any], user_query: str, 
                                      timeout: int = 90, progress_callback: Optional[Callable] = None) -> str:
         """
-        异步处理多个工具的分析结果，生成定制化报告
+        异步处理多个工具的分析结果，生成定制化报告（支持多进程）
         
         参数:
             tools_results (Dict[str, Any]): 多个工具的分析结果字典
@@ -175,35 +213,69 @@ class AIService:
         if not self._can_accept_request():
             raise Exception("服务器忙碌，请稍后重试")
         
+        # 清理过期任务
+        self._cleanup_old_tasks()
+        
         # 生成请求ID
         self.request_counter += 1
         request_id = f"ai_req_{self.request_counter}_{int(time.time())}"
+        
+        # 立即保存初始状态
+        initial_state = {
+            "status": "created",
+            "completed": False,
+            "created_time": time.time(),
+            "tools_results": tools_results,
+            "user_query": user_query,
+            "timeout": timeout
+        }
+        self._save_task_state(request_id, initial_state)
         
         # 检查缓存
         cache_key = self._get_cache_key(tools_results, user_query)
         cached_result = self._get_cached_result(cache_key)
         if cached_result:
             # 创建一个已完成的future来存储缓存结果
-            from concurrent.futures import Future
             future = Future()
             future.set_result(cached_result)
             self.active_futures[request_id] = future
+            
+            # 保存缓存结果状态
+            cached_state = {
+                "status": "completed",
+                "completed": True,
+                "result": cached_result,
+                "created_time": time.time(),
+                "from_cache": True
+            }
+            self._save_task_state(request_id, cached_state)
             
             if progress_callback:
                 progress_callback("analysis_complete", 100, cached_result)
             return request_id
         
+        # 更新状态为运行中
+        running_state = {
+            "status": "running",
+            "completed": False,
+            "created_time": time.time(),
+            "tools_results": tools_results,
+            "user_query": user_query,
+            "timeout": timeout
+        }
+        self._save_task_state(request_id, running_state)
+        
         # 提交异步任务
         future = self.executor.submit(self._process_async_task, 
                                     tools_results, user_query, cache_key, 
-                                    timeout, progress_callback)
+                                    timeout, progress_callback, request_id)
         
         self.active_futures[request_id] = future
         
         return request_id
     
     def _process_async_task(self, tools_results: Dict[str, Any], user_query: str, 
-                          cache_key: str, timeout: int, progress_callback: Optional[Callable]) -> Dict[str, Any]:
+                          cache_key: str, timeout: int, progress_callback: Optional[Callable], request_id: str) -> Dict[str, Any]:
         """异步任务处理函数"""
         with self.request_lock:
             self.active_requests += 1
@@ -238,6 +310,15 @@ class AIService:
             if progress_callback:
                 progress_callback("analysis_complete", 100, result)
             
+            # 保存结果到文件系统
+            task_state = {
+                "status": "completed",
+                "completed": True,
+                "result": result,
+                "created_time": time.time()
+            }
+            self._save_task_state(request_id, task_state)
+            
             return result
             
         except Exception as e:
@@ -246,6 +327,16 @@ class AIService:
                 "error": f"AI处理失败: {str(e)}",
                 "original_results": tools_results
             }
+            
+            # 保存错误状态到文件系统
+            error_state = {
+                "status": "error",
+                "completed": True,
+                "error": str(e),
+                "created_time": time.time()
+            }
+            self._save_task_state(request_id, error_state)
+            
             if progress_callback:
                 progress_callback("error", 0, error_result)
             return error_result
@@ -254,13 +345,35 @@ class AIService:
                 self.active_requests -= 1
     
     def cancel_request(self, request_id: str) -> bool:
-        """取消异步请求"""
+        """取消异步请求（支持多进程）"""
+        # 尝试取消本地future
         if request_id in self.active_futures:
             future = self.active_futures[request_id]
             cancelled = future.cancel()
             if cancelled:
                 del self.active_futures[request_id]
-            return cancelled
+                
+                # 保存取消状态
+                cancelled_state = {
+                    "status": "cancelled",
+                    "completed": True,
+                    "cancelled_time": time.time()
+                }
+                self._save_task_state(request_id, cancelled_state)
+                return True
+        
+        # 检查文件系统中的任务
+        task_state = self._load_task_state(request_id)
+        if task_state and task_state.get("status") == "running":
+            # 标记为取消（实际任务可能已经在运行，但告诉前端已取消）
+            cancelled_state = {
+                "status": "cancelled",
+                "completed": True,
+                "cancelled_time": time.time()
+            }
+            self._save_task_state(request_id, cancelled_state)
+            return True
+        
         return False
     
     def get_service_status(self) -> Dict[str, Any]:
@@ -273,45 +386,114 @@ class AIService:
             "available": self.api_key is not None and self.client is not None
         }
     
-    def get_request_result(self, request_id: str) -> Optional[Dict[str, Any]]:
-        """获取异步请求的结果"""
-        logger.info(f"查询请求结果: {request_id}")
-        logger.info(f"当前活跃的futures: {list(self.active_futures.keys())}")
-        
-        if request_id not in self.active_futures:
-            logger.warning(f"请求ID {request_id} 不在活跃futures中")
-            return None
-        
-        future = self.active_futures[request_id]
-        logger.info(f"找到future，是否完成: {future.done()}")
-        
-        if not future.done():
-            # 请求仍在处理中
-            return {
-                "status": "running",
-                "completed": False
-            }
-        
+    def _save_task_state(self, request_id: str, state: Dict[str, Any]) -> None:
+        """保存任务状态到文件系统"""
         try:
-            # 获取结果并清理
-            result = future.result()
-            logger.info(f"获取到结果: {type(result)}")
-            del self.active_futures[request_id]
-            
-            return {
-                "status": "completed",
-                "completed": True,
-                "result": result
-            }
+            task_file = os.path.join(self.tasks_dir, f"{request_id}.json")
+            with open(task_file, 'w', encoding='utf-8') as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            # 处理出错
-            logger.error(f"获取异步结果时出错: {str(e)}")
-            del self.active_futures[request_id]
-            return {
-                "status": "error", 
-                "completed": True,
-                "error": str(e)
-            }
+            logger.error(f"保存任务状态失败: {e}")
+    
+    def _load_task_state(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """从文件系统加载任务状态"""
+        try:
+            task_file = os.path.join(self.tasks_dir, f"{request_id}.json")
+            if os.path.exists(task_file):
+                with open(task_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"加载任务状态失败: {e}")
+        return None
+    
+    def _delete_task_state(self, request_id: str) -> None:
+        """删除任务状态文件"""
+        try:
+            task_file = os.path.join(self.tasks_dir, f"{request_id}.json")
+            if os.path.exists(task_file):
+                os.remove(task_file)
+        except Exception as e:
+            logger.error(f"删除任务状态失败: {e}")
+    
+    def _cleanup_old_tasks(self, max_age_hours: int = 24) -> None:
+        """清理过期的任务文件"""
+        try:
+            current_time = time.time()
+            for filename in os.listdir(self.tasks_dir):
+                if filename.endswith('.json'):
+                    file_path = os.path.join(self.tasks_dir, filename)
+                    file_age = current_time - os.path.getmtime(file_path)
+                    if file_age > max_age_hours * 3600:  # 转换为秒
+                        os.remove(file_path)
+                        logger.info(f"清理过期任务文件: {filename}")
+        except Exception as e:
+            logger.error(f"清理过期任务失败: {e}")
+    
+    def get_request_result(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """获取异步请求的结果（支持多进程）"""
+        logger.info(f"查询请求结果: {request_id}")
+        
+        # 首先检查本地futures（当前进程创建的任务）
+        if request_id in self.active_futures:
+            future = self.active_futures[request_id]
+            logger.info(f"找到本地future，是否完成: {future.done()}")
+            
+            if not future.done():
+                # 更新任务状态为运行中
+                self._save_task_state(request_id, {
+                    "status": "running",
+                    "completed": False,
+                    "created_time": time.time()
+                })
+                return {
+                    "status": "running",
+                    "completed": False
+                }
+            
+            try:
+                result = future.result()
+                logger.info(f"获取到本地结果: {type(result)}")
+                
+                # 保存结果到文件系统
+                task_state = {
+                    "status": "completed",
+                    "completed": True,
+                    "result": result,
+                    "created_time": time.time()
+                }
+                self._save_task_state(request_id, task_state)
+                
+                # 延迟清理本地future
+                if not hasattr(future, '_result_retrieved'):
+                    future._result_retrieved = True
+                    threading.Timer(30.0, lambda: self.active_futures.pop(request_id, None)).start()
+                
+                return {
+                    "status": "completed",
+                    "completed": True,
+                    "result": result
+                }
+            except Exception as e:
+                logger.error(f"获取本地异步结果时出错: {str(e)}")
+                error_state = {
+                    "status": "error",
+                    "completed": True,
+                    "error": str(e),
+                    "created_time": time.time()
+                }
+                self._save_task_state(request_id, error_state)
+                self.active_futures.pop(request_id, None)
+                return error_state
+        
+        # 检查文件系统中的任务状态（其他进程创建的任务）
+        task_state = self._load_task_state(request_id)
+        if task_state:
+            logger.info(f"从文件系统找到任务状态: {task_state.get('status')}")
+            return task_state
+        
+        # 任务不存在
+        logger.warning(f"请求ID {request_id} 不存在")
+        return None
     
     def _prepare_messages(self, tools_results: Dict[str, Any], user_query: str) -> List[Dict[str, str]]:
         """

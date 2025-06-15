@@ -183,6 +183,7 @@ def init_user_system(app):
         'max_overflow': 40,  # 超过pool_size后，最多可以创建的额外连接数
         'pool_timeout': 30,  # 等待池中连接的超时时间（秒）
         'pool_recycle': 1800,  # 连接在池中的最大生存时间（秒）
+        'pool_pre_ping': True,  # 在使用连接前检查连接有效性，自动重连断开的连接
     }
     # SECRET_KEY 已在 app.py 中加载，这里不再重复设置
     # app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_please_change_in_production')

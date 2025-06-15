@@ -1,5 +1,5 @@
 Flask==2.3.3
-Flask-SQLAlchemy==3.1.1
+Flask-SQLAlchemy==3.0.5
 Flask-Cors==4.0.0
 Flask-Mail==0.9.1
 python-dotenv==1.0.0
@@ -10,8 +10,8 @@ beautifulsoup4==4.12.2
 Pillow==10.0.1
 gunicorn==21.2.0
 python-dateutil==2.8.2
-SQLAlchemy==2.0.21
-PyMySQL==1.1.0        # MySQL数据库连接器
+SQLAlchemy==1.4.53
+PyMySQL==1.0.3        # MySQL数据库连接器
 # 添加的生产环境依赖
 supervisor==4.2.5     # 进程管理
 gevent==24.2.1        # 用于Gunicorn的异步工作方式

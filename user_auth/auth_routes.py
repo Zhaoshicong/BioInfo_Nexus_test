@@ -13,6 +13,7 @@ import logging
 import random
 import string
 import time
+from sqlalchemy.exc import OperationalError, DisconnectionError
 
 # 创建logger
 logger = logging.getLogger(__name__)
@@ -26,6 +27,83 @@ mail = Mail()
 # 生成随机验证码
 def generate_verification_code(length=6):
     return ''.join(random.choice(string.digits) for _ in range(length))
+
+# 数据库查询重试装饰器
+def db_retry(max_retries=3, delay=0.1):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (OperationalError, DisconnectionError, AttributeError) as e:
+                    if attempt == max_retries - 1:
+                        logger.error(f"数据库操作失败，已重试{max_retries}次: {str(e)}")
+                        raise e
+                    logger.warning(f"数据库操作失败，第{attempt + 1}次重试: {str(e)}")
+                    time.sleep(delay * (2 ** attempt))  # 指数退避
+                    # 尝试重新连接数据库
+                    try:
+                        db.session.rollback()
+                        db.session.close()
+                    except:
+                        pass
+                except Exception as e:
+                    logger.error(f"数据库操作出现非连接错误: {str(e)}")
+                    raise e
+            return None
+        return wrapper
+    return decorator
+
+# 安全的数据库查询函数
+@db_retry()
+def safe_user_query(email=None, username=None, **kwargs):
+    """安全的用户查询函数，带重试机制"""
+    if email:
+        return User.query.filter_by(email=email, **kwargs).first()
+    elif username:
+        return User.query.filter_by(username=username, **kwargs).first()
+    else:
+        return User.query.filter_by(**kwargs).first()
+
+# 获取真实客户端IP地址的函数
+def get_real_ip():
+    """获取客户端的真实IP地址，处理反向代理的情况"""
+    # 按优先级检查各种可能包含真实IP的HTTP头
+    headers_to_check = [
+        'X-Forwarded-For',      # 最常用的头，可能包含多个IP
+        'X-Real-IP',            # Nginx常用的头
+        'X-Client-IP',          # 一些代理使用
+        'CF-Connecting-IP',     # Cloudflare使用
+        'True-Client-IP',       # Akamai使用
+        'X-Cluster-Client-IP',  # 集群环境使用
+    ]
+    
+    for header in headers_to_check:
+        ip = request.headers.get(header)
+        if ip:
+            # X-Forwarded-For可能包含多个IP，用逗号分隔，第一个是真实客户端IP
+            if header == 'X-Forwarded-For':
+                ip = ip.split(',')[0].strip()
+            
+            # 验证IP地址格式
+            if is_valid_ip(ip):
+                return ip
+    
+    # 如果没有找到有效的代理头，返回直接连接的IP
+    return request.remote_addr or 'unknown'
+
+def is_valid_ip(ip):
+    """验证IP地址格式是否有效"""
+    try:
+        import ipaddress
+        # 尝试解析IP地址
+        ipaddress.ip_address(ip)
+        # 排除本地回环地址（除非是开发环境）
+        if ip.startswith('127.') or ip == '::1':
+            return False
+        return True
+    except ValueError:
+        return False
 
 # 注册路由
 # 验证密码强度的函数
@@ -68,34 +146,42 @@ def register():
         # 从邮箱中提取用户名（使用@前的部分）
         username = email.split('@')[0]
         
-        # 检查用户名是否已存在
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user and existing_user.is_active:
-            print(f"用户名已存在: {username}")
-            return jsonify({'message': '用户名已存在！'}), 409
-        
-        # 检查邮箱是否已存在且已激活
-        existing_email = User.query.filter_by(email=email, is_active=True).first()
-        if existing_email:
-            print(f"邮箱已被注册: {email}")
-            return jsonify({'message': '邮箱已被注册！'}), 409
-        
-        # 验证验证码
-        user_record = User.query.filter_by(email=email, verification_code=verification_code, is_active=False).first()
-        
-        print(f"查找用户记录: email={email}, verification_code={verification_code}, 结果: {user_record}")
-        
-        if not user_record:
-            # 检查是否存在临时记录
-            temp_user = User.query.filter_by(email=email, is_active=False).first()
-            if temp_user:
-                print(f"验证码错误: 用户临时记录存在 {temp_user.email}, 但验证码不匹配或为空")
-                # 验证码错误
-                return jsonify({'message': '验证码错误或已过期！'}), 400
+        # 安全地检查用户名是否已存在
+        try:
+            existing_user = safe_user_query(username=username)
+            if existing_user and existing_user.is_active:
+                print(f"用户名已存在: {username}")
+                return jsonify({'message': '用户名已存在！'}), 409
             
-            print(f"没有找到用户临时记录: {email}")
-            # 创建新的临时用户记录
-            return jsonify({'message': '请先获取验证码！'}), 400
+            # 检查邮箱是否已存在且已激活
+            existing_email = safe_user_query(email=email, is_active=True)
+            if existing_email:
+                print(f"邮箱已被注册: {email}")
+                return jsonify({'message': '邮箱已被注册！'}), 409
+        except Exception as e:
+            logger.error(f"用户查询失败: {str(e)}")
+            return jsonify({'message': '服务器暂时不可用，请稍后重试！'}), 503
+        
+        # 安全地验证验证码
+        try:
+            user_record = safe_user_query(email=email, verification_code=verification_code, is_active=False)
+            
+            print(f"查找用户记录: email={email}, verification_code={verification_code}, 结果: {user_record}")
+            
+            if not user_record:
+                # 检查是否存在临时记录
+                temp_user = safe_user_query(email=email, is_active=False)
+                if temp_user:
+                    print(f"验证码错误: 用户临时记录存在 {temp_user.email}, 但验证码不匹配或为空")
+                    # 验证码错误
+                    return jsonify({'message': '验证码错误或已过期！'}), 400
+                
+                print(f"没有找到用户临时记录: {email}")
+                # 创建新的临时用户记录
+                return jsonify({'message': '请先获取验证码！'}), 400
+        except Exception as e:
+            logger.error(f"验证码查询失败: {str(e)}")
+            return jsonify({'message': '服务器暂时不可用，请稍后重试！'}), 503
         
         # 验证验证码是否过期
         if user_record.verification_code_expiry and user_record.verification_code_expiry < datetime.datetime.utcnow():
@@ -176,11 +262,15 @@ def send_register_code():
             print(f"邮箱格式无效: {email}")
             return jsonify({'message': '邮箱格式无效！'}), 400
         
-        # 检查邮箱是否已注册且已激活
-        active_user = User.query.filter_by(email=email, is_active=True).first()
-        if active_user:
-            print(f"邮箱已被注册且已激活: {email}")
-            return jsonify({'message': '该邮箱已被注册！'}), 409
+        # 安全地检查邮箱是否已注册且已激活
+        try:
+            active_user = safe_user_query(email=email, is_active=True)
+            if active_user:
+                print(f"邮箱已被注册且已激活: {email}")
+                return jsonify({'message': '该邮箱已被注册！'}), 409
+        except Exception as e:
+            logger.error(f"用户查询失败: {str(e)}")
+            return jsonify({'message': '服务器暂时不可用，请稍后重试！'}), 503
         
         # 生成验证码
         verification_code = generate_verification_code()
@@ -189,8 +279,12 @@ def send_register_code():
         # 设置验证码过期时间（10分钟）
         expiry_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
         
-        # 检查是否已存在未激活的用户记录
-        temp_user = User.query.filter_by(email=email, is_active=False).first()
+        # 安全地检查是否已存在未激活的用户记录
+        try:
+            temp_user = safe_user_query(email=email, is_active=False)
+        except Exception as e:
+            logger.error(f"临时用户查询失败: {str(e)}")
+            return jsonify({'message': '服务器暂时不可用，请稍后重试！'}), 503
         
         if temp_user:
             print(f"更新现有临时用户记录: {email}")
@@ -516,12 +610,16 @@ def login():
     if not data.get('password'):
         return jsonify({'message': '请提供密码！'}), 400
     
-    # 查找用户（支持使用邮箱登录）
-    user = User.query.filter_by(email=username_or_email).first()
-    
-    # 如果没找到，尝试使用用户名查找
-    if not user:
-        user = User.query.filter_by(username=username_or_email).first()
+    # 安全地查找用户（支持使用邮箱登录）
+    try:
+        user = safe_user_query(email=username_or_email)
+        
+        # 如果没找到，尝试使用用户名查找
+        if not user:
+            user = safe_user_query(username=username_or_email)
+    except Exception as e:
+        logger.error(f"用户查询失败: {str(e)}")
+        return jsonify({'message': '服务器暂时不可用，请稍后重试！'}), 503
     
     if not user:
         return jsonify({'message': '邮箱/用户名或密码错误！'}), 401
@@ -536,19 +634,32 @@ def login():
     
     # 验证密码
     if check_password_hash(user.password, data['password']):
-        # 更新最后登录时间
-        user.last_login = datetime.datetime.utcnow()
-        
-        # 记录登录行为
-        from user_auth.user_system import LoginRecord
-        login_record = LoginRecord(
-            user_id=user.id,
-            login_time=datetime.datetime.utcnow(),
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent', '')[:500]  # 限制长度
-        )
-        db.session.add(login_record)
-        db.session.commit()
+        # 安全地更新最后登录时间和记录登录行为
+        try:
+            # 使用原始SQL更新last_login，避免并发问题
+            from sqlalchemy import text
+            db.session.execute(
+                text("UPDATE users SET last_login = :login_time WHERE id = :user_id"),
+                {"login_time": datetime.datetime.utcnow(), "user_id": user.id}
+            )
+            
+            # 记录登录行为
+            from user_auth.user_system import LoginRecord
+            real_ip = get_real_ip()
+            login_record = LoginRecord(
+                user_id=user.id,
+                login_time=datetime.datetime.utcnow(),
+                ip_address=real_ip,
+                user_agent=request.headers.get('User-Agent', '')[:500]  # 限制长度
+            )
+            db.session.add(login_record)
+            db.session.commit()
+            
+        except Exception as e:
+            # 如果数据库操作失败，回滚事务但不影响登录
+            db.session.rollback()
+            print(f"登录记录更新失败: {str(e)}")
+            # 继续执行登录流程，不因为记录更新失败而阻止用户登录
         
         # 生成JWT令牌
         token_payload = {
@@ -592,10 +703,15 @@ def logout(current_user):
     if auth_header and auth_header.startswith('Bearer '):
         token = auth_header.split(' ')[1]
         
-        # 将令牌加入黑名单
-        blacklist_token = TokenBlacklist(token=token)
-        db.session.add(blacklist_token)
-        db.session.commit()
+        try:
+            # 将令牌加入黑名单
+            blacklist_token = TokenBlacklist(token=token)
+            db.session.add(blacklist_token)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"令牌黑名单添加失败: {str(e)}")
+            # 即使黑名单添加失败，也返回成功，因为令牌会自然过期
         
         return jsonify({'message': '注销成功！'}), 200
     
@@ -636,9 +752,13 @@ def update_user_info(current_user):
     if data.get('password'):
         current_user.password = generate_password_hash(data['password'])
     
-    db.session.commit()
-    
-    return jsonify({'message': '用户信息更新成功！'}), 200
+    try:
+        db.session.commit()
+        return jsonify({'message': '用户信息更新成功！'}), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"用户信息更新失败: {str(e)}")
+        return jsonify({'message': '用户信息更新失败，请稍后重试！'}), 500
 
 # 辅助函数：检查文件类型是否允许
 def allowed_file(filename):

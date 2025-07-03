@@ -319,7 +319,21 @@ def get_daily_logins():
                 
             # 使用登录记录表统计每日独立登录用户数
             current_month_start = datetime(today.year, today.month, 1)
-            current_month_end = datetime(today.year, today.month, current_day + 1) if current_day < 31 else datetime(today.year, today.month + 1, 1) if today.month < 12 else datetime(today.year + 1, 1, 1)
+            
+            # 安全计算月末时间
+            import calendar
+            # 获取当前月份的最大天数
+            max_day_in_month = calendar.monthrange(today.year, today.month)[1]
+            
+            if current_day < max_day_in_month:
+                # 如果不是月末，使用当前日期+1
+                current_month_end = datetime(today.year, today.month, current_day + 1)
+            else:
+                # 如果是月末，使用下个月的第一天
+                if today.month < 12:
+                    current_month_end = datetime(today.year, today.month + 1, 1)
+                else:
+                    current_month_end = datetime(today.year + 1, 1, 1)
             
             # 查询本月的登录记录，按日期和用户ID分组，统计每日独立登录用户数
             daily_login_counts = db.session.query(

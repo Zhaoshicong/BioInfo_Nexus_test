@@ -324,12 +324,18 @@ def get_stats(user):
         # 获取今日注册用户数
         today_users = User.query.filter(User.created_at >= today_start).count()
         
+        # 获取不同会员等级的用户数量
+        plus_members = User.query.filter_by(membership_level='plus').count()
+        premium_members = User.query.filter_by(membership_level='premium').count()
+        
         # 使用SQL结果构建响应
         stats = {
             'user_count': sql_user_count,
             'admin_count': sql_admin_count,
             'active_today': login_today,
-            'today_users': today_users
+            'today_users': today_users,
+            'plus_members': plus_members,
+            'premium_members': premium_members
         }
         
         #logging.info(f"返回统计数据: {stats}")

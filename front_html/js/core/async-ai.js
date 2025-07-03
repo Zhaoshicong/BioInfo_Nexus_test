@@ -187,8 +187,8 @@ class AsyncAIHandler {
             let sequence = '';
             if (request.toolResults && typeof request.toolResults === 'object') {
                 for (const toolResult of Object.values(request.toolResults)) {
-                    if (toolResult && toolResult.sequence) {
-                        sequence = toolResult.sequence;
+                    if (toolResult && (toolResult.sequence || toolResult.original_sequence)) {
+                        sequence = toolResult.sequence || toolResult.original_sequence;
                         break;
                     }
                 }

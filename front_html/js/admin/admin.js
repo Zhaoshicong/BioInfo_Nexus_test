@@ -150,6 +150,8 @@ function loadDashboardData() {
         
         document.getElementById('total-users').textContent = data.user_count || '0';
         document.getElementById('admin-count').textContent = data.admin_count || '0';
+        document.getElementById('plus-members').textContent = data.plus_members || '0';
+        document.getElementById('premium-members').textContent = data.premium_members || '0';
         document.getElementById('active-today').textContent = data.active_today || '0';
         document.getElementById('reg-today').textContent = data.today_users || '0';
     })

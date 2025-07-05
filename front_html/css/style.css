@@ -2084,7 +2084,6 @@ section {
     border-color: rgba(255, 255, 255, 0.5);
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
     .cookie-content {
         flex-direction: column;
@@ -2110,4 +2109,211 @@ section {
         flex: 1;
         max-width: 120px;
     }
+}
+
+/* 会员卡片样式 - 模仿cursor风格 */
+.pricing-section {
+    background: #fafafa;
+    padding: 80px 0;
+    border-top: 1px solid #e5e5e5;
+}
+
+.pricing-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    text-align: center;
+}
+
+.pricing-subtitle {
+    font-size: 18px;
+    color: #666;
+    margin-bottom: 50px;
+    font-weight: 400;
+}
+
+.pricing-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.pricing-card {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    padding: 32px 24px;
+    position: relative;
+    transition: all 0.2s ease;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.pricing-card:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.pricing-card:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.pricing-card:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pricing-card:hover {
+    border-color: #3498db;
+    box-shadow: 0 4px 20px rgba(52, 152, 219, 0.1);
+}
+
+.pricing-card.popular {
+    border-color: #3498db;
+    box-shadow: 0 4px 20px rgba(52, 152, 219, 0.15);
+    transform: scale(1.05);
+}
+
+.pricing-card.popular:hover {
+    transform: scale(1.05);
+}
+
+.badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #3498db;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.pricing-card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 16px;
+}
+
+.price {
+    margin-bottom: 32px;
+}
+
+.price .amount {
+    font-size: 48px;
+    font-weight: 700;
+    color: #333;
+    line-height: 1;
+}
+
+.price .period {
+    font-size: 14px;
+    color: #666;
+    font-weight: 400;
+    margin-left: 4px;
+}
+
+.features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 32px 0;
+    text-align: left;
+}
+
+.features li {
+    padding: 8px 0;
+    color: #555;
+    font-size: 14px;
+    position: relative;
+    padding-left: 20px;
+}
+
+.features li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #3498db;
+    font-weight: 600;
+}
+
+.pricing-btn {
+    width: 100%;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pricing-btn.current {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.pricing-btn.primary {
+    background: #3498db;
+    color: white;
+}
+
+.pricing-btn.primary:hover {
+    background: #2980b9;
+}
+
+/* 会员卡片响应式设计 */
+@media (max-width: 768px) {
+    .pricing-section {
+        padding: 60px 0;
+    }
+    
+    .pricing-cards {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .pricing-card.popular {
+        transform: none;
+    }
+    
+    .pricing-card.popular:hover {
+        transform: none;
+    }
+    
+    .price .amount {
+        font-size: 36px;
+    }
+    
+    .pricing-card {
+        padding: 24px 20px;
+    }
+}
+
+/* 添加平滑滚动 */
+html {
+    scroll-behavior: smooth;
+}
+
+/* 修复动画与放大效果的冲突 */
+.pricing-card.popular {
+    opacity: 1;
+    transform: scale(1.05);
+    animation: none;
+}
+
+.pricing-card.popular:hover {
+    opacity: 1;
+    transform: scale(1.05);
 }

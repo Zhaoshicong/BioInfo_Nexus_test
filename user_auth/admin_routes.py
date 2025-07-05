@@ -635,7 +635,7 @@ def admin_login_api():
             return jsonify({'message': '您没有管理员权限', 'success': False}), 403
         
         # 更新最后登录时间
-        user.last_login = datetime.now()
+        user.last_login = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
         db.session.commit()
         
         # 创建令牌

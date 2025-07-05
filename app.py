@@ -252,9 +252,10 @@ def delete_temp_file():
 # 健康检查端点
 @app.route('/health')
 def health_check():
+    beijing_time = datetime.now() + timedelta(hours=8)
     return jsonify({
         'status': 'healthy',
-        'timestamp': datetime.now().isoformat()
+        'timestamp': beijing_time.isoformat()
     })
 
 # 公开的用户统计API
@@ -268,8 +269,9 @@ def get_public_stats():
         # 获取活跃用户数
         active_users = User.query.filter_by(is_active=True).count()
         
-        # 获取今日注册用户数
-        today = datetime.now().date()
+        # 获取今日注册用户数（北京时间）
+        beijing_time = datetime.now() + timedelta(hours=8)
+        today = beijing_time.date()
         today_start = datetime.combine(today, datetime.time.min)
         today_end = datetime.combine(today, datetime.time.max)
         today_users = User.query.filter(
@@ -414,7 +416,8 @@ def analyze_protparam(current_user):
             
         # --- 确认添加 success 标志 --- 
         result['success'] = True 
-        result['timestamp'] = datetime.now().isoformat()
+        beijing_time = datetime.now() + timedelta(hours=8)
+        result['timestamp'] = beijing_time.isoformat()
         
         # 返回成功结果 (包含 success: True)
         return jsonify(result)
@@ -755,12 +758,13 @@ def analyze_signalp(current_user):
                 
                 logger.info(f"成功处理JobID {jobid} 的结果，包含图像: {image_url}")
                 
+                beijing_time = datetime.now() + timedelta(hours=8)
                 response_data = {
                     'success': True,
                     'sequence': sequence,
                     'image': image_url,
                     'result_text': result_text,
-                    'timestamp': datetime.now().isoformat()
+                    'timestamp': beijing_time.isoformat()
                 }
                 
                 return jsonify(response_data)
@@ -769,11 +773,12 @@ def analyze_signalp(current_user):
                 # 只返回文本结果
                 logger.info(f"成功处理JobID {jobid} 的结果，无图像")
                 
+                beijing_time = datetime.now() + timedelta(hours=8)
                 response_data = {
                     'success': True,
                     'sequence': sequence,
                     'result_text': result_text,
-                    'timestamp': datetime.now().isoformat()
+                    'timestamp': beijing_time.isoformat()
                 }
                 
                 return jsonify(response_data)
@@ -826,13 +831,14 @@ def analyze_vaxijen(current_user):
     # 判断是否为抗原
     is_antigen = result.lower() == 'antigen' or 'antigen' in result.lower()
     
+    beijing_time = datetime.now() + timedelta(hours=8)
     response_data = {
         'success': True,
         'sequence': sequence,
         'result': result,
         'score': probability,
         'is_antigen': is_antigen,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': beijing_time.isoformat()
     }
     
     return jsonify(response_data)

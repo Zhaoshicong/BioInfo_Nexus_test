@@ -184,7 +184,8 @@ def register():
             return jsonify({'message': '服务器暂时不可用，请稍后重试！'}), 503
         
         # 验证验证码是否过期
-        if user_record.verification_code_expiry and user_record.verification_code_expiry < datetime.datetime.utcnow():
+        beijing_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+        if user_record.verification_code_expiry and user_record.verification_code_expiry < beijing_time:
             print(f"验证码已过期: {email}, 过期时间: {user_record.verification_code_expiry}")
             return jsonify({'message': '验证码已过期，请重新获取！'}), 400
         
@@ -277,7 +278,7 @@ def send_register_code():
         print(f"为 {email} 生成验证码: {verification_code}")
         
         # 设置验证码过期时间（10分钟）
-        expiry_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+        expiry_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8, minutes=10)
         
         # 安全地检查是否已存在未激活的用户记录
         try:
@@ -479,7 +480,7 @@ def forgot_password():
     
     # 设置验证码过期时间（10分钟）
     user.reset_code = reset_code
-    user.reset_token_expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+    user.reset_token_expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=8, minutes=10)
     
     try:
         db.session.commit()
@@ -522,7 +523,8 @@ def reset_password_with_code():
         return jsonify({'message': '验证码错误！'}), 400
     
     # 检查验证码是否过期
-    if user.reset_token_expiry and user.reset_token_expiry < datetime.datetime.utcnow():
+    beijing_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    if user.reset_token_expiry and user.reset_token_expiry < beijing_time:
         return jsonify({'message': '验证码已过期，请重新获取！'}), 400
     
     # 更新密码
@@ -638,9 +640,10 @@ def login():
         try:
             # 使用原始SQL更新last_login，避免并发问题
             from sqlalchemy import text
+            beijing_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
             db.session.execute(
                 text("UPDATE users SET last_login = :login_time WHERE id = :user_id"),
-                {"login_time": datetime.datetime.utcnow(), "user_id": user.id}
+                {"login_time": beijing_time, "user_id": user.id}
             )
             
             # 记录登录行为
@@ -648,7 +651,7 @@ def login():
             real_ip = get_real_ip()
             login_record = LoginRecord(
                 user_id=user.id,
-                login_time=datetime.datetime.utcnow(),
+                login_time=beijing_time,
                 ip_address=real_ip,
                 user_agent=request.headers.get('User-Agent', '')[:500]  # 限制长度
             )
@@ -665,7 +668,7 @@ def login():
         token_payload = {
             'sub': str(user.id),  # 添加sub字段为用户ID字符串
             'public_id': user.public_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 统一设置为7天
+            'exp': beijing_time + datetime.timedelta(days=7)  # 统一设置为7天
         }
         
         # 获取 SECRET_KEY 并确保它是字符串类型

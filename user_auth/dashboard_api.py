@@ -129,8 +129,9 @@ def get_user_growth():
     try:
         range_param = request.args.get('range', 'month')  # 默认月视图
 
-        # 获取当前日期
-        today = datetime.now().date()
+        # 获取当前日期（北京时间）
+        beijing_time = datetime.now() + timedelta(hours=8)
+        today = beijing_time.date()
 
         if range_param == 'year':
             # 年度视图 - 按月统计
@@ -256,8 +257,9 @@ def get_daily_logins():
         
         range_param = request.args.get('range', 'month')  # 默认月视图
 
-        # 获取当前日期
-        today = datetime.now().date()
+        # 获取当前日期（北京时间）
+        beijing_time = datetime.now() + timedelta(hours=8)
+        today = beijing_time.date()
 
         if range_param == 'year':
             # 年度视图 - 按月统计

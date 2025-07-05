@@ -30,7 +30,7 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(256), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.datetime.utcnow() + datetime.timedelta(hours=8))
     last_login = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=False)  # 默认为False，需要邮箱验证
     is_admin = db.Column(db.Boolean, default=False)
@@ -70,7 +70,7 @@ class User(db.Model):
             return True
         if self.membership_level == MembershipLevel.FREE.value:
             return True  # 免费用户始终"有效"
-        if self.membership_expiry and self.membership_expiry > datetime.datetime.utcnow():
+        if self.membership_expiry and self.membership_expiry > datetime.datetime.utcnow() + datetime.timedelta(hours=8):
             return True
         return False
     
@@ -97,7 +97,7 @@ class TokenBlacklist(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(500), unique=True, nullable=False)
-    blacklisted_on = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    blacklisted_on = db.Column(db.DateTime, default=lambda: datetime.datetime.utcnow() + datetime.timedelta(hours=8))
     
     def __repr__(self):
         return f'<TokenBlacklist {self.id}>'
@@ -108,7 +108,7 @@ class LoginRecord(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    login_time = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    login_time = db.Column(db.DateTime, default=lambda: datetime.datetime.utcnow() + datetime.timedelta(hours=8), nullable=False)
     ip_address = db.Column(db.String(45), nullable=True)  # 支持IPv6
     user_agent = db.Column(db.String(500), nullable=True)
     
@@ -134,7 +134,7 @@ class AIUsageRecord(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    usage_date = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    usage_date = db.Column(db.DateTime, default=lambda: datetime.datetime.utcnow() + datetime.timedelta(hours=8), nullable=False)
     tool_name = db.Column(db.String(100), nullable=True)  # 使用的工具名称（可选）
     sequence_length = db.Column(db.Integer, nullable=True)  # 序列长度（可选）
     

@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupFeatureTooltips();
     setupPasswordStrengthValidator();
     setupAgreementLinks();
+    setupPricingButtons();
     
     // 检查URL参数，如果有重置密码的token，则显示重置密码模态框
     checkResetPasswordToken();
@@ -1447,6 +1448,40 @@ function setContextText() {
     if (contextElement) {
         contextElement.textContent = '进入生物信息学数据分析和AI辅助研究平台，探索前沿科学工具。';
     }
+}
+
+// 设置会员卡片按钮事件
+function setupPricingButtons() {
+    const pricingButtons = document.querySelectorAll('.pricing-btn.primary');
+    
+    pricingButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const card = this.closest('.pricing-card');
+            const planName = card.querySelector('h3').textContent;
+            
+            // 检查用户是否已登录
+            const token = cookieUtils.getCookie('auth_token');
+            
+            if (!token) {
+                // 未登录，显示登录模态窗口
+                const modal = document.getElementById('loginModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    modal.classList.add('show');
+                }
+                showToast('请先登录以升级会员', 'info');
+                return;
+            }
+            
+            // 已登录，显示升级提示
+            showToast(`正在处理 ${planName} 升级...`, 'info');
+            
+            // 这里可以添加实际的升级逻辑
+            setTimeout(() => {
+                showToast('升级功能正在开发中，敬请期待！', 'info');
+            }, 1000);
+        });
+    });
 }
 
 

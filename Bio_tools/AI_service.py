@@ -435,23 +435,23 @@ class AIService:
         
         # 首先检查本地futures（当前进程创建的任务）
         if request_id in self.active_futures:
-            future = self.active_futures[request_id]
+        future = self.active_futures[request_id]
             logger.info(f"找到本地future，是否完成: {future.done()}")
-            
-            if not future.done():
+        
+        if not future.done():
                 # 更新任务状态为运行中
                 self._save_task_state(request_id, {
                     "status": "running",
                     "completed": False,
                     "created_time": time.time()
                 })
-                return {
-                    "status": "running",
-                    "completed": False
-                }
-            
-            try:
-                result = future.result()
+            return {
+                "status": "running",
+                "completed": False
+            }
+        
+        try:
+            result = future.result()
                 logger.info(f"获取到本地结果: {type(result)}")
                 
                 # 保存结果到文件系统
@@ -467,20 +467,20 @@ class AIService:
                 if not hasattr(future, '_result_retrieved'):
                     future._result_retrieved = True
                     threading.Timer(30.0, lambda: self.active_futures.pop(request_id, None)).start()
-                
-                return {
-                    "status": "completed",
-                    "completed": True,
-                    "result": result
-                }
-            except Exception as e:
+            
+            return {
+                "status": "completed",
+                "completed": True,
+                "result": result
+            }
+        except Exception as e:
                 logger.error(f"获取本地异步结果时出错: {str(e)}")
                 error_state = {
-                    "status": "error",
-                    "completed": True,
+                "status": "error", 
+                "completed": True,
                     "error": str(e),
                     "created_time": time.time()
-                }
+            }
                 self._save_task_state(request_id, error_state)
                 self.active_futures.pop(request_id, None)
                 return error_state
